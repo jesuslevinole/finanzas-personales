@@ -24,7 +24,7 @@ const NAV: NavItem[] = [
 const MOBILE_PRIMARY = NAV.slice(0, 4);
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, isGuest, linkGoogle, logout } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
   const linkClass = (base: string) => ({ isActive }: { isActive: boolean }) => `${base}${isActive ? ' active' : ''}`;
 
@@ -44,8 +44,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <span className="sidebar-user truncate">{user?.email}</span>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={logout}><LogOut size={14} /> Cerrar sesión</button>
+          <span className="sidebar-user truncate">{isGuest ? 'Sesión de invitado' : user?.email}</span>
+          {isGuest
+            ? <button type="button" className="btn btn-outline btn-sm" onClick={linkGoogle}>Vincular con Google</button>
+            : <button type="button" className="btn btn-ghost btn-sm" onClick={logout}><LogOut size={14} /> Cerrar sesión</button>}
         </div>
       </aside>
 

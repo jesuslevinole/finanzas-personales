@@ -19,7 +19,7 @@ export default function App() {
   const { user, loading } = useAuth();
   const { ready } = useData();
 
-  if (loading) return <div className="splash muted">Cargando…</div>;
+  if (loading) return <div className="splash muted">Entrando…</div>;
   if (!user) return <Login />;
   if (!ready) return <div className="splash muted">Sincronizando tus datos…</div>;
 

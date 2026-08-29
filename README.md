@@ -13,9 +13,11 @@ npm run dev
 El proyecto ya viene apuntando a Firebase `finanzas-personales-5b660` (`.env` y `.env.production` incluidos).
 
 Falta hacer una sola vez en Firebase Console:
-1. **Authentication → Sign-in method → Google**: habilitar.
+1. **Authentication → Sign-in method**: habilitar **Anónimo** (la app entra sola, sin pantalla de login) y, opcionalmente, **Google** para vincular la cuenta después.
 2. **Firestore Database**: crear la base en modo producción y pegar el contenido de `firestore.rules` en la pestaña Rules.
 3. **Authentication → Settings → Authorized domains**: agregar `localhost` y el dominio de Cloudflare (`tu-proyecto.pages.dev` y tu dominio propio si lo usas). Sin esto el login con Google falla en producción.
+
+La app abre directamente en el resumen con una sesión de invitado. Desde la barra lateral puedes **Vincular con Google** cuando quieras, y tus datos se conservan.
 
 Primer uso: entra en **Ajustes → Cargar rubros sugeridos** y en **Tasa BCV → Actualizar desde BCV**.
 
@@ -77,7 +79,7 @@ NODE_VERSION=20
 ```
 
 Notas:
-- `public/_redirects` (`/* /index.html 200`) ya está incluido: sin él, recargar en `/reportes` da 404 porque React Router maneja las rutas en el cliente.
+- El manejo de rutas SPA va en `wrangler.jsonc` (`not_found_handling: "single-page-application"`). NO uses `public/_redirects` con `/* /index.html 200`: en Workers Assets el deploy falla con "Infinite loop detected in this rule".
 - `.env.production` se versiona a propósito, así el build funciona aunque olvides cargar las variables en el panel. Si prefieres no versionarlo, bórralo y deja solo las variables del panel.
 - Tras el primer deploy, agrega el dominio `*.pages.dev` a los dominios autorizados de Firebase Authentication.
 

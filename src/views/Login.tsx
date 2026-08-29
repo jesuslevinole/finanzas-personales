@@ -1,7 +1,8 @@
 import { useAuth } from '../hooks/useAuth';
 
+/** Solo aparece si el acceso automático falló (proveedor anónimo deshabilitado, red, etc.). */
 export default function Login() {
-  const { login } = useAuth();
+  const { login, error } = useAuth();
   return (
     <div className="splash">
       <div className="card login-card">
@@ -12,7 +13,8 @@ export default function Login() {
             <div className="brand-tagline">Tus finanzas contra la inflación</div>
           </div>
         </div>
-        <p className="muted small">Registra en bolívares, piensa en dólares. Cada movimiento se guarda con la tasa BCV del día para que la inflación no te oculte cuánto gastas de verdad.</p>
+        <p className="muted small">No se pudo entrar automáticamente. Habilita el proveedor <strong>Anónimo</strong> en Firebase Authentication, o entra con Google.</p>
+        {error && <p className="tiny text-danger">{error}</p>}
         <button type="button" className="btn btn-primary btn-block" onClick={login}>Entrar con Google</button>
       </div>
     </div>

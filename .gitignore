@@ -5,4 +5,3 @@ dist
 # .env.production SÍ se versiona: la config web de Firebase es pública y así
 # el build de Cloudflare funciona aunque no cargues variables en el panel.
 !.env.production
-*.tsbuildinfo
