@@ -1,0 +1,14 @@
+.tabs { display: inline-flex; gap: 2px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 2px; }
+.tab { border: none; background: transparent; padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: var(--text-sm); color: var(--color-muted); display: flex; gap: var(--space-2); }
+.tab.active { background: var(--color-primary-soft); color: var(--color-primary); }
+.tab:hover { color: var(--color-text); }
+
+.mov-list { margin-top: var(--space-3); }
+.mov-date { width: 48px; flex: none; }
+.mov-price { display: flex; gap: var(--space-1); }
+.mov-price .input { flex: 1; }
+.mov-cur { min-width: 48px; font-weight: 700; color: var(--color-bs); }
+.mov-cur.usd { color: var(--color-usd); }
+.mov-summary { display: flex; gap: var(--space-5); padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }
+.mov-summary dt { font-size: var(--text-xs); color: var(--color-muted); }
+.mov-summary dd { font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); }

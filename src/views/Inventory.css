@@ -1,0 +1,13 @@
+.inv-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-xl); }
+.inv-toolbar { margin-bottom: var(--space-3); }
+.btn-outline.active { background: var(--color-primary-soft); color: var(--color-primary); border-color: transparent; }
+.inv-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.inv-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface-2); }
+.inv-card.low { border-color: var(--color-warn); background: var(--color-warn-soft); }
+.inv-qty { display: flex; align-items: center; justify-content: center; gap: var(--space-3); }
+.inv-qty-value { font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); min-width: 70px; text-align: center; }
+.inv-meta { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-xs); }
+.inv-meta > div { display: flex; justify-content: space-between; gap: var(--space-2); }
+.inv-meta dt { color: var(--color-muted); }
+.inv-trend { display: flex; flex-direction: column; gap: 2px; }
+.inv-actions { justify-content: space-between; }

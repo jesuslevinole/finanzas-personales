@@ -1,0 +1,11 @@
+.settings-cat-form { display: grid; gap: var(--space-2); grid-template-columns: 1fr 1fr; align-items: center; }
+.settings-cat-form .btn { grid-column: span 2; }
+@media (min-width: 768px) {
+  .settings-cat-form { grid-template-columns: 2fr 1.2fr 1fr auto auto; }
+  .settings-cat-form .btn { grid-column: auto; }
+}
+.settings-colors { display: flex; gap: 6px; flex-wrap: wrap; }
+.settings-color { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; background: var(--swatch); padding: 0; }
+.settings-color.selected { border-color: var(--color-text); }
+.settings-group-select { width: 130px; min-height: 34px; }
+.settings-pct { width: 64px; min-height: 34px; }

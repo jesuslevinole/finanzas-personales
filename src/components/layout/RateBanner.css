@@ -1,0 +1,12 @@
+.rate-banner {
+  display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-sidebar); color: #fff;
+  font-size: var(--text-sm);
+}
+.rate-banner-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-sidebar-text); }
+.rate-banner-value { font-family: var(--font-display); font-weight: 800; font-size: var(--text-md); }
+.rate-banner-date { color: var(--color-sidebar-text); font-size: var(--text-xs); }
+@media (min-width: 768px) {
+  .rate-banner { position: sticky; top: 0; z-index: 10; padding-inline: var(--space-6); }
+}

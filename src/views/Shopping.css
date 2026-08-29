@@ -1,0 +1,10 @@
+.shop-form { display: flex; flex-direction: column; gap: var(--space-2); }
+.shop-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+@media (min-width: 768px) { .shop-form-row { grid-template-columns: 70px 80px 1fr 1fr; } }
+.shop-group { margin-top: var(--space-3); }
+.shop-group-title { font-size: var(--text-sm); margin-bottom: var(--space-1); }
+.shop-group-title.urgente { color: var(--color-danger); }
+.shop-group-title.normal { color: var(--color-primary); }
+.shop-group-title.cuando_se_pueda { color: var(--color-muted); }
+.shop-check { width: 20px; height: 20px; accent-color: var(--color-primary); flex: none; }
+.shop-done { opacity: 0.55; text-decoration: line-through; }

@@ -1,0 +1,22 @@
+.report-capacity { border-left: 4px solid var(--color-ok); }
+.report-capacity.alerta { border-left-color: var(--color-warn); }
+.report-capacity.critico { border-left-color: var(--color-danger); }
+.report-capacity-grid { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
+@media (min-width: 768px) { .report-capacity-grid { grid-template-columns: 1.4fr 1fr; } }
+.report-capacity-meter { display: flex; flex-direction: column; gap: var(--space-2); justify-content: center; padding: var(--space-4); border-radius: var(--radius); background: var(--color-surface-2); }
+.report-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); line-height: 1; }
+.report-kv { display: flex; flex-direction: column; gap: var(--space-2); }
+.report-kv > div { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--text-sm); }
+.report-kv dt { color: var(--color-muted); }
+.report-kv dd { font-weight: 700; white-space: nowrap; }
+.report-kv-main { padding-top: var(--space-2); border-top: 1px dashed var(--color-border); }
+.report-kv-main dt { color: var(--color-text); font-weight: 600; }
+.report-kv-main dd { color: var(--color-primary); font-size: var(--text-md); }
+.report-sep { border: none; border-top: 1px solid var(--color-border); margin: var(--space-3) 0; }
+.report-tips { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+.report-tips li { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.report-tips li.ok { background: var(--color-ok-soft); color: var(--color-ok); }
+.report-tips li.warn { background: var(--color-warn-soft); color: var(--color-warn); }
+.report-tips li.danger { background: var(--color-danger-soft); color: var(--color-danger); }
+.report-history { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-1); margin-top: var(--space-2); }
+.report-history li { display: flex; flex-direction: column; align-items: center; text-align: center; }
