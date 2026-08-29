@@ -28,3 +28,8 @@
 .dash-cash-kv { align-self: center; }
 .dash-cash-total { padding-top: var(--space-2); border-top: 1px dashed var(--color-border); }
 @media (min-width: 768px) { .dash-cash { grid-template-columns: 1.2fr 1fr; } }
+
+.dash-balance-btn { border: none; background: transparent; padding: 0; font: inherit; font-weight: 700; color: var(--color-primary); text-decoration: underline; }
+.dash-balance-btn:disabled { color: var(--color-muted); text-decoration: none; }
+.dash-balance-edit { display: inline-flex; gap: var(--space-1); align-items: center; }
+.dash-balance-edit .input { width: 130px; min-height: 34px; }

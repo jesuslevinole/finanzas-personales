@@ -15,6 +15,7 @@ import type { FixedCost, NewDoc, PayStatus } from '../types';
 import { cycleOf, fixedCostDate, inCycle } from '../utils/cycle';
 import { formatUsd, sum } from '../utils/money';
 import { addMonths, shortDate, todayIso } from '../utils/dates';
+import { sequenceMap } from '../utils/sequence';
 import './FixedCosts.css';
 
 const STATUS_LABEL: Record<PayStatus, string> = { pendiente: 'Pendiente', en_proceso: 'En proceso', pagada: 'Pagada' };
@@ -55,7 +56,10 @@ export default function FixedCosts() {
     await Promise.all(prevCosts.map((f) => data.add<FixedCost>('fixedCosts', { description: f.description, amountUsd: f.amountUsd, month, dueDay: f.dueDay, status: 'pendiente' })));
   };
 
+  const seq = useMemo(() => sequenceMap(data.fixedCosts, (f) => `${f.month}-${String(f.dueDay).padStart(2, '0')}`), [data.fixedCosts]);
+
   const columns: Column<FixedCost>[] = [
+    { key: 'seq', header: '#', width: '54px', render: (f) => <span className="seq num">{seq.get(f.id)}</span> },
     { key: 'day', header: 'Día', width: '70px', render: (f) => <span className="fixed-day num">{String(f.dueDay).padStart(2, '0')}</span> },
     { key: 'description', header: 'Concepto', primary: true, render: (f) => <span className="truncate">{f.description}</span> },
     { key: 'status', header: 'Estado', width: '130px', render: (f) => <span className={`tag ${STATUS_TAG[f.status]}`}>{STATUS_LABEL[f.status]}</span> },

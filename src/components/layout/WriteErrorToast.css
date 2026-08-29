@@ -1,0 +1,9 @@
+.wtoast {
+  position: fixed; z-index: 60; left: var(--space-3); right: var(--space-3);
+  bottom: calc(var(--bottomnav-h) + var(--space-3) + env(safe-area-inset-bottom));
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-3); border-radius: var(--radius);
+  background: var(--color-danger-soft); color: var(--color-danger);
+  border: 1px solid var(--color-danger); box-shadow: var(--shadow-lg);
+}
+@media (min-width: 768px) { .wtoast { left: auto; right: var(--space-5); bottom: var(--space-5); max-width: 380px; } }

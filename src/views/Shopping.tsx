@@ -15,6 +15,7 @@ import { parseVoiceItem } from '../utils/voiceParse';
 import { getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, round2, sum, toUsd } from '../utils/money';
 import { todayIso } from '../utils/dates';
+import { sequenceMap } from '../utils/sequence';
 import './Shopping.css';
 
 const PRIORITY_LABEL: Record<ShoppingPriority, string> = { urgente: 'Urgente', normal: 'Normal', cuando_se_pueda: 'Cuando se pueda' };
@@ -205,7 +206,10 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
     });
   };
 
+  const seq = useMemo(() => sequenceMap(items, (i) => i.createdAt + i.name), [items]);
+
   const columns: Column<ShoppingItem>[] = [
+    { key: 'seq', header: '#', width: '46px', render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
     { key: 'check', header: '', width: '40px', render: (i) => (
       <input type="checkbox" className="shop-check" checked={i.checked} disabled={!editable} onChange={() => toggle(i)} aria-label={`En el carrito: ${i.name}`} onClick={(e) => e.stopPropagation()} />
     ) },

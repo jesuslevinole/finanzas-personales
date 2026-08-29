@@ -16,6 +16,7 @@ import { colorForIndex, getRelationColor, getRelationName } from '../utils/relat
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
 import Money from '../components/ui/Money';
 import { shortDate, todayIso } from '../utils/dates';
+import { sequenceMap } from '../utils/sequence';
 import './Inventory.css';
 
 
@@ -65,7 +66,10 @@ export default function Inventory() {
     return h.length >= 2 && h[0] > 0 ? h[h.length - 1] / h[0] - 1 : null;
   };
 
+  const seq = useMemo(() => sequenceMap(inventory, (i) => i.name.toLowerCase()), [inventory]);
+
   const columns: Column<InventoryItem>[] = [
+    { key: 'seq', header: '#', width: '54px', render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
     { key: 'name', header: 'Producto', primary: true, render: (i) => (
       <span className="row"><span className="dot" style={{ '--dot-color': getRelationColor(categories, i.categoryId) } as CSSProperties} /><span className="truncate">{i.name}</span></span>
     ) },

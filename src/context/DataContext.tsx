@@ -31,6 +31,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [settingsDocs, setSettingsDocs] = useState<UserSettings[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [writeError, setWriteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid) return;
@@ -64,18 +65,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!uid) throw new Error('No hay sesión activa');
       return uid;
     };
+    /** Envuelve una escritura para que un fallo de red se vea en pantalla. */
+    const guard = <R,>(op: () => Promise<R>): Promise<R> =>
+      op().catch((e: unknown) => {
+        const message = e instanceof Error ? e.message : 'No se pudo guardar.';
+        setWriteError(message);
+        throw e;
+      });
+
     return {
-      ready, error,
+      ready, error, writeError,
+      clearWriteError: () => setWriteError(null),
       rates, categories, places, creditors, incomeSources, incomes, expenses,
       fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settings, currentRate,
-      add: (name, data) => create(requireUid(), name, data),
-      addMany: (name, rows, onProgress) => createMany(requireUid(), name, rows, onProgress),
-      set: (name, id, data) => upsert(requireUid(), name, id, data),
-      update: (name, id, data) => patch(requireUid(), name, id, data),
-      del: (name, id) => remove(requireUid(), name, id),
-      delAll: (name) => removeAll(requireUid(), name),
+      add: (name, data) => guard(() => create(requireUid(), name, data)),
+      addMany: (name, rows, onProgress) => guard(() => createMany(requireUid(), name, rows, onProgress)),
+      set: (name, id, data) => guard(() => upsert(requireUid(), name, id, data)),
+      update: (name, id, data) => guard(() => patch(requireUid(), name, id, data)),
+      del: (name, id) => guard(() => remove(requireUid(), name, id)),
+      delAll: (name) => guard(() => removeAll(requireUid(), name)),
     };
-  }, [uid, ready, error, rates, categories, places, creditors, incomeSources, incomes, expenses, fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settingsDocs]);
+  }, [uid, ready, error, writeError, rates, categories, places, creditors, incomeSources, incomes, expenses, fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settingsDocs]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

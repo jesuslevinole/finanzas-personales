@@ -5,19 +5,37 @@ body.modal-open { overflow: hidden; }
   display: flex; align-items: flex-end; justify-content: center;
 }
 .modal {
-  width: 100%; max-height: 92dvh; overflow-y: auto;
+  width: 100%;
+  max-height: 92dvh;
+  display: flex; flex-direction: column;
   background: var(--color-surface);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: var(--shadow-lg);
   animation: modal-up 0.2s ease-out;
-  padding-bottom: env(safe-area-inset-bottom);
 }
 .modal-header {
   position: sticky; top: 0; background: var(--color-surface); z-index: 1;
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--space-4); border-bottom: 1px solid var(--color-border);
 }
-.modal-body { padding: var(--space-4); }
+.modal-body {
+  padding: var(--space-4);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* En móvil el botón de guardar queda siempre a la vista, pegado abajo. */
+@media (max-width: 767px) {
+  .modal-body .form-actions {
+    position: sticky; bottom: calc(env(safe-area-inset-bottom) * -1);
+    margin: var(--space-4) calc(var(--space-4) * -1) 0;
+    padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+  }
+  .modal-body .form-actions .btn { min-height: 48px; }
+}
 @keyframes modal-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 @media (min-width: 768px) {

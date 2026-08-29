@@ -9,6 +9,7 @@ import { MODULE_LABEL } from '../../utils/access';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import RateBanner from './RateBanner';
+import WriteErrorToast from './WriteErrorToast';
 
 interface NavItem { to: string; module: ModuleKey; icon: ReactNode; }
 interface NavGroup { label: string; items: NavItem[]; }
@@ -146,6 +147,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
+
+      <WriteErrorToast />
     </div>
   );
 }

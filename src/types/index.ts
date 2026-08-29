@@ -209,6 +209,10 @@ export interface UserSettings {
   savingsTargetPct: number;
   /** Personas en el hogar: cambia las referencias de gasto por cabeza. */
   householdSize: number;
+  /** Saldo declarado de la cuenta, en bolívares. Se actualiza a mano. */
+  balanceBs?: number;
+  /** Cuándo se actualizó ese saldo (YYYY-MM-DD). */
+  balanceUpdatedAt?: string;
   /** Reparto objetivo 50/30/20. */
   split: Record<BudgetGroup, number>;
 }

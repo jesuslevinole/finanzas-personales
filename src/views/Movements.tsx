@@ -17,6 +17,7 @@ import type { Expense, Income, MoneyOwner } from '../types';
 import { getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
 import { shortDate } from '../utils/dates';
+import { sequenceMap } from '../utils/sequence';
 import './Movements.css';
 
 type Tab = 'gastos' | 'ingresos';
@@ -86,7 +87,11 @@ export default function Movements() {
     setDetail(null);
   };
 
+  const expenseSeq = useMemo(() => sequenceMap(monthExpenses, (e) => e.date), [monthExpenses]);
+  const incomeSeq = useMemo(() => sequenceMap(monthIncomes, (i) => i.date), [monthIncomes]);
+
   const expenseColumns: Column<Expense>[] = [
+    { key: 'seq', header: '#', width: '54px', render: (e) => <span className="seq num">{expenseSeq.get(e.id)}</span> },
     { key: 'date', header: 'Fecha', width: '92px', render: (e) => <span className="muted">{shortDate(e.date)}</span> },
     { key: 'product', header: 'Producto', primary: true, render: (e) => (
       <span className="truncate">{e.product}{e.quantity !== 1 && <span className="tiny muted num"> × {e.quantity}</span>}</span>
@@ -100,6 +105,7 @@ export default function Movements() {
   ];
 
   const incomeColumns: Column<Income>[] = [
+    { key: 'seq', header: '#', width: '54px', render: (i) => <span className="seq num">{incomeSeq.get(i.id)}</span> },
     { key: 'date', header: 'Fecha', width: '92px', render: (i) => <span className="muted">{shortDate(i.date)}</span> },
     { key: 'source', header: 'Origen', primary: true, render: (i) => <span className="truncate">{getRelationName(data.incomeSources, i.sourceId, 'Sin origen')}</span> },
     { key: 'owner', header: 'Dinero', width: '110px', render: (i) => <span className={`tag ${i.owner === 'propio' ? 'ok' : ''}`}>{i.owner}</span> },

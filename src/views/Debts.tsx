@@ -16,6 +16,7 @@ import { colorForIndex, getRelationColor, getRelationName } from '../utils/relat
 import { cycleOf, inCycle } from '../utils/cycle';
 import { formatUsd, sum } from '../utils/money';
 import { daysBetween, shortDate, todayIso } from '../utils/dates';
+import { sequenceMap } from '../utils/sequence';
 import './Debts.css';
 
 const STATUS_LABEL: Record<PayStatus, string> = { pendiente: 'Pendiente', en_proceso: 'En proceso', pagada: 'Pagada' };
@@ -67,7 +68,10 @@ export default function Debts() {
     setDetail(null);
   };
 
+  const seq = useMemo(() => sequenceMap(data.debts, (d) => d.dueDate), [data.debts]);
+
   const columns: Column<Debt>[] = [
+    { key: 'seq', header: '#', width: '54px', render: (d) => <span className="seq num">{seq.get(d.id)}</span> },
     { key: 'due', header: 'Vence', width: '100px', render: (d) => {
       const days = daysBetween(today, d.dueDate);
       const late = d.status !== 'pagada' && days < 0;

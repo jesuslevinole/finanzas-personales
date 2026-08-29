@@ -9,6 +9,7 @@ import type { ExchangeRate } from '../types';
 import { inflationSummary } from '../utils/finance';
 import { formatBs, formatPct, formatUsd } from '../utils/money';
 import { shortDate, todayIso } from '../utils/dates';
+import { sequenceMap } from '../utils/sequence';
 import './Rates.css';
 
 export default function Rates() {
@@ -25,7 +26,10 @@ export default function Rates() {
   const last30 = [...rates].slice(0, 30).reverse();
   const summary = inflationSummary(last30);
 
+  const seq = sequenceMap(rates, (r) => r.date);
+
   const rateColumns: Column<ExchangeRate>[] = [
+    { key: 'seq', header: '#', width: '54px', render: (r) => <span className="seq num">{seq.get(r.id)}</span> },
     { key: 'date', header: 'Fecha', width: '110px', primary: true, render: (r) => shortDate(r.date) },
     { key: 'change', header: 'Variación', width: '120px', render: (r) => {
       const i = rates.findIndex((x) => x.id === r.id);

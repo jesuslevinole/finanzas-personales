@@ -5,7 +5,6 @@ import { initializeFirestore } from 'firebase/firestore';
 /**
  * La configuración web de Firebase no es un secreto (viaja al navegador), pero se
  * lee de variables de entorno para poder apuntar a otro proyecto sin tocar código.
- * En Cloudflare Pages se cargan en Settings → Environment variables.
  */
 const firebaseConfig: FirebaseOptions = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -25,7 +24,18 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-// `ignoreUndefinedProperties` evita que un campo opcional vacío (reference, note,
-// description…) rompa la escritura: Firestore rechaza `undefined` por defecto.
-export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+
+/**
+ * Firestore usa por defecto un canal WebChannel sobre QUIC/HTTP3. En redes
+ * venezolanas (y detrás de muchos proxys) ese canal se cae con
+ * `ERR_QUIC_PROTOCOL_ERROR` y las escrituras quedan colgadas sin error visible.
+ * `experimentalForceLongPolling` lo baja a peticiones HTTP normales: algo más
+ * lento, pero funciona donde el canal nativo no.
+ * `ignoreUndefinedProperties` evita que un campo opcional vacío rompa el guardado.
+ */
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  ignoreUndefinedProperties: true,
+});
+
 export const googleProvider = new GoogleAuthProvider();

@@ -314,4 +314,24 @@ textarea.input { min-height: 80px; padding: var(--space-2) var(--space-3); resiz
   .form-actions .btn { flex: 1; }
   .grid-3, .grid-4 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .page-header h1 { font-size: var(--text-lg); }
+
+  /* Objetivos táctiles: 44px es el mínimo cómodo con el pulgar y de pie. */
+  .input, .btn { min-height: 44px; }
+  .btn-icon { min-height: 40px; width: 40px; }
+  .btn-sm { min-height: 36px; }
+  .input { font-size: 16px; } /* evita el zoom automático de iOS al enfocar */
+  .page { gap: var(--space-3); }
+  .card { padding: var(--space-3); }
+  .tabs { width: 100%; }
+  .tab { flex: 1; justify-content: center; }
+  .row-between.wrap > .btn { width: 100%; }
 }
+
+/* Una sola columna en pantallas muy angostas */
+@media (max-width: 400px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+
+/* Numeración de tablas */
+.seq { color: var(--color-muted); font-size: var(--text-xs); font-weight: 700; }

@@ -13,6 +13,9 @@ export interface DataValue {
   ready: boolean;
   /** Mensaje de Firestore si la sincronización falló (reglas, red…). */
   error: string | null;
+  /** Último fallo de escritura, para avisar al usuario. */
+  writeError: string | null;
+  clearWriteError: () => void;
   rates: ExchangeRate[];
   categories: Category[];
   places: Place[];

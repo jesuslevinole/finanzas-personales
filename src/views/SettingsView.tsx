@@ -4,6 +4,7 @@ import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import type { BudgetGroup, UserSettings } from '../types';
 import { GROUP_LABEL } from '../utils/finance';
+import { todayIso } from '../utils/dates';
 import './SettingsView.css';
 
 const SETTINGS_DOC = 'main';
@@ -16,6 +17,7 @@ export default function SettingsView() {
   const [months, setMonths] = useState(String(settings.emergencyFundMonths));
   const [savings, setSavings] = useState(String(settings.savingsTargetPct));
   const [household, setHousehold] = useState(String(settings.householdSize));
+  const [balanceBs, setBalanceBs] = useState(settings.balanceBs !== undefined ? String(settings.balanceBs) : '');
   const [split, setSplit] = useState<Record<BudgetGroup, string>>({
     necesidad: String(settings.split.necesidad),
     deseo: String(settings.split.deseo),
@@ -33,6 +35,8 @@ export default function SettingsView() {
       emergencyFundMonths: Number(months) || 4,
       savingsTargetPct: Number(savings) || 15,
       householdSize: Number(household) || 1,
+      balanceBs: balanceBs === '' ? undefined : Number(balanceBs),
+      balanceUpdatedAt: balanceBs === '' ? undefined : todayIso(),
       split: { necesidad: Number(split.necesidad), deseo: Number(split.deseo), ahorro: Number(split.ahorro) },
     });
     setSaved(true);
@@ -60,6 +64,11 @@ export default function SettingsView() {
             <span className="field-label">Meta de ahorro mensual (%)</span>
             <input className="input num" type="number" min="0" max="80" value={savings} disabled={!editable} onChange={(e) => setSavings(e.target.value)} />
             <span className="field-hint">Del ingreso propio, apartado el día que cobras.</span>
+          </label>
+          <label className="field">
+            <span className="field-label">Saldo actual en la cuenta (Bs)</span>
+            <input className="input num" type="number" min="0" step="0.01" value={balanceBs} disabled={!editable} onChange={(e) => setBalanceBs(e.target.value)} />
+            <span className="field-hint">Se compara con lo que debes tener disponible, en el Resumen.</span>
           </label>
           <label className="field">
             <span className="field-label">Personas en el hogar</span>
