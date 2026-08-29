@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "finanzas-personales",
+  "compatibility_date": "2026-08-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./dist",
+    // Reemplaza a _redirects: cualquier ruta desconocida sirve index.html
+    // para que React Router maneje /reportes, /deudas, etc.
+    "not_found_handling": "single-page-application"
+  }
+}
