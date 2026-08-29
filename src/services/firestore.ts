@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -55,13 +56,17 @@ export const subscribe = <T extends WithId>(
   );
 };
 
+/** Quita claves con `undefined`: Firestore las rechaza al escribir. */
+const clean = <T extends object>(data: T): T =>
+  Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)) as T;
+
 export const create = async <T extends WithId>(uid: string, name: CollectionName, data: NewDoc<T>): Promise<string> => {
-  const ref = await addDoc(colRef(uid, name), data);
+  const ref = await addDoc(colRef(uid, name), clean(data));
   return ref.id;
 };
 
 export const upsert = async <T extends WithId>(uid: string, name: CollectionName, id: string, data: NewDoc<T>): Promise<void> => {
-  await setDoc(doc(colRef(uid, name), id), data, { merge: true });
+  await setDoc(doc(colRef(uid, name), id), clean(data), { merge: true });
 };
 
 export const patch = async <T extends WithId>(
@@ -70,7 +75,7 @@ export const patch = async <T extends WithId>(
   id: string,
   data: Partial<NewDoc<T>>,
 ): Promise<void> => {
-  await updateDoc(doc(colRef(uid, name), id), data);
+  await updateDoc(doc(colRef(uid, name), id), clean(data));
 };
 
 export const remove = async (uid: string, name: CollectionName, id: string): Promise<void> => {
@@ -88,10 +93,21 @@ export const createMany = async <T extends WithId>(
   for (let i = 0; i < rows.length; i += 400) {
     const chunk = rows.slice(i, i + 400);
     const batch = writeBatch(db);
-    chunk.forEach((row) => batch.set(doc(colRef(uid, name)), row));
+    chunk.forEach((row) => batch.set(doc(colRef(uid, name)), clean(row)));
     await batch.commit();
     done += chunk.length;
     onProgress?.(done, rows.length);
   }
   return done;
+};
+
+/** Borra todos los documentos de una colección. Solo se usa desde «Vaciar datos». */
+export const removeAll = async (uid: string, name: CollectionName): Promise<number> => {
+  const snap = await getDocs(colRef(uid, name));
+  for (let i = 0; i < snap.docs.length; i += 400) {
+    const batch = writeBatch(db);
+    snap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  return snap.docs.length;
 };

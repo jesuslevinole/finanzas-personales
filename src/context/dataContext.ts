@@ -35,6 +35,8 @@ export interface DataValue {
   set: <T extends WithId>(name: CollectionName, id: string, data: NewDoc<T>) => Promise<void>;
   update: <T extends WithId>(name: CollectionName, id: string, data: Partial<NewDoc<T>>) => Promise<void>;
   del: (name: CollectionName, id: string) => Promise<void>;
+  /** Vacía una colección entera. Solo desde «Vaciar datos» en Importar. */
+  delAll: (name: CollectionName) => Promise<number>;
 }
 
 export const DataContext = createContext<DataValue | null>(null);

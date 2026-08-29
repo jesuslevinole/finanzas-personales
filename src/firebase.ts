@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 /**
  * La configuración web de Firebase no es un secreto (viaja al navegador), pero se
@@ -25,5 +25,7 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// `ignoreUndefinedProperties` evita que un campo opcional vacío (reference, note,
+// description…) rompa la escritura: Firestore rechaza `undefined` por defecto.
+export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
 export const googleProvider = new GoogleAuthProvider();

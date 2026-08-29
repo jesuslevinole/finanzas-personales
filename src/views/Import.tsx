@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent } from 'react';
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Upload } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, Trash2, Upload } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import type { Category, Creditor, Debt, ExchangeRate, Expense, FixedCost, Income, IncomeSource, NewDoc, Place, ShoppingItem } from '../types';
@@ -27,6 +27,8 @@ export default function Import() {
   const [selection, setSelection] = useState<Selection>({ rates: true, incomes: true, expenses: true, fixedCosts: true, debts: true, shopping: true });
   const [progress, setProgress] = useState('');
   const [message, setMessage] = useState('');
+  const [wiping, setWiping] = useState(false);
+  const [wipeMessage, setWipeMessage] = useState('');
 
   if (!canEdit('importar')) {
     return <div className="page"><div className="card"><p className="muted">Tu rol no permite importar datos.</p></div></div>;
@@ -105,6 +107,26 @@ export default function Import() {
     }
   };
 
+  /** Deja el espacio vacío para reimportar sin duplicar. No toca roles ni ajustes. */
+  const wipeData = async () => {
+    const answer = window.prompt('Esto borra movimientos, deudas, costos fijos, tasas, inventario, lista y catálogos. Escribe BORRAR para confirmar.');
+    if (answer !== 'BORRAR') return;
+    setWiping(true);
+    setWipeMessage('');
+    try {
+      let total = 0;
+      for (const name of ['expenses', 'incomes', 'fixedCosts', 'debts', 'budgets', 'shopping', 'inventory', 'rates', 'categories', 'places', 'creditors', 'incomeSources'] as const) {
+        setWipeMessage(`Borrando ${name}…`);
+        total += await data.delAll(name);
+      }
+      setWipeMessage(`Listo: ${total} registros borrados. Ya puedes importar de nuevo.`);
+    } catch (err) {
+      setWipeMessage(err instanceof Error ? err.message : 'No se pudo borrar.');
+    } finally {
+      setWiping(false);
+    }
+  };
+
   const counts: [keyof Selection, number][] = parsed
     ? [['rates', parsed.rates.length], ['incomes', parsed.incomes.length], ['expenses', parsed.expenses.length],
        ['fixedCosts', parsed.fixedCosts.length], ['debts', parsed.debts.length], ['shopping', parsed.shopping.length]]
@@ -165,6 +187,13 @@ export default function Import() {
           )}
         </section>
       )}
+
+      <section className="card">
+        <h2 className="card-title">Vaciar datos</h2>
+        <p className="small muted import-wipe-text">Si una importación quedó a medias o quieres empezar limpio, borra los datos antes de reintentar. No afecta a usuarios, roles ni ajustes.</p>
+        <button type="button" className="btn btn-danger" onClick={wipeData} disabled={wiping}><Trash2 size={16} /> Borrar movimientos y catálogos</button>
+        {wipeMessage && <p className="small import-status">{wipeMessage}</p>}
+      </section>
 
       <section className="card">
         <h2 className="card-title">Antes de importar</h2>

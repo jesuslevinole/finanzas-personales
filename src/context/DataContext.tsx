@@ -3,7 +3,7 @@ import type {
   Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
   InventoryItem, Member, Place, Role, ShoppingItem, UserSettings,
 } from '../types';
-import { create, createMany, patch, remove, subscribe, upsert } from '../services/firestore';
+import { create, createMany, patch, remove, removeAll, subscribe, upsert } from '../services/firestore';
 import { DEFAULT_SETTINGS } from '../utils/finance';
 import { useAuth } from '../hooks/useAuth';
 import { DataContext, type DataValue } from './dataContext';
@@ -69,6 +69,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       set: (name, id, data) => upsert(requireUid(), name, id, data),
       update: (name, id, data) => patch(requireUid(), name, id, data),
       del: (name, id) => remove(requireUid(), name, id),
+      delAll: (name) => removeAll(requireUid(), name),
     };
   }, [uid, ready, error, rates, categories, places, creditors, incomeSources, incomes, expenses, fixedCosts, debts, budgets, inventory, shopping, roles, members, settingsDocs]);
 
