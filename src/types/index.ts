@@ -135,12 +135,31 @@ export interface InventoryItem {
 
 export type ShoppingPriority = 'urgente' | 'normal' | 'cuando_se_pueda';
 
+/** Carpeta de compra: una salida al supermercado, con su tope de gasto. */
+export interface ShoppingList {
+  id: string;
+  name: string;
+  placeId?: string;
+  /** Tope que te pusiste antes de salir. 0 = sin tope. */
+  budgetUsd: number;
+  status: 'abierta' | 'cerrada';
+  createdAt: string;
+  closedAt?: string;
+  note?: string;
+}
+
 export interface ShoppingItem {
   id: string;
+  /** Carpeta a la que pertenece. Vacío = lista general. */
+  listId?: string;
   name: string;
   quantity: number;
   unit: StockUnit;
+  /** Precio esperado, tomado de la última compra. */
   estimatedUsd: number;
+  /** Precio real al meterlo en el carrito. */
+  actualBs?: number;
+  actualUsd?: number;
   priority: ShoppingPriority;
   checked: boolean;
   inventoryItemId?: string;
@@ -152,7 +171,7 @@ export interface ShoppingItem {
    --------------------------------------------------------------- */
 
 export type ModuleKey =
-  | 'resumen' | 'movimientos' | 'costos-fijos' | 'deudas' | 'presupuesto'
+  | 'resumen' | 'recordatorios' | 'movimientos' | 'costos-fijos' | 'deudas' | 'presupuesto'
   | 'reportes' | 'inventario' | 'compras' | 'tasa' | 'catalogos'
   | 'importar' | 'usuarios' | 'ajustes';
 

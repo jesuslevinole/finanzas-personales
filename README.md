@@ -25,6 +25,7 @@ Primer uso: entra en **Ajustes → Cargar rubros sugeridos** y en **Tasa BCV →
 
 | Ruta | Qué hace |
 |---|---|
+| `/recordatorios` | Lo urgente por pagar o comprar, agrupado por **semana de cobro (sábado → viernes)**: vencido, esta semana, lo que viene y qué reponer en casa |
 | `/` Resumen | Ingresos/gastos/balance del mes en USD, dona por rubro, gasto acumulado, devaluación del mes, vencimientos, costos fijos, despensa |
 | `/movimientos` | Gastos (lugar, rubro, producto, precio en Bs o $, cantidad, tasa) e ingresos (propio / de tercero). Opción de sumar el gasto al inventario |
 | `/costos-fijos` | Cuotas mensuales en USD con día de pago y estado; copiar del mes anterior |
@@ -32,7 +33,7 @@ Primer uso: entra en **Ajustes → Cargar rubros sugeridos** y en **Tasa BCV →
 | `/presupuesto` | Regla 50/30/20 sobre el ingreso propio + tope por rubro (declarado o sugerido por %) |
 | `/reportes` | **Capacidad de endeudamiento**, cuánto gastar por grupo/rubro, tasa de ahorro, fondo de emergencia, ingresos vs gastos 6 meses, **inflación real** (devaluación y productos que más subieron en $) |
 | `/inventario` | Stock en casa, mínimo por producto, historial de precios en $ por compra, enviar a lista |
-| `/compras` | Lista con prioridad, precio estimado desde tu última compra, total en $ y Bs de hoy |
+| `/compras` | **Carpetas de compra**: una por salida (Maraplus, Finca…), con tope de gasto. Dentro agregas productos escribiendo o **dictando por voz**, y al agarrar cada uno cargas su precio real en Bs o $ mientras la barra suma contra el tope |
 | `/tasa` | Tasa BCV diaria (API pública `ve.dolarapi.com` + carga manual), convertidor, historial |
 | `/catalogos` | Rubros, lugares, acreedores y orígenes de ingreso: color, activo/inactivo, uso en registros |
 | `/importar` | Lee el Excel (TASA_BCV, BD_INGRESOS, BD_GASTOS, BD_COSTOSFIJOS, BD_DEUDAS, LISTA, URGENCIAS), crea los catálogos que falten y carga todo a Firestore |
@@ -56,6 +57,14 @@ src/
   utils/excel.ts       ← traducción de las hojas del Excel al modelo de la app
   views/               ← una vista por ruta, con su .css hermano
 ```
+
+## Tablas, filtros y detalle
+
+Todos los módulos de datos (movimientos, deudas, costos fijos, inventario, tasas, recordatorios, compras) usan el mismo componente `DataTable`: tabla en escritorio y tarjetas etiquetadas en móvil, con la fila clicable para abrir la ficha de detalle (`DetailSheet`) y botones de editar/eliminar tanto en la fila como en el detalle. Los filtros (`FilterBar`) recalculan las tarjetas de totales que están arriba, así que ves el total del subconjunto filtrado, no del mes completo.
+
+## Ciclo de cobro
+
+`utils/cycle.ts` define la semana de pago: empieza el sábado (día de cobro) y termina el viernes siguiente. Recordatorios, deudas y costos fijos muestran cuánto cae dentro de esa ventana, no del mes calendario.
 
 ## Convenciones
 

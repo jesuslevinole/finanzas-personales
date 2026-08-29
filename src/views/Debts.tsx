@@ -1,14 +1,19 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Check, CreditCard, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
-import CustomSelect from '../components/ui/CustomSelect';
 import Modal from '../components/ui/Modal';
 import Money from '../components/ui/Money';
 import EmptyState from '../components/ui/EmptyState';
 import ProgressBar from '../components/ui/ProgressBar';
+import StatCard from '../components/ui/StatCard';
+import CustomSelect from '../components/ui/CustomSelect';
+import DataTable, { type Column } from '../components/ui/DataTable';
+import FilterBar from '../components/ui/FilterBar';
+import DetailSheet from '../components/ui/DetailSheet';
 import type { Creditor, Debt, MoneyOwner, NewDoc, PayStatus } from '../types';
 import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
+import { cycleOf, inCycle } from '../utils/cycle';
 import { formatUsd, sum } from '../utils/money';
 import { daysBetween, shortDate, todayIso } from '../utils/dates';
 import './Debts.css';
@@ -17,106 +22,187 @@ const STATUS_LABEL: Record<PayStatus, string> = { pendiente: 'Pendiente', en_pro
 
 export default function Debts() {
   const data = useData();
-  const { debts, currentRate, add, update, del, creditors } = data;
   const { canEdit } = usePermissions();
   const editable = canEdit('deudas');
-  const [open, setOpen] = useState(false);
-  const [showPaid, setShowPaid] = useState(false);
   const today = todayIso();
+  const cycle = cycleOf(today);
 
-  const openDebts = useMemo(() => debts.filter((d) => d.status !== 'pagada').sort((a, b) => a.dueDate.localeCompare(b.dueDate)), [debts]);
-  const paidDebts = useMemo(() => debts.filter((d) => d.status === 'pagada'), [debts]);
-  const totalOpen = sum(openDebts.map((d) => d.amountUsd));
-  const totalAll = sum(debts.map((d) => d.amountUsd));
+  const [creditorId, setCreditorId] = useState('');
+  const [status, setStatus] = useState<'' | PayStatus>('');
+  const [search, setSearch] = useState('');
+  const [detail, setDetail] = useState<Debt | null>(null);
+  const [editing, setEditing] = useState<Debt | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const activeCount = [creditorId, status, search].filter(Boolean).length;
+  const clearFilters = () => { setCreditorId(''); setStatus(''); setSearch(''); };
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return data.debts
+      .filter((d) => (!creditorId || d.creditorId === creditorId)
+        && (!status || d.status === status)
+        && (!q || `${d.merchant} ${d.description ?? ''} ${getRelationName(data.creditors, d.creditorId, '')}`.toLowerCase().includes(q)))
+      .sort((a, b) => Number(a.status === 'pagada') - Number(b.status === 'pagada') || a.dueDate.localeCompare(b.dueDate));
+  }, [data.debts, data.creditors, creditorId, status, search]);
+
+  const openRows = rows.filter((d) => d.status !== 'pagada');
+  const totalOpen = sum(openRows.map((d) => d.amountUsd));
+  const totalAll = sum(rows.map((d) => d.amountUsd));
+  const thisCycle = sum(openRows.filter((d) => inCycle(d.dueDate, cycle)).map((d) => d.amountUsd));
+  const overdue = sum(openRows.filter((d) => d.dueDate < today).map((d) => d.amountUsd));
 
   const byCreditor = useMemo(() => {
     const m = new Map<string, number>();
-    openDebts.forEach((d) => m.set(d.creditorId, (m.get(d.creditorId) ?? 0) + d.amountUsd));
+    openRows.forEach((d) => m.set(d.creditorId, (m.get(d.creditorId) ?? 0) + d.amountUsd));
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
-  }, [openDebts]);
+  }, [openRows]);
+
+  const removeDebt = (d: Debt) => {
+    if (!window.confirm(`¿Eliminar la cuota de ${d.merchant}?`)) return;
+    void data.del('debts', d.id);
+    setDetail(null);
+  };
+
+  const columns: Column<Debt>[] = [
+    { key: 'due', header: 'Vence', width: '100px', render: (d) => {
+      const days = daysBetween(today, d.dueDate);
+      const late = d.status !== 'pagada' && days < 0;
+      return <span className={late ? 'text-danger strong' : 'muted'}>{shortDate(d.dueDate)}</span>;
+    } },
+    { key: 'merchant', header: 'Concepto', primary: true, render: (d) => (
+      <span className="truncate">{d.merchant}{d.installment && <span className="tiny muted num"> {d.installment}</span>}</span>
+    ) },
+    { key: 'creditor', header: 'Acreedor', width: '150px', render: (d) => (
+      <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(data.creditors, d.creditorId) } as CSSProperties}>{getRelationName(data.creditors, d.creditorId)}</span>
+    ) },
+    { key: 'status', header: 'Estado', width: '130px', render: (d) => {
+      const days = daysBetween(today, d.dueDate);
+      if (d.status === 'pagada') return <span className="tag ok">Pagada</span>;
+      if (days < 0) return <span className="tag danger">Vencida {-days} d</span>;
+      if (days === 0) return <span className="tag warn">Hoy</span>;
+      return <span className="tag">{days} d</span>;
+    } },
+    { key: 'amount', header: 'Monto', align: 'end', width: '110px', render: (d) => <span className="strong num">{formatUsd(d.amountUsd)}</span> },
+  ];
 
   return (
     <div className="page">
       <div className="page-header">
         <div><h1>Deudas y cuotas</h1><p className="page-subtitle">Cashea, préstamos, cuotas de tiendas. Cada cuota es una fila con su vencimiento.</p></div>
-        {editable && <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={16} /> Nueva cuota</button>}
+        {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> Nueva cuota</button>}
       </div>
 
-      <div className="grid grid-3">
-        <div className="card"><span className="field-label">Por pagar</span><Money amount={totalOpen} currency="USD" rate={currentRate} dual size="lg" /><ProgressBar ratio={totalAll ? 1 - totalOpen / totalAll : 0} color="var(--color-ok)" /><span className="tiny muted">{formatUsd(totalAll - totalOpen)} ya pagado</span></div>
-        <div className="card">
-          <span className="field-label">Por acreedor</span>
-          <ul className="debt-creditors kv">{byCreditor.map(([c, v]) => (
-            <li key={c}><span className="row"><span className="dot" style={{ '--dot-color': getRelationColor(creditors, c) } as CSSProperties} /><span className="truncate">{getRelationName(creditors, c)}</span></span><span className="num strong">{formatUsd(v)}</span></li>
-          ))}</ul>
-          {byCreditor.length === 0 && <span className="muted small">Sin deudas abiertas.</span>}
-        </div>
-        <div className="card">
-          <span className="field-label">Próximos 30 días</span>
-          <Money amount={sum(openDebts.filter((d) => daysBetween(today, d.dueDate) <= 30).map((d) => d.amountUsd))} currency="USD" rate={currentRate} dual size="lg" />
-          <span className="tiny muted">Esto es lo que necesitas tener a la mano.</span>
-        </div>
+      <div className="grid grid-4">
+        <StatCard tone={overdue > 0 ? 'danger' : 'primary'} icon={<CreditCard size={18} />} label="Por pagar"
+          value={<Money amount={totalOpen} currency="USD" rate={data.currentRate} dual size="lg" align="start" />}
+          hint={`${openRows.length} cuotas abiertas`} />
+        <StatCard tone="warn" icon={<Wallet size={18} />} label="Vence esta semana de cobro"
+          value={<span className="num">{formatUsd(thisCycle)}</span>} hint={cycle.label} />
+        <StatCard tone={overdue > 0 ? 'danger' : 'ok'} icon={<CreditCard size={18} />} label="Vencido"
+          value={<span className={`num ${overdue > 0 ? 'text-danger' : ''}`}>{formatUsd(overdue)}</span>} hint="Atiéndelo primero" />
+        <StatCard tone="ok" icon={<Check size={18} />} label="Ya pagado"
+          value={<span className="num">{formatUsd(totalAll - totalOpen)}</span>}
+          hint={<ProgressBar ratio={totalAll ? 1 - totalOpen / totalAll : 0} color="var(--color-ok)" />} />
       </div>
 
-      <div className="card">
-        <div className="card-header"><h2 className="card-title">Cuotas abiertas</h2><button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowPaid((v) => !v)}>{showPaid ? 'Ocultar pagadas' : `Ver pagadas (${paidDebts.length})`}</button></div>
-        {openDebts.length === 0 && !showPaid ? <EmptyState title="Sin deudas pendientes" hint="Buena señal. Registra aquí cualquier compra a cuotas para vigilar tu capacidad de endeudamiento." /> : (
-          <ul>
-            {(showPaid ? [...openDebts, ...paidDebts] : openDebts).map((d) => {
-              const days = daysBetween(today, d.dueDate);
-              const overdue = d.status !== 'pagada' && days < 0;
-              return (
-                <li key={d.id} className={`record${d.status === 'pagada' ? ' debt-paid' : ''}`}>
-                  <span className="record-date">{shortDate(d.dueDate)}</span>
-                  <span className="record-main">
-                    <span className="record-title">{d.merchant}</span>
-                    {d.installment && <span className="tiny muted num">{d.installment}</span>}
-                  </span>
-                  <span className="record-meta">
-                    <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(creditors, d.creditorId) } as CSSProperties}>{getRelationName(creditors, d.creditorId)}</span>
-                    <span className={`tag ${d.status === 'pagada' ? 'ok' : overdue ? 'danger' : days <= 3 ? 'warn' : ''}`}>{d.status === 'pagada' ? 'Pagada' : overdue ? `Vencida ${-days} d` : days === 0 ? 'Hoy' : `${days} d`}</span>
-                    {d.owner === 'tercero' && <span className="tag">tercero</span>}
-                  </span>
-                  <span className="record-amount num strong">{formatUsd(d.amountUsd)}</span>
-                  {editable && (
-                    <span className="record-actions">
-                      {d.status !== 'pagada' && <button type="button" className="btn btn-ghost btn-icon" aria-label="Marcar pagada" onClick={() => update<Debt>('debts', d.id, { status: 'pagada' })}><Check size={16} /></button>}
-                      <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar cuota de ${d.merchant}?`)) void del('debts', d.id); }}><Trash2 size={16} /></button>
-                    </span>
-                  )}
-                </li>
-              );
-            })}
+      <FilterBar activeCount={activeCount} onClear={clearFilters}>
+        <label className="field filterbar-wide"><span className="field-label">Buscar</span>
+          <input className="input" placeholder="Tienda, descripción o acreedor…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+        <label className="field"><span className="field-label">Acreedor</span>
+          <select className="input" value={creditorId} onChange={(e) => setCreditorId(e.target.value)}>
+            <option value="">Todos</option>
+            {data.creditors.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+        <label className="field"><span className="field-label">Estado</span>
+          <select className="input" value={status} onChange={(e) => setStatus(e.target.value as '' | PayStatus)}>
+            <option value="">Todos</option>
+            {(Object.keys(STATUS_LABEL) as PayStatus[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+          </select>
+        </label>
+      </FilterBar>
+
+      {byCreditor.length > 0 && (
+        <section className="card">
+          <div className="card-header"><h2 className="card-title">Deuda abierta por acreedor</h2></div>
+          <ul className="kv debt-creditors">
+            {byCreditor.map(([id, v]) => (
+              <li key={id}>
+                <span className="row"><span className="dot" style={{ '--dot-color': getRelationColor(data.creditors, id) } as CSSProperties} /><span className="truncate">{getRelationName(data.creditors, id)}</span></span>
+                <span className="num strong">{formatUsd(v)}</span>
+              </li>
+            ))}
           </ul>
-        )}
+        </section>
+      )}
+
+      <div className="card card-tight">
+        <DataTable rows={rows} columns={columns} onRowClick={setDetail}
+          rowClass={(d) => (d.status === 'pagada' ? 'muted-row' : d.dueDate < today ? 'danger-row' : '')}
+          actions={editable ? (d) => (
+            <>
+              {d.status !== 'pagada' && <button type="button" className="btn btn-ghost btn-icon" aria-label="Marcar pagada" onClick={() => data.update<Debt>('debts', d.id, { status: 'pagada' })}><Check size={15} /></button>}
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(d)}><Pencil size={15} /></button>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => removeDebt(d)}><Trash2 size={15} /></button>
+            </>
+          ) : undefined}
+          empty={<EmptyState title="Sin cuotas" hint={activeCount > 0 ? 'Ninguna cuota coincide con los filtros.' : 'Registra aquí cualquier compra a cuotas para vigilar tu capacidad de endeudamiento.'} />} />
       </div>
 
-      <Modal title="Nueva cuota" open={open} onClose={() => setOpen(false)}>
-        <DebtForm creditors={creditors} onCreateCreditor={(name) => data.add<Creditor>('creditors', { name, color: colorForIndex(creditors.length), active: true })} onSubmit={async (rows) => { await Promise.all(rows.map((r) => add<Debt>('debts', r))); setOpen(false); }} />
+      {detail && (
+        <DetailSheet open title={detail.merchant} subtitle={`${getRelationName(data.creditors, detail.creditorId)} · vence ${shortDate(detail.dueDate)}`}
+          onClose={() => setDetail(null)}
+          onEdit={editable ? () => { setEditing(detail); setDetail(null); } : undefined}
+          onDelete={editable ? () => removeDebt(detail) : undefined}
+          fields={[
+            { label: 'Monto', value: <span className="num text-usd">{formatUsd(detail.amountUsd)}</span> },
+            { label: 'Equivale hoy', value: <span className="num">{formatUsd(detail.amountUsd)} · Bs {(detail.amountUsd * data.currentRate).toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span> },
+            { label: 'Estado', value: STATUS_LABEL[detail.status] },
+            { label: 'Cuota', value: detail.installment ?? 'Única' },
+            { label: 'Dinero', value: detail.owner },
+            { label: 'Referencia', value: detail.reference ?? '—' },
+            { label: 'Descripción', value: detail.description ?? '—', wide: true },
+          ]} />
+      )}
+
+      <Modal title="Nueva cuota" open={creating} onClose={() => setCreating(false)}>
+        <DebtForm creditors={data.creditors}
+          onCreateCreditor={(name) => data.add<Creditor>('creditors', { name, color: colorForIndex(data.creditors.length), active: true })}
+          onSubmit={async (rows2) => { await Promise.all(rows2.map((r) => data.add<Debt>('debts', r))); setCreating(false); }} />
+      </Modal>
+      <Modal title="Editar cuota" open={editing !== null} onClose={() => setEditing(null)}>
+        {editing && (
+          <DebtForm debt={editing} creditors={data.creditors}
+            onCreateCreditor={(name) => data.add<Creditor>('creditors', { name, color: colorForIndex(data.creditors.length), active: true })}
+            onSubmit={async (rows2) => { await data.update<Debt>('debts', editing.id, rows2[0]); setEditing(null); }} />
+        )}
       </Modal>
     </div>
   );
 }
 
-/** Permite crear N cuotas iguales de una vez (ej. Cashea 6 cuotas cada 14 días). */
 interface DebtFormProps {
+  debt?: Debt;
   creditors: Creditor[];
   onCreateCreditor: (name: string) => Promise<string>;
   onSubmit: (rows: NewDoc<Debt>[]) => Promise<void>;
 }
 
-function DebtForm({ creditors, onCreateCreditor, onSubmit }: DebtFormProps) {
-  const [creditorId, setCreditorId] = useState(creditors[0]?.id ?? '');
-  const [merchant, setMerchant] = useState('');
-  const [description, setDescription] = useState('');
-  const [amountUsd, setAmountUsd] = useState('');
-  const [dueDate, setDueDate] = useState(todayIso());
+/** Crea N cuotas iguales de una vez (Cashea: 6 cuotas cada 14 días). Al editar, solo una. */
+function DebtForm({ debt, creditors, onCreateCreditor, onSubmit }: DebtFormProps) {
+  const [creditorId, setCreditorId] = useState(debt?.creditorId ?? creditors[0]?.id ?? '');
+  const [merchant, setMerchant] = useState(debt?.merchant ?? '');
+  const [description, setDescription] = useState(debt?.description ?? '');
+  const [amountUsd, setAmountUsd] = useState(debt ? String(debt.amountUsd) : '');
+  const [dueDate, setDueDate] = useState(debt?.dueDate ?? todayIso());
   const [installments, setInstallments] = useState('1');
   const [everyDays, setEveryDays] = useState('14');
-  const [owner, setOwner] = useState<MoneyOwner>('propio');
-  const [status, setStatus] = useState<PayStatus>('pendiente');
+  const [owner, setOwner] = useState<MoneyOwner>(debt?.owner ?? 'propio');
+  const [status, setStatus] = useState<PayStatus>(debt?.status ?? 'pendiente');
 
-  const n = Math.max(1, Number(installments) || 1);
+  const n = debt ? 1 : Math.max(1, Number(installments) || 1);
   const amt = Number(amountUsd) || 0;
 
   const submit = async (e: FormEvent) => {
@@ -124,11 +210,12 @@ function DebtForm({ creditors, onCreateCreditor, onSubmit }: DebtFormProps) {
     if (!merchant || !creditorId || amt <= 0) return;
     const rows: NewDoc<Debt>[] = Array.from({ length: n }, (_, i) => {
       const d = new Date(dueDate);
-      d.setDate(d.getDate() + i * (Number(everyDays) || 0));
+      d.setDate(d.getDate() + i * (debt ? 0 : Number(everyDays) || 0));
       return {
         creditorId, merchant, description: description || undefined, amountUsd: amt, owner,
         dueDate: d.toISOString().slice(0, 10), status: i === 0 ? status : 'pendiente',
-        installment: n > 1 ? `${i + 1}/${n}` : undefined,
+        installment: n > 1 ? `${i + 1}/${n}` : debt?.installment,
+        reference: debt?.reference,
       };
     });
     await onSubmit(rows);
@@ -143,18 +230,26 @@ function DebtForm({ creditors, onCreateCreditor, onSubmit }: DebtFormProps) {
       <label className="field"><span className="field-label">Descripción</span><input className="input" value={description} onChange={(e) => setDescription(e.target.value)} /></label>
       <div className="form-grid">
         <label className="field"><span className="field-label">Monto por cuota ($)</span><input className="input num" type="number" step="0.01" min="0" value={amountUsd} onChange={(e) => setAmountUsd(e.target.value)} required /></label>
-        <label className="field"><span className="field-label">Primer vencimiento</span><input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required /></label>
+        <label className="field"><span className="field-label">{debt ? 'Vencimiento' : 'Primer vencimiento'}</span><input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required /></label>
       </div>
+      {!debt && (
+        <div className="form-grid">
+          <label className="field"><span className="field-label">Nº de cuotas</span><input className="input num" type="number" min="1" max="36" value={installments} onChange={(e) => setInstallments(e.target.value)} /></label>
+          <label className="field"><span className="field-label">Cada (días)</span><input className="input num" type="number" min="1" value={everyDays} onChange={(e) => setEveryDays(e.target.value)} /></label>
+        </div>
+      )}
       <div className="form-grid">
-        <label className="field"><span className="field-label">Nº de cuotas</span><input className="input num" type="number" min="1" max="36" value={installments} onChange={(e) => setInstallments(e.target.value)} /></label>
-        <label className="field"><span className="field-label">Cada (días)</span><input className="input num" type="number" min="1" value={everyDays} onChange={(e) => setEveryDays(e.target.value)} /></label>
+        <label className="field"><span className="field-label">Dinero</span>
+          <select className="input" value={owner} onChange={(e) => setOwner(e.target.value as MoneyOwner)}><option value="propio">Propio</option><option value="tercero">De un tercero</option></select>
+        </label>
+        <label className="field"><span className="field-label">Estado</span>
+          <select className="input" value={status} onChange={(e) => setStatus(e.target.value as PayStatus)}>
+            {(Object.keys(STATUS_LABEL) as PayStatus[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+          </select>
+        </label>
       </div>
-      <div className="form-grid">
-        <label className="field"><span className="field-label">Dinero</span><select className="input" value={owner} onChange={(e) => setOwner(e.target.value as MoneyOwner)}><option value="propio">Propio</option><option value="tercero">De un tercero</option></select></label>
-        <label className="field"><span className="field-label">Estado de la 1ª cuota</span><select className="input" value={status} onChange={(e) => setStatus(e.target.value as PayStatus)}>{(Object.keys(STATUS_LABEL) as PayStatus[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select></label>
-      </div>
-      <p className="field-hint">Se crearán {n} cuota{n > 1 && 's'} por un total de <strong className="num">{formatUsd(amt * n)}</strong>.</p>
-      <div className="form-actions"><button type="submit" className="btn btn-primary">Guardar</button></div>
+      {!debt && <p className="field-hint">Se crearán {n} cuota{n > 1 && 's'} por un total de <strong className="num">{formatUsd(amt * n)}</strong>.</p>}
+      <div className="form-actions"><button type="submit" className="btn btn-primary">{debt ? 'Guardar cambios' : 'Guardar'}</button></div>
     </form>
   );
 }

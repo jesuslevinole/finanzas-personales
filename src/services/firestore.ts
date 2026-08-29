@@ -31,6 +31,7 @@ export type CollectionName =
   | 'budgets'
   | 'inventory'
   | 'shopping'
+  | 'shoppingLists'
   | 'roles'
   | 'members'
   | 'settings';

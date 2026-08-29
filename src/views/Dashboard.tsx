@@ -91,7 +91,7 @@ export default function Dashboard() {
 
       <div className="grid grid-3">
         <section className="card">
-          <div className="card-header"><h2 className="card-title">Vencen pronto</h2><Link to="/deudas" className="small">Ver deudas</Link></div>
+          <div className="card-header"><h2 className="card-title">Vencen pronto</h2><Link to="/recordatorios" className="small">Recordatorios</Link></div>
           {dueSoon.length === 0 ? <p className="muted small">Nada vence en los próximos 7 días.</p> : (
             <ul>
               {dueSoon.map((d) => {

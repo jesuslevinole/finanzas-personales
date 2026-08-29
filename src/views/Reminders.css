@@ -1,0 +1,17 @@
+.rem-cycle { display: inline-flex; align-items: center; gap: var(--space-1); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 2px; }
+.rem-cycle-label { min-width: 150px; text-align: center; font-weight: 600; font-size: var(--text-sm); border: none; background: transparent; padding: 6px; border-radius: 6px; }
+.rem-cycle-label:hover { background: var(--color-surface-2); }
+
+.rem-kind { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; }
+.rem-kind.deuda { background: var(--color-danger-soft); color: var(--color-danger); }
+.rem-kind.costo_fijo { background: var(--color-primary-soft); color: var(--color-primary); }
+.rem-kind.compra { background: var(--color-warn-soft); color: var(--color-warn); }
+
+.rem-overdue { border-left: 4px solid var(--color-danger); }
+
+.rem-stock { display: flex; flex-direction: column; }
+.rem-stock-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--space-3);
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); font-size: var(--text-sm);
+}
+.rem-stock-item:last-child { border-bottom: none; }

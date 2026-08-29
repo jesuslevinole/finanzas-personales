@@ -1,3 +1,1 @@
-.debt-creditors { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); }
-.debt-date { width: 52px; flex: none; }
-.debt-paid { opacity: 0.6; }
+.debt-creditors { margin-top: var(--space-2); }

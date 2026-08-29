@@ -1,15 +1,20 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { UNITS } from '../utils/units';
-import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Minus, Package, Plus, ShoppingCart, TrendingUp, Trash2 } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import Modal from '../components/ui/Modal';
 import CustomSelect from '../components/ui/CustomSelect';
 import { usePermissions } from '../hooks/usePermissions';
 import EmptyState from '../components/ui/EmptyState';
 import Sparkline from '../components/ui/Sparkline';
+import DataTable, { type Column } from '../components/ui/DataTable';
+import FilterBar from '../components/ui/FilterBar';
+import DetailSheet from '../components/ui/DetailSheet';
+import StatCard from '../components/ui/StatCard';
 import type { Category, InventoryItem, NewDoc, ShoppingItem, StockUnit } from '../types';
 import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
+import Money from '../components/ui/Money';
 import { shortDate, todayIso } from '../utils/dates';
 import './Inventory.css';
 
@@ -21,23 +26,63 @@ export default function Inventory() {
   const editable = canEdit('inventario');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
+  const [detail, setDetail] = useState<InventoryItem | null>(null);
 
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
     return inventory
-      .filter((i) => (!q || i.name.toLowerCase().includes(q)) && (!onlyLow || i.quantity <= i.minQuantity))
+      .filter((i) => (!q || i.name.toLowerCase().includes(q))
+        && (!categoryFilter || i.categoryId === categoryFilter)
+        && (!onlyLow || i.quantity <= i.minQuantity))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [inventory, search, onlyLow]);
+  }, [inventory, search, categoryFilter, onlyLow]);
 
   const lowCount = inventory.filter((i) => i.quantity <= i.minQuantity).length;
-  const stockValueUsd = sum(inventory.map((i) => i.quantity * i.lastPriceUsd));
+  const stockValueUsd = sum(items.map((i) => i.quantity * i.lastPriceUsd));
+  const activeCount = [search, categoryFilter, onlyLow ? 'x' : ''].filter(Boolean).length;
 
-  const adjust = (item: InventoryItem, delta: number) => update<InventoryItem>('inventory', item.id, { quantity: Math.max(0, item.quantity + delta) });
+  const adjust = (item: InventoryItem, delta: number) =>
+    update<InventoryItem>('inventory', item.id, { quantity: Math.max(0, item.quantity + delta) });
+
   const sendToList = (item: InventoryItem) => {
     if (shopping.some((s) => !s.checked && s.inventoryItemId === item.id)) return;
-    void add<ShoppingItem>('shopping', { name: item.name, quantity: Math.max(1, item.minQuantity - item.quantity + 1), unit: item.unit, estimatedUsd: item.lastPriceUsd, priority: 'normal', checked: false, inventoryItemId: item.id, createdAt: todayIso() });
+    void add<ShoppingItem>('shopping', {
+      name: item.name, quantity: Math.max(1, item.minQuantity - item.quantity + 1), unit: item.unit,
+      estimatedUsd: item.lastPriceUsd, priority: 'normal', checked: false, inventoryItemId: item.id, createdAt: todayIso(),
+    });
   };
+
+  const removeItem = (item: InventoryItem) => {
+    if (!window.confirm(`¿Eliminar «${item.name}» del inventario?`)) return;
+    void del('inventory', item.id);
+    setDetail(null);
+  };
+
+  const changeOf = (item: InventoryItem): number | null => {
+    const h = item.priceHistory.map((p) => p.priceUsd);
+    return h.length >= 2 && h[0] > 0 ? h[h.length - 1] / h[0] - 1 : null;
+  };
+
+  const columns: Column<InventoryItem>[] = [
+    { key: 'name', header: 'Producto', primary: true, render: (i) => (
+      <span className="row"><span className="dot" style={{ '--dot-color': getRelationColor(categories, i.categoryId) } as CSSProperties} /><span className="truncate">{i.name}</span></span>
+    ) },
+    { key: 'category', header: 'Rubro', width: '150px', hideOnMobile: true, render: (i) => <span className="muted truncate">{getRelationName(categories, i.categoryId)}</span> },
+    { key: 'stock', header: 'Existencia', width: '170px', render: (i) => (
+      <span className="inv-qty" onClick={(e) => e.stopPropagation()}>
+        {editable && <button type="button" className="btn btn-outline btn-icon" aria-label="Restar" onClick={() => adjust(i, -1)}><Minus size={13} /></button>}
+        <span className={`inv-qty-value num${i.quantity <= i.minQuantity ? ' low' : ''}`}>{i.quantity} <span className="tiny muted">{i.unit}</span></span>
+        {editable && <button type="button" className="btn btn-outline btn-icon" aria-label="Sumar" onClick={() => adjust(i, 1)}><Plus size={13} /></button>}
+      </span>
+    ) },
+    { key: 'change', header: 'Inflación', width: '110px', hideOnMobile: true, render: (i) => {
+      const c = changeOf(i);
+      return c === null ? <span className="muted tiny">1 compra</span> : <span className={`tag ${c > 0 ? 'danger' : 'ok'}`}>{c > 0 ? '+' : ''}{formatPct(c)}</span>;
+    } },
+    { key: 'price', header: 'Último precio', align: 'end', width: '130px', render: (i) => <span className="strong num text-usd">{formatUsd(i.lastPriceUsd)}</span> },
+  ];
 
   return (
     <div className="page">
@@ -47,56 +92,66 @@ export default function Inventory() {
       </div>
 
       <div className="grid grid-3">
-        <div className="card"><span className="field-label">Productos</span><span className="inv-big num">{inventory.length}</span></div>
-        <div className="card"><span className="field-label">Por reponer</span><span className={`inv-big num${lowCount ? ' text-warn' : ''}`}>{lowCount}</span></div>
-        <div className="card"><span className="field-label">Valor en despensa</span><span className="inv-big num text-usd">{formatUsd(stockValueUsd)}</span><span className="tiny muted">≈ {formatBs(stockValueUsd * currentRate)} hoy</span></div>
+        <StatCard tone="primary" icon={<Package size={18} />} label={activeCount > 0 ? 'Productos filtrados' : 'Productos'}
+          value={<span className="num">{items.length}</span>} hint={`${inventory.length} en total`} />
+        <StatCard tone={lowCount ? 'warn' : 'ok'} icon={<ShoppingCart size={18} />} label="Por reponer"
+          value={<span className="num">{lowCount}</span>} hint="Bajo su mínimo" />
+        <StatCard tone="usd" icon={<TrendingUp size={18} />} label="Valor en despensa"
+          value={<Money amount={stockValueUsd} currency="USD" rate={currentRate} dual size="lg" align="start" />}
+          hint="A precio de última compra" />
       </div>
 
-      <div className="card">
-        <div className="row wrap inv-toolbar">
-          <input className="input grow" placeholder="Buscar producto…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <button type="button" className={`btn btn-outline${onlyLow ? ' active' : ''}`} onClick={() => setOnlyLow((v) => !v)}>Solo por reponer</button>
-        </div>
-        {items.length === 0 ? <EmptyState title="Sin productos" hint="Agrega productos aquí o marca 'sumar al inventario' al registrar un gasto." /> : (
-          <ul className="inv-grid">
-            {items.map((item) => {
-              const low = item.quantity <= item.minQuantity;
-              const hist = item.priceHistory.map((p) => p.priceUsd);
-              const change = hist.length >= 2 && hist[0] > 0 ? hist[hist.length - 1] / hist[0] - 1 : null;
-              return (
-                <li key={item.id} className={`inv-card${low ? ' low' : ''}`}>
-                  <div className="row-between">
-                    <div className="grow"><div className="strong truncate">{item.name}</div><div className="tiny muted truncate"><span className="dot dot-inline" style={{ '--dot-color': getRelationColor(categories, item.categoryId) } as CSSProperties} />{getRelationName(categories, item.categoryId)}{item.lastPlaceId && ` · ${getRelationName(places, item.lastPlaceId, '')}`}</div></div>
-                    {low && <span className="tag warn">Reponer</span>}
-                  </div>
-                  <div className="inv-qty">
-                    {editable && <button type="button" className="btn btn-outline btn-icon" aria-label="Restar" onClick={() => adjust(item, -1)}><Minus size={14} /></button>}
-                    <span className="inv-qty-value num">{item.quantity} <span className="tiny muted">{item.unit}</span></span>
-                    {editable && <button type="button" className="btn btn-outline btn-icon" aria-label="Sumar" onClick={() => adjust(item, 1)}><Plus size={14} /></button>}
-                  </div>
-                  <dl className="inv-meta">
-                    <div><dt>Último precio</dt><dd className="num"><span className="text-usd">{formatUsd(item.lastPriceUsd)}</span> <span className="muted">/ {formatBs(item.lastPriceBs)}</span></dd></div>
-                    <div><dt>Compra</dt><dd>{item.lastPurchaseDate ? shortDate(item.lastPurchaseDate) : '—'}</dd></div>
-                    <div><dt>Mínimo</dt><dd className="num">{item.minQuantity} {item.unit}</dd></div>
-                  </dl>
-                  {hist.length >= 2 && (
-                    <div className="inv-trend">
-                      <Sparkline values={hist} height={28} tone={change !== null && change > 0 ? 'danger' : 'usd'} />
-                      <span className={`tiny num ${change !== null && change > 0 ? 'text-danger' : 'text-ok'}`}>{change !== null ? formatPct(change) : ''} en $ ({hist.length} compras)</span>
-                    </div>
-                  )}
-                  {editable && (
-                    <div className="row inv-actions">
-                      <button type="button" className="btn btn-outline btn-sm" onClick={() => sendToList(item)}><ShoppingCart size={14} /> A la lista</button>
-                      <button type="button" className="btn btn-ghost btn-sm" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar «${item.name}» del inventario?`)) void del('inventory', item.id); }}><Trash2 size={14} /></button>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      <FilterBar activeCount={activeCount} onClear={() => { setSearch(''); setCategoryFilter(''); setOnlyLow(false); }}>
+        <label className="field filterbar-wide"><span className="field-label">Buscar</span>
+          <input className="input" placeholder="Nombre del producto…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+        <label className="field"><span className="field-label">Rubro</span>
+          <select className="input" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="">Todos</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+        <label className="field"><span className="field-label">Existencia</span>
+          <select className="input" value={onlyLow ? 'low' : ''} onChange={(e) => setOnlyLow(e.target.value === 'low')}>
+            <option value="">Todas</option>
+            <option value="low">Solo por reponer</option>
+          </select>
+        </label>
+      </FilterBar>
+
+      <div className="card card-tight">
+        <DataTable rows={items} columns={columns} onRowClick={setDetail}
+          rowClass={(i) => (i.quantity <= i.minQuantity ? 'warn-row' : '')}
+          actions={editable ? (i) => (
+            <>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Enviar a la lista" onClick={() => sendToList(i)}><ShoppingCart size={15} /></button>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => removeItem(i)}><Trash2 size={15} /></button>
+            </>
+          ) : undefined}
+          empty={<EmptyState title="Sin productos" hint="Agrega productos aquí o marca «sumar al inventario» al registrar un gasto." />} />
       </div>
+
+      {detail && (
+        <DetailSheet open title={detail.name} subtitle={`${getRelationName(categories, detail.categoryId)}${detail.lastPlaceId ? ` · ${getRelationName(places, detail.lastPlaceId, '')}` : ''}`}
+          onClose={() => setDetail(null)}
+          onDelete={editable ? () => removeItem(detail) : undefined}
+          fields={[
+            { label: 'Existencia', value: <span className="num">{detail.quantity} {detail.unit}</span> },
+            { label: 'Mínimo', value: <span className="num">{detail.minQuantity} {detail.unit}</span> },
+            { label: 'Último precio', value: <span className="num text-usd">{formatUsd(detail.lastPriceUsd)}</span> },
+            { label: 'En bolívares', value: <span className="num text-bs">{formatBs(detail.lastPriceBs)}</span> },
+            { label: 'Última compra', value: detail.lastPurchaseDate ? shortDate(detail.lastPurchaseDate) : '—' },
+            { label: 'Compras registradas', value: <span className="num">{detail.priceHistory.length}</span> },
+          ]}>
+          {detail.priceHistory.length >= 2 && (
+            <div className="inv-detail-trend">
+              <span className="field-label">Precio en dólares por compra</span>
+              <Sparkline values={detail.priceHistory.map((p) => p.priceUsd)} height={70} tone={(changeOf(detail) ?? 0) > 0 ? 'danger' : 'usd'} />
+              <p className="tiny muted">De {formatUsd(detail.priceHistory[0].priceUsd)} a {formatUsd(detail.priceHistory[detail.priceHistory.length - 1].priceUsd)} en {detail.priceHistory.length} compras.</p>
+            </div>
+          )}
+        </DetailSheet>
+      )}
 
       <Modal title="Nuevo producto" open={open} onClose={() => setOpen(false)}>
         <InventoryForm categories={categories} currentRate={currentRate}

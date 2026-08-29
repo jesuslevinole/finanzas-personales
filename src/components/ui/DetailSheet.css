@@ -1,0 +1,9 @@
+.detail-subtitle { color: var(--color-muted); font-size: var(--text-sm); margin-bottom: var(--space-3); }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.detail-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.detail-field.wide { grid-column: 1 / -1; }
+.detail-field dt { font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-muted); }
+.detail-field dd { font-size: var(--text-sm); font-weight: 600; overflow-wrap: anywhere; }
+.detail-actions { display: flex; gap: var(--space-2); justify-content: flex-end; margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+.detail-actions .btn { flex: 1; }
+@media (min-width: 768px) { .detail-actions .btn { flex: none; } }

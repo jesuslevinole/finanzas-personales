@@ -8,6 +8,7 @@ import { usePermissions } from './hooks/usePermissions';
 import AppShell from './components/layout/AppShell';
 import Login from './views/Login';
 import Dashboard from './views/Dashboard';
+import Reminders from './views/Reminders';
 import Movements from './views/Movements';
 import FixedCosts from './views/FixedCosts';
 import Debts from './views/Debts';
@@ -60,6 +61,7 @@ export default function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<Guard module="resumen"><Dashboard /></Guard>} />
+        <Route path="/recordatorios" element={<Guard module="recordatorios"><Reminders /></Guard>} />
         <Route path="/movimientos" element={<Guard module="movimientos"><Movements /></Guard>} />
         <Route path="/costos-fijos" element={<Guard module="costos-fijos"><FixedCosts /></Guard>} />
         <Route path="/deudas" element={<Guard module="deudas"><Debts /></Guard>} />

@@ -1,0 +1,14 @@
+.filterbar {
+  display: grid; gap: var(--space-2); align-items: end;
+  grid-template-columns: 1fr 1fr;
+  padding: var(--space-3); border-radius: var(--radius);
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
+}
+.filterbar .field-label { margin-bottom: 2px; }
+.filterbar-clear { grid-column: 1 / -1; justify-self: start; }
+@media (min-width: 768px) {
+  .filterbar { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .filterbar-clear { grid-column: auto; justify-self: stretch; }
+}
+.filterbar-wide { grid-column: 1 / -1; }
+@media (min-width: 768px) { .filterbar-wide { grid-column: span 2; } }

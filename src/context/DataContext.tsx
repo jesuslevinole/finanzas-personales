@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type {
   Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
-  InventoryItem, Member, Place, Role, ShoppingItem, UserSettings,
+  InventoryItem, Member, Place, Role, ShoppingItem, ShoppingList, UserSettings,
 } from '../types';
 import { create, createMany, patch, remove, removeAll, subscribe, upsert } from '../services/firestore';
 import { DEFAULT_SETTINGS } from '../utils/finance';
@@ -24,6 +24,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [shopping, setShopping] = useState<ShoppingItem[]>([]);
+  const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [settingsDocs, setSettingsDocs] = useState<UserSettings[]>([]);
@@ -46,6 +47,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       subscribe<Budget>(uid, 'budgets', setBudgets, fail),
       subscribe<InventoryItem>(uid, 'inventory', setInventory, fail),
       subscribe<ShoppingItem>(uid, 'shopping', setShopping, fail, 'createdAt'),
+      subscribe<ShoppingList>(uid, 'shoppingLists', setShoppingLists, fail, 'createdAt'),
       subscribe<Role>(uid, 'roles', setRoles, fail),
       subscribe<Member>(uid, 'members', setMembers, fail),
       subscribe<UserSettings>(uid, 'settings', (rows) => { setSettingsDocs(rows); setReady(true); }, fail),
@@ -63,7 +65,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return {
       ready, error,
       rates, categories, places, creditors, incomeSources, incomes, expenses,
-      fixedCosts, debts, budgets, inventory, shopping, roles, members, settings, currentRate,
+      fixedCosts, debts, budgets, inventory, shopping, shoppingLists, roles, members, settings, currentRate,
       add: (name, data) => create(requireUid(), name, data),
       addMany: (name, rows, onProgress) => createMany(requireUid(), name, rows, onProgress),
       set: (name, id, data) => upsert(requireUid(), name, id, data),
@@ -71,7 +73,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       del: (name, id) => remove(requireUid(), name, id),
       delAll: (name) => removeAll(requireUid(), name),
     };
-  }, [uid, ready, error, rates, categories, places, creditors, incomeSources, incomes, expenses, fixedCosts, debts, budgets, inventory, shopping, roles, members, settingsDocs]);
+  }, [uid, ready, error, rates, categories, places, creditors, incomeSources, incomes, expenses, fixedCosts, debts, budgets, inventory, shopping, shoppingLists, roles, members, settingsDocs]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

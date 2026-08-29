@@ -2,6 +2,7 @@ import type { AccessLevel, ModuleKey, Role } from '../types';
 
 export const MODULE_LABEL: Record<ModuleKey, string> = {
   resumen: 'Resumen',
+  recordatorios: 'Recordatorios',
   movimientos: 'Movimientos',
   'costos-fijos': 'Costos fijos',
   deudas: 'Deudas',
@@ -46,7 +47,7 @@ export const DEFAULT_ROLES: Omit<Role, 'id'>[] = [
     name: 'Pareja',
     description: 'Registra movimientos y compras, no toca usuarios ni ajustes.',
     access: {
-      resumen: 'ver', movimientos: 'editar', 'costos-fijos': 'editar', deudas: 'editar',
+      resumen: 'ver', recordatorios: 'ver', movimientos: 'editar', 'costos-fijos': 'editar', deudas: 'editar',
       presupuesto: 'ver', reportes: 'ver', inventario: 'editar', compras: 'editar',
       tasa: 'ver', catalogos: 'ver', importar: 'sin_acceso', usuarios: 'sin_acceso', ajustes: 'sin_acceso',
     },
@@ -55,7 +56,7 @@ export const DEFAULT_ROLES: Omit<Role, 'id'>[] = [
     name: 'Solo lectura',
     description: 'Ve reportes y saldos, no modifica nada.',
     access: {
-      resumen: 'ver', movimientos: 'ver', 'costos-fijos': 'ver', deudas: 'ver',
+      resumen: 'ver', recordatorios: 'ver', movimientos: 'ver', 'costos-fijos': 'ver', deudas: 'ver',
       presupuesto: 'ver', reportes: 'ver', inventario: 'ver', compras: 'ver',
       tasa: 'ver', catalogos: 'sin_acceso', importar: 'sin_acceso', usuarios: 'sin_acceso', ajustes: 'sin_acceso',
     },

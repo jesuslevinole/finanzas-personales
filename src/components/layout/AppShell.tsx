@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  ArrowLeftRight, BarChart3, CalendarClock, CreditCard, FileSpreadsheet, LayoutDashboard, ListChecks,
+  AlarmClock, ArrowLeftRight, BarChart3, CalendarClock, CreditCard, FileSpreadsheet, LayoutDashboard, ListChecks,
   LogOut, Menu, MoreHorizontal, Package, PieChart, Settings, Tags, Users2, Wallet, X,
 } from 'lucide-react';
 import type { ModuleKey } from '../../types';
@@ -18,6 +18,7 @@ const GROUPS: NavGroup[] = [
     label: 'Finanzas',
     items: [
       { to: '/', module: 'resumen', icon: <LayoutDashboard size={18} /> },
+      { to: '/recordatorios', module: 'recordatorios', icon: <AlarmClock size={18} /> },
       { to: '/movimientos', module: 'movimientos', icon: <ArrowLeftRight size={18} /> },
       { to: '/costos-fijos', module: 'costos-fijos', icon: <CalendarClock size={18} /> },
       { to: '/deudas', module: 'deudas', icon: <CreditCard size={18} /> },
@@ -49,7 +50,7 @@ const GROUPS: NavGroup[] = [
   },
 ];
 
-const MOBILE_PRIMARY: ModuleKey[] = ['resumen', 'movimientos', 'deudas', 'compras'];
+const MOBILE_PRIMARY: ModuleKey[] = ['resumen', 'recordatorios', 'movimientos', 'compras'];
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const { user, isGuest, linkGoogle, logout } = useAuth();

@@ -1,2 +1,1 @@
-.fixed-actions { display: flex; flex-direction: column; gap: var(--space-2); justify-content: center; }
-.fixed-day { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--color-surface-2); font-weight: 700; font-size: var(--text-sm); flex: none; }
+.fixed-day { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--color-surface-2); font-weight: 700; font-size: var(--text-sm); }

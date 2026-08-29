@@ -1,0 +1,7 @@
+.form-price { display: flex; gap: var(--space-1); }
+.form-price .input { flex: 1; min-width: 0; }
+.form-cur { min-width: 48px; flex: none; font-weight: 700; color: var(--color-bs); }
+.form-cur.usd { color: var(--color-usd); }
+.form-summary { display: flex; gap: var(--space-5); padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }
+.form-summary dt { font-size: var(--text-xs); color: var(--color-muted); }
+.form-summary dd { font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); }

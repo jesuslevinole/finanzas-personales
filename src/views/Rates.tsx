@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { RefreshCw, Trash2 } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import Sparkline from '../components/ui/Sparkline';
+import DataTable, { type Column } from '../components/ui/DataTable';
 import EmptyState from '../components/ui/EmptyState';
 import { fetchBcvRate } from '../services/rates';
 import type { ExchangeRate } from '../types';
@@ -23,6 +24,19 @@ export default function Rates() {
   const current = latest?.rate ?? 0;
   const last30 = [...rates].slice(0, 30).reverse();
   const summary = inflationSummary(last30);
+
+  const rateColumns: Column<ExchangeRate>[] = [
+    { key: 'date', header: 'Fecha', width: '110px', primary: true, render: (r) => shortDate(r.date) },
+    { key: 'change', header: 'Variación', width: '120px', render: (r) => {
+      const i = rates.findIndex((x) => x.id === r.id);
+      const prev = rates[i + 1];
+      if (!prev) return <span className="muted">—</span>;
+      const change = r.rate / prev.rate - 1;
+      return <span className={`tag ${change > 0 ? 'danger' : 'ok'}`}>{change > 0 ? '+' : ''}{formatPct(change)}</span>;
+    } },
+    { key: 'source', header: 'Fuente', width: '100px', hideOnMobile: true, render: (r) => <span className="tag">{r.source}</span> },
+    { key: 'rate', header: 'Bs por $', align: 'end', width: '130px', render: (r) => <span className="strong num text-bs">{formatBs(r.rate)}</span> },
+  ];
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -72,27 +86,11 @@ export default function Rates() {
         </section>
       </div>
 
-      <section className="card">
-        <div className="card-header"><h2 className="card-title">Historial</h2></div>
-        {rates.length === 0 ? <EmptyState title="Sin tasas" hint="Actualiza desde BCV o registra la tasa a mano." /> : (
-          <ul>
-            {rates.slice(0, 60).map((r, i) => {
-              const prev = rates[i + 1];
-              const change = prev ? r.rate / prev.rate - 1 : null;
-              return (
-                <li key={r.id} className="record">
-                  <span className="record-date rates-date">{shortDate(r.date)}</span>
-                  <span className="record-main"><span className="num strong">{formatBs(r.rate)}</span></span>
-                  <span className="record-meta">
-                    {change !== null && <span className={`tag ${change > 0 ? 'danger' : 'ok'}`}>{change > 0 ? '+' : ''}{formatPct(change)}</span>}
-                    <span className="tag">{r.source}</span>
-                  </span>
-                  <span className="record-actions"><button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar la tasa del ${shortDate(r.date)}?`)) void del('rates', r.id); }}><Trash2 size={16} /></button></span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      <section className="card card-tight">
+        <div className="card-header"><h2 className="card-title">Historial</h2><span className="tag">{rates.length} días</span></div>
+        <DataTable rows={rates.slice(0, 90)} columns={rateColumns}
+          actions={(r) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar la tasa del ${shortDate(r.date)}?`)) void del('rates', r.id); }}><Trash2 size={15} /></button>}
+          empty={<EmptyState title="Sin tasas" hint="Actualiza desde BCV o registra la tasa a mano." />} />
       </section>
     </div>
   );

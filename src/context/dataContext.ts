@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 import type {
   Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
-  InventoryItem, Member, NewDoc, Place, Role, ShoppingItem, UserSettings, WithId,
+  InventoryItem, Member, NewDoc, Place, Role, ShoppingItem, ShoppingList, UserSettings, WithId,
 } from '../types';
 import type { CollectionName } from '../services/firestore';
 
@@ -25,6 +25,7 @@ export interface DataValue {
   budgets: Budget[];
   inventory: InventoryItem[];
   shopping: ShoppingItem[];
+  shoppingLists: ShoppingList[];
   roles: Role[];
   members: Member[];
   settings: Omit<UserSettings, 'id'>;
