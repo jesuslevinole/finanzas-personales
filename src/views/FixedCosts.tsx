@@ -50,13 +50,18 @@ export default function FixedCosts() {
         {monthFixed.length === 0 ? <EmptyState title="Sin costos fijos este mes" hint="Cárgalos una vez y cópialos cada mes; así sabes cuánto necesitas sí o sí." /> : (
           <ul>
             {[...monthFixed].sort((a, b) => a.dueDay - b.dueDay).map((f) => (
-              <li key={f.id} className="list-item">
-                <span className="fixed-day num">{String(f.dueDay).padStart(2, '0')}</span>
-                <div className="grow"><div className="strong truncate">{f.description}</div>{f.reference && <div className="tiny muted">Ref. {f.reference}</div>}</div>
-                <span className={`tag ${STATUS_TAG[f.status]}`}>{STATUS_LABEL[f.status]}</span>
-                <span className="num strong">{formatUsd(f.amountUsd)}</span>
-                {f.status !== 'pagada' && <button type="button" className="btn btn-ghost btn-icon" aria-label="Marcar pagada" onClick={() => markPaid(f)}><Check size={16} /></button>}
-                <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar "${f.description}"?`)) void del('fixedCosts', f.id); }}><Trash2 size={16} /></button>
+              <li key={f.id} className="record">
+                <span className="record-date fixed-day num">{String(f.dueDay).padStart(2, '0')}</span>
+                <span className="record-main"><span className="record-title">{f.description}</span></span>
+                <span className="record-meta">
+                  <span className={`tag ${STATUS_TAG[f.status]}`}>{STATUS_LABEL[f.status]}</span>
+                  {f.reference && <span className="truncate">Ref. {f.reference}</span>}
+                </span>
+                <span className="record-amount num strong">{formatUsd(f.amountUsd)}</span>
+                <span className="record-actions">
+                  {f.status !== 'pagada' && <button type="button" className="btn btn-ghost btn-icon" aria-label="Marcar pagada" onClick={() => markPaid(f)}><Check size={16} /></button>}
+                  <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar «${f.description}»?`)) void del('fixedCosts', f.id); }}><Trash2 size={16} /></button>
+                </span>
               </li>
             ))}
           </ul>

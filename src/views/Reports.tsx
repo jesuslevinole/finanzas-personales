@@ -52,7 +52,7 @@ export default function Reports() {
           <span className={`tag ${capacity.level === 'sano' ? 'ok' : capacity.level === 'alerta' ? 'warn' : 'danger'}`}>{LEVEL_LABEL[capacity.level]}</span>
         </div>
         <div className="report-capacity-grid">
-          <dl className="report-kv">
+          <dl className="kv report-kv">
             <div><dt>Ingreso propio del mes</dt><dd className="num">{formatUsd(capacity.incomeUsd)}</dd></div>
             <div><dt>Costos fijos ({formatPct(fixedRatio)})</dt><dd className="num">{formatUsd(capacity.fixedCostsUsd)}</dd></div>
             <div><dt>Cuotas de deuda este mes</dt><dd className="num">{formatUsd(capacity.monthlyDebtUsd)}</dd></div>
@@ -89,7 +89,7 @@ export default function Reports() {
 
         <section className="card">
           <div className="card-header"><h2 className="card-title">Salud financiera</h2></div>
-          <dl className="report-kv">
+          <dl className="kv report-kv">
             <div><dt>Tasa de ahorro</dt><dd className={`num ${savingsRate < 0 ? 'text-danger' : savingsRate >= 0.2 ? 'text-ok' : ''}`}>{formatPct(savingsRate)}</dd></div>
             <div><dt>Fondo de emergencia objetivo ({settings.emergencyFundMonths} meses de fijos)</dt><dd className="num">{formatUsd(emergency)}</dd></div>
             <div><dt>Costos fijos / ingreso</dt><dd className={`num ${fixedRatio > 0.5 ? 'text-danger' : ''}`}>{formatPct(fixedRatio)}</dd></div>
@@ -118,7 +118,7 @@ export default function Reports() {
         <section className="card">
           <div className="card-header"><h2 className="card-title">Inflación real</h2><span className="tag bs">Bs</span></div>
           {inflation ? (
-            <dl className="report-kv">
+            <dl className="kv report-kv">
               <div><dt>Devaluación (últimos 3 meses)</dt><dd className="num text-danger">{formatPct(inflation.devaluationPct)}</dd></div>
               <div><dt>Ritmo diario promedio</dt><dd className="num">{formatPct(inflation.dailyPct)}</dd></div>
               <div><dt>Pérdida por cada 1.000 Bs guardados</dt><dd className="num text-danger">{formatUsd(inflation.lossPer1000Bs)}</dd></div>

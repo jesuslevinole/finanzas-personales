@@ -1,12 +1,10 @@
 .rate-banner {
-  display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-sidebar); color: #fff;
-  font-size: var(--text-sm);
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 4px var(--space-3);
+  border-radius: 999px;
+  background: var(--color-bs-soft); color: var(--color-bs);
+  font-size: var(--text-xs); white-space: nowrap; min-width: 0;
 }
-.rate-banner-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-sidebar-text); }
-.rate-banner-value { font-family: var(--font-display); font-weight: 800; font-size: var(--text-md); }
-.rate-banner-date { color: var(--color-sidebar-text); font-size: var(--text-xs); }
-@media (min-width: 768px) {
-  .rate-banner { position: sticky; top: 0; z-index: 10; padding-inline: var(--space-6); }
-}
+.rate-banner-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.rate-banner-value { font-family: var(--font-display); font-weight: 800; font-size: var(--text-sm); }
+.rate-banner-date { color: var(--color-muted); }

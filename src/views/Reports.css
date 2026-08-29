@@ -5,10 +5,7 @@
 @media (min-width: 768px) { .report-capacity-grid { grid-template-columns: 1.4fr 1fr; } }
 .report-capacity-meter { display: flex; flex-direction: column; gap: var(--space-2); justify-content: center; padding: var(--space-4); border-radius: var(--radius); background: var(--color-surface-2); }
 .report-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); line-height: 1; }
-.report-kv { display: flex; flex-direction: column; gap: var(--space-2); }
-.report-kv > div { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--text-sm); }
-.report-kv dt { color: var(--color-muted); }
-.report-kv dd { font-weight: 700; white-space: nowrap; }
+/* .report-kv hereda de .kv global; aquí solo lo específico */
 .report-kv-main { padding-top: var(--space-2); border-top: 1px dashed var(--color-border); }
 .report-kv-main dt { color: var(--color-text); font-weight: 600; }
 .report-kv-main dd { color: var(--color-primary); font-size: var(--text-md); }
@@ -18,5 +15,6 @@
 .report-tips li.ok { background: var(--color-ok-soft); color: var(--color-ok); }
 .report-tips li.warn { background: var(--color-warn-soft); color: var(--color-warn); }
 .report-tips li.danger { background: var(--color-danger-soft); color: var(--color-danger); }
-.report-history { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-1); margin-top: var(--space-2); }
+.report-history { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); margin-top: var(--space-2); }
+.report-history li > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .report-history li { display: flex; flex-direction: column; align-items: center; text-align: center; }

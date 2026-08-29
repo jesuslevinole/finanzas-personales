@@ -1,0 +1,28 @@
+.cselect { position: relative; width: 100%; }
+
+.cselect-trigger {
+  display: flex; align-items: center; gap: var(--space-2);
+  width: 100%; min-height: 42px; padding: 0 var(--space-3);
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-surface); text-align: left; font-size: var(--text-sm);
+}
+.cselect-trigger:hover { border-color: var(--color-primary-soft); }
+.cselect-trigger.open { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-soft); }
+.cselect-value { flex: 1; min-width: 0; }
+.cselect-placeholder { color: var(--color-muted); }
+.cselect-chevron { flex: none; color: var(--color-muted); }
+
+.cselect-panel {
+  position: absolute; z-index: 50; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); overflow: hidden;
+}
+.cselect-search { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); color: var(--color-muted); }
+.cselect-input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: var(--text-sm); }
+.cselect-list { max-height: 240px; overflow-y: auto; }
+.cselect-option { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: 9px var(--space-3); border: none; background: transparent; font-size: var(--text-sm); text-align: left; }
+.cselect-option.selected { color: var(--color-primary); font-weight: 600; }
+.cselect-option:hover { background: var(--color-surface-2); }
+.cselect-empty { padding: var(--space-3); font-size: var(--text-sm); color: var(--color-muted); text-align: center; }
+.cselect-create { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: 10px var(--space-3); border: none; border-top: 1px solid var(--color-border); background: var(--color-primary-soft); color: var(--color-primary); font-size: var(--text-sm); font-weight: 600; }
+.cselect-create:hover { background: var(--color-primary); color: #fff; }

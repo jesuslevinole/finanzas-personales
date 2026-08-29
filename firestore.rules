@@ -1,9 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Cada usuario solo lee y escribe sus propios datos: users/{uid}/{colección}/{doc}
+
+    // Todo vive bajo users/{uid}. El dueño manda; los miembros invitados
+    // entran con el nivel que les da su rol (sin_acceso / ver / editar).
     match /users/{uid}/{collection}/{doc} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      function memberPath() {
+        return /databases/$(database)/documents/users/$(uid)/members/$(request.auth.token.email.lower());
+      }
+
+      function isMember() {
+        return request.auth != null
+          && request.auth.token.email != null
+          && exists(memberPath());
+      }
+
+      function roleAccess() {
+        let member = get(memberPath()).data;
+        return get(/databases/$(database)/documents/users/$(uid)/roles/$(member.roleId)).data.access;
+      }
+
+      // Nombre de colección -> clave de módulo en el rol.
+      function moduleKey() {
+        return collection == 'expenses' || collection == 'incomes' ? 'movimientos'
+          : collection == 'fixedCosts' ? 'costos-fijos'
+          : collection == 'debts' ? 'deudas'
+          : collection == 'budgets' ? 'presupuesto'
+          : collection == 'inventory' ? 'inventario'
+          : collection == 'shopping' ? 'compras'
+          : collection == 'rates' ? 'tasa'
+          : collection == 'roles' || collection == 'members' ? 'usuarios'
+          : collection == 'settings' ? 'ajustes'
+          : 'catalogos';
+      }
+
+      function memberLevel() {
+        return roleAccess().get(moduleKey(), 'sin_acceso');
+      }
+
+      allow read: if isOwner() || (isMember() && memberLevel() != 'sin_acceso');
+      allow write: if isOwner() || (isMember() && memberLevel() == 'editar');
     }
   }
 }

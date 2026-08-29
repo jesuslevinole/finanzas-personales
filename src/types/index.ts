@@ -1,7 +1,5 @@
 // Única fuente de tipos del proyecto. Todo el modelo vive aquí.
 
-export type Currency = 'VES' | 'USD';
-
 /** Origen del dinero: propio o de un tercero que pasa por mi cuenta. */
 export type MoneyOwner = 'propio' | 'tercero';
 
@@ -10,28 +8,50 @@ export type PayStatus = 'pendiente' | 'en_proceso' | 'pagada';
 /** Grupo presupuestario (regla 50/30/20). */
 export type BudgetGroup = 'necesidad' | 'deseo' | 'ahorro';
 
+/* ---------------------------------------------------------------
+   Catálogos — misma forma para todos (id + nombre + color + activo),
+   resueltos con utils/relations.ts y editados en la vista Catálogos.
+   --------------------------------------------------------------- */
+
+export interface CatalogItem {
+  id: string;
+  name: string;
+  color: string;
+  active: boolean;
+  note?: string;
+}
+
+/** Rubro de gasto: catálogo + datos de presupuesto. */
+export interface Category extends CatalogItem {
+  group: BudgetGroup;
+  /** Porcentaje sugerido del ingreso mensual. */
+  suggestedPct?: number;
+}
+
+/** Lugar o comercio donde se gasta (Maraplus, Yummy, Digitel…). */
+export type Place = CatalogItem;
+/** Acreedor de deuda (Cashea, Ubii, Tendencias…). */
+export type Creditor = CatalogItem;
+/** Origen de ingreso (cliente, alquiler, Binance…). */
+export type IncomeSource = CatalogItem;
+
+/* ---------------------------------------------------------------
+   Movimientos
+   --------------------------------------------------------------- */
+
 export interface ExchangeRate {
   id: string;
   /** YYYY-MM-DD */
   date: string;
   /** Bs por 1 USD */
   rate: number;
-  source: 'BCV' | 'manual';
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  group: BudgetGroup;
-  color: string;
-  /** Porcentaje sugerido del ingreso mensual (se usa en reportes). */
-  suggestedPct?: number;
+  source: 'BCV' | 'manual' | 'excel';
 }
 
 export interface Income {
   id: string;
   date: string;
-  source: string;
+  sourceId: string;
   amountBs: number;
   rate: number;
   amountUsd: number;
@@ -42,7 +62,7 @@ export interface Income {
 export interface Expense {
   id: string;
   date: string;
-  place: string;
+  placeId: string;
   categoryId: string;
   product: string;
   unitPriceBs: number;
@@ -50,7 +70,6 @@ export interface Expense {
   totalBs: number;
   rate: number;
   totalUsd: number;
-  /** Si el gasto agregó stock al inventario. */
   inventoryItemId?: string;
   note?: string;
 }
@@ -69,7 +88,7 @@ export interface FixedCost {
 
 export interface Debt {
   id: string;
-  creditor: string;
+  creditorId: string;
   merchant: string;
   description?: string;
   amountUsd: number;
@@ -86,6 +105,10 @@ export interface Budget {
   month: string;
   limitUsd: number;
 }
+
+/* ---------------------------------------------------------------
+   Despensa
+   --------------------------------------------------------------- */
 
 export type StockUnit = 'und' | 'kg' | 'g' | 'l' | 'ml' | 'paq';
 
@@ -106,8 +129,7 @@ export interface InventoryItem {
   lastPriceBs: number;
   lastPriceUsd: number;
   lastPurchaseDate?: string;
-  lastPlace?: string;
-  /** Historial de precios para medir inflación real del producto. */
+  lastPlaceId?: string;
   priceHistory: PricePoint[];
 }
 
@@ -122,6 +144,33 @@ export interface ShoppingItem {
   priority: ShoppingPriority;
   checked: boolean;
   inventoryItemId?: string;
+  createdAt: string;
+}
+
+/* ---------------------------------------------------------------
+   Accesos — un nivel por módulo, tres niveles posibles.
+   --------------------------------------------------------------- */
+
+export type ModuleKey =
+  | 'resumen' | 'movimientos' | 'costos-fijos' | 'deudas' | 'presupuesto'
+  | 'reportes' | 'inventario' | 'compras' | 'tasa' | 'catalogos'
+  | 'importar' | 'usuarios' | 'ajustes';
+
+export type AccessLevel = 'sin_acceso' | 'ver' | 'editar';
+
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+  access: Partial<Record<ModuleKey, AccessLevel>>;
+}
+
+/** Persona con acceso al espacio del dueño. El id del documento es su email. */
+export interface Member {
+  id: string;
+  email: string;
+  name?: string;
+  roleId: string;
   createdAt: string;
 }
 

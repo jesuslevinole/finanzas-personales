@@ -8,6 +8,7 @@ import {
   query,
   setDoc,
   updateDoc,
+  writeBatch,
   type DocumentData,
   type QueryConstraint,
   type QueryDocumentSnapshot,
@@ -19,6 +20,9 @@ import type { NewDoc, WithId } from '../types';
 export type CollectionName =
   | 'rates'
   | 'categories'
+  | 'places'
+  | 'creditors'
+  | 'incomeSources'
   | 'incomes'
   | 'expenses'
   | 'fixedCosts'
@@ -26,6 +30,8 @@ export type CollectionName =
   | 'budgets'
   | 'inventory'
   | 'shopping'
+  | 'roles'
+  | 'members'
   | 'settings';
 
 /** Todos los datos viven bajo users/{uid}/{colección}. */
@@ -38,10 +44,15 @@ export const subscribe = <T extends WithId>(
   uid: string,
   name: CollectionName,
   onData: (rows: T[]) => void,
+  onError: (error: Error) => void,
   orderField?: keyof T & string,
 ): Unsubscribe => {
   const constraints: QueryConstraint[] = orderField ? [orderBy(orderField, 'desc')] : [];
-  return onSnapshot(query(colRef(uid, name), ...constraints), (qs) => onData(qs.docs.map((d) => fromSnap<T>(d))));
+  return onSnapshot(
+    query(colRef(uid, name), ...constraints),
+    (qs) => onData(qs.docs.map((d) => fromSnap<T>(d))),
+    onError,
+  );
 };
 
 export const create = async <T extends WithId>(uid: string, name: CollectionName, data: NewDoc<T>): Promise<string> => {
@@ -64,4 +75,23 @@ export const patch = async <T extends WithId>(
 
 export const remove = async (uid: string, name: CollectionName, id: string): Promise<void> => {
   await deleteDoc(doc(colRef(uid, name), id));
+};
+
+/** Escritura por lotes — se usa al importar el Excel. */
+export const createMany = async <T extends WithId>(
+  uid: string,
+  name: CollectionName,
+  rows: NewDoc<T>[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<number> => {
+  let done = 0;
+  for (let i = 0; i < rows.length; i += 400) {
+    const chunk = rows.slice(i, i + 400);
+    const batch = writeBatch(db);
+    chunk.forEach((row) => batch.set(doc(colRef(uid, name)), row));
+    await batch.commit();
+    done += chunk.length;
+    onProgress?.(done, rows.length);
+  }
+  return done;
 };

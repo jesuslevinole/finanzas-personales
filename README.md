@@ -34,7 +34,10 @@ Primer uso: entra en **Ajustes → Cargar rubros sugeridos** y en **Tasa BCV →
 | `/inventario` | Stock en casa, mínimo por producto, historial de precios en $ por compra, enviar a lista |
 | `/compras` | Lista con prioridad, precio estimado desde tu última compra, total en $ y Bs de hoy |
 | `/tasa` | Tasa BCV diaria (API pública `ve.dolarapi.com` + carga manual), convertidor, historial |
-| `/ajustes` | % máximo de deuda, meses de fondo de emergencia, reparto 50/30/20, rubros con color y % sugerido |
+| `/catalogos` | Rubros, lugares, acreedores y orígenes de ingreso: color, activo/inactivo, uso en registros |
+| `/importar` | Lee el Excel (TASA_BCV, BD_INGRESOS, BD_GASTOS, BD_COSTOSFIJOS, BD_DEUDAS, LISTA, URGENCIAS), crea los catálogos que falten y carga todo a Firestore |
+| `/usuarios` | Roles con tres niveles por módulo (sin acceso / ver / editar) y usuarios invitados por correo |
+| `/ajustes` | % máximo de deuda, meses de fondo de emergencia, reparto 50/30/20 |
 
 ## Estructura
 
@@ -47,7 +50,10 @@ src/
   services/firestore.ts← CRUD genérico tipado bajo users/{uid}/{colección}
   context/             ← AuthProvider y DataProvider (un solo onSnapshot por colección, las vistas no re-fetchean)
   hooks/               ← useAuth, useData, useMonth, useLiveRate
-  components/ui/       ← Money, StatCard, Modal, Donut, Sparkline, MonthPicker, ProgressBar, EmptyState (cada uno con su .css hermano)
+  components/ui/       ← Money, StatCard, Modal, Donut, Sparkline, MonthPicker, ProgressBar, EmptyState, CustomSelect (cada uno con su .css hermano)
+  utils/relations.ts   ← getRelationName/getRelationColor: resuelven un id contra cualquier catálogo
+  utils/access.ts      ← módulos, niveles de acceso y roles sugeridos
+  utils/excel.ts       ← traducción de las hojas del Excel al modelo de la app
   views/               ← una vista por ruta, con su .css hermano
 ```
 
@@ -86,6 +92,6 @@ Notas:
 ## Pendientes sugeridos
 
 - Cuentas/saldos (Bs, USD efectivo, USDT Binance) con transferencias entre ellas.
-- Importar el Excel actual (BD_GASTOS, BD_INGRESOS, BD_DEUDAS) vía CSV.
 - Recordatorios push para cuotas que vencen.
+- Editar movimientos ya cargados (hoy se crean y se eliminan).
 - Code-splitting por ruta (`React.lazy`) para bajar el bundle inicial.

@@ -1,6 +1,7 @@
 import { createContext } from 'react';
 import type {
-  Budget, Category, Debt, Expense, ExchangeRate, FixedCost, Income, InventoryItem, NewDoc, ShoppingItem, UserSettings, WithId,
+  Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
+  InventoryItem, Member, NewDoc, Place, Role, ShoppingItem, UserSettings, WithId,
 } from '../types';
 import type { CollectionName } from '../services/firestore';
 
@@ -10,8 +11,13 @@ import type { CollectionName } from '../services/firestore';
  */
 export interface DataValue {
   ready: boolean;
+  /** Mensaje de Firestore si la sincronización falló (reglas, red…). */
+  error: string | null;
   rates: ExchangeRate[];
   categories: Category[];
+  places: Place[];
+  creditors: Creditor[];
+  incomeSources: IncomeSource[];
   incomes: Income[];
   expenses: Expense[];
   fixedCosts: FixedCost[];
@@ -19,10 +25,13 @@ export interface DataValue {
   budgets: Budget[];
   inventory: InventoryItem[];
   shopping: ShoppingItem[];
+  roles: Role[];
+  members: Member[];
   settings: Omit<UserSettings, 'id'>;
   /** Última tasa registrada (Bs por USD). 0 si no hay ninguna. */
   currentRate: number;
   add: <T extends WithId>(name: CollectionName, data: NewDoc<T>) => Promise<string>;
+  addMany: <T extends WithId>(name: CollectionName, rows: NewDoc<T>[], onProgress?: (done: number, total: number) => void) => Promise<number>;
   set: <T extends WithId>(name: CollectionName, id: string, data: NewDoc<T>) => Promise<void>;
   update: <T extends WithId>(name: CollectionName, id: string, data: Partial<NewDoc<T>>) => Promise<void>;
   del: (name: CollectionName, id: string) => Promise<void>;

@@ -1,19 +1,24 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { UNITS } from '../utils/units';
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import Modal from '../components/ui/Modal';
+import CustomSelect from '../components/ui/CustomSelect';
+import { usePermissions } from '../hooks/usePermissions';
 import EmptyState from '../components/ui/EmptyState';
 import Sparkline from '../components/ui/Sparkline';
-import type { InventoryItem, NewDoc, ShoppingItem, StockUnit } from '../types';
-import { getCategoryName } from '../utils/relations';
+import type { Category, InventoryItem, NewDoc, ShoppingItem, StockUnit } from '../types';
+import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
 import { shortDate, todayIso } from '../utils/dates';
 import './Inventory.css';
 
 
 export default function Inventory() {
-  const { inventory, categories, shopping, currentRate, add, update, del } = useData();
+  const data = useData();
+  const { inventory, categories, places, shopping, currentRate, add, update, del } = data;
+  const { canEdit } = usePermissions();
+  const editable = canEdit('inventario');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
@@ -38,7 +43,7 @@ export default function Inventory() {
     <div className="page">
       <div className="page-header">
         <div><h1>Inventario</h1><p className="page-subtitle">Lo que tienes en casa, cuánto te costó y cómo ha subido de precio.</p></div>
-        <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={16} /> Nuevo producto</button>
+        {editable && <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={16} /> Nuevo producto</button>}
       </div>
 
       <div className="grid grid-3">
@@ -61,13 +66,13 @@ export default function Inventory() {
               return (
                 <li key={item.id} className={`inv-card${low ? ' low' : ''}`}>
                   <div className="row-between">
-                    <div className="grow"><div className="strong truncate">{item.name}</div><div className="tiny muted">{getCategoryName(categories, item.categoryId)}{item.lastPlace && ` · ${item.lastPlace}`}</div></div>
+                    <div className="grow"><div className="strong truncate">{item.name}</div><div className="tiny muted truncate"><span className="dot dot-inline" style={{ '--dot-color': getRelationColor(categories, item.categoryId) } as CSSProperties} />{getRelationName(categories, item.categoryId)}{item.lastPlaceId && ` · ${getRelationName(places, item.lastPlaceId, '')}`}</div></div>
                     {low && <span className="tag warn">Reponer</span>}
                   </div>
                   <div className="inv-qty">
-                    <button type="button" className="btn btn-outline btn-icon" aria-label="Restar" onClick={() => adjust(item, -1)}><Minus size={14} /></button>
+                    {editable && <button type="button" className="btn btn-outline btn-icon" aria-label="Restar" onClick={() => adjust(item, -1)}><Minus size={14} /></button>}
                     <span className="inv-qty-value num">{item.quantity} <span className="tiny muted">{item.unit}</span></span>
-                    <button type="button" className="btn btn-outline btn-icon" aria-label="Sumar" onClick={() => adjust(item, 1)}><Plus size={14} /></button>
+                    {editable && <button type="button" className="btn btn-outline btn-icon" aria-label="Sumar" onClick={() => adjust(item, 1)}><Plus size={14} /></button>}
                   </div>
                   <dl className="inv-meta">
                     <div><dt>Último precio</dt><dd className="num"><span className="text-usd">{formatUsd(item.lastPriceUsd)}</span> <span className="muted">/ {formatBs(item.lastPriceBs)}</span></dd></div>
@@ -80,10 +85,12 @@ export default function Inventory() {
                       <span className={`tiny num ${change !== null && change > 0 ? 'text-danger' : 'text-ok'}`}>{change !== null ? formatPct(change) : ''} en $ ({hist.length} compras)</span>
                     </div>
                   )}
-                  <div className="row inv-actions">
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => sendToList(item)}><ShoppingCart size={14} /> A la lista</button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (window.confirm(`¿Eliminar "${item.name}" del inventario?`)) void del('inventory', item.id); }}><Trash2 size={14} /></button>
-                  </div>
+                  {editable && (
+                    <div className="row inv-actions">
+                      <button type="button" className="btn btn-outline btn-sm" onClick={() => sendToList(item)}><ShoppingCart size={14} /> A la lista</button>
+                      <button type="button" className="btn btn-ghost btn-sm" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar «${item.name}» del inventario?`)) void del('inventory', item.id); }}><Trash2 size={14} /></button>
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -92,13 +99,22 @@ export default function Inventory() {
       </div>
 
       <Modal title="Nuevo producto" open={open} onClose={() => setOpen(false)}>
-        <InventoryForm categories={categories} currentRate={currentRate} onSubmit={async (d) => { await add<InventoryItem>('inventory', d); setOpen(false); }} />
+        <InventoryForm categories={categories} currentRate={currentRate}
+          onCreateCategory={(name) => data.add<Category>('categories', { name, color: colorForIndex(categories.length), active: true, group: 'necesidad' })}
+          onSubmit={async (d) => { await add<InventoryItem>('inventory', d); setOpen(false); }} />
       </Modal>
     </div>
   );
 }
 
-function InventoryForm({ categories, currentRate, onSubmit }: { categories: ReturnType<typeof useData>['categories']; currentRate: number; onSubmit: (d: NewDoc<InventoryItem>) => Promise<void> }) {
+interface InventoryFormProps {
+  categories: Category[];
+  currentRate: number;
+  onCreateCategory: (name: string) => Promise<string>;
+  onSubmit: (d: NewDoc<InventoryItem>) => Promise<void>;
+}
+
+function InventoryForm({ categories, currentRate, onCreateCategory, onSubmit }: InventoryFormProps) {
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
   const [quantity, setQuantity] = useState('1');
@@ -121,7 +137,7 @@ function InventoryForm({ categories, currentRate, onSubmit }: { categories: Retu
   return (
     <form onSubmit={submit} className="stack">
       <label className="field"><span className="field-label">Producto</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} required /></label>
-      <label className="field"><span className="field-label">Rubro</span><select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+      <div className="field"><span className="field-label">Rubro</span><CustomSelect items={categories} value={categoryId} onChange={setCategoryId} onCreate={onCreateCategory} /></div>
       <div className="form-grid">
         <label className="field"><span className="field-label">Cantidad</span><input className="input num" type="number" step="0.01" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>
         <label className="field"><span className="field-label">Unidad</span><select className="input" value={unit} onChange={(e) => setUnit(e.target.value as StockUnit)}>{UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>

@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { DataContext, type DataValue } from './dataContext';
 import type {
-  Budget, Category, Debt, Expense, ExchangeRate, FixedCost, Income, InventoryItem, ShoppingItem, UserSettings,
+  Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
+  InventoryItem, Member, Place, Role, ShoppingItem, UserSettings,
 } from '../types';
-import { create, patch, remove, subscribe, upsert } from '../services/firestore';
+import { create, createMany, patch, remove, subscribe, upsert } from '../services/firestore';
 import { DEFAULT_SETTINGS } from '../utils/finance';
 import { useAuth } from '../hooks/useAuth';
-
-
+import { DataContext, type DataValue } from './dataContext';
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -15,6 +14,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const [rates, setRates] = useState<ExchangeRate[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [creditors, setCreditors] = useState<Creditor[]>([]);
+  const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
@@ -22,22 +24,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [shopping, setShopping] = useState<ShoppingItem[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [settingsDocs, setSettingsDocs] = useState<UserSettings[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid) return;
+    const fail = (e: Error) => setError(e.message);
     const unsubs = [
-      subscribe<ExchangeRate>(uid, 'rates', setRates, 'date'),
-      subscribe<Category>(uid, 'categories', setCategories),
-      subscribe<Income>(uid, 'incomes', setIncomes, 'date'),
-      subscribe<Expense>(uid, 'expenses', setExpenses, 'date'),
-      subscribe<FixedCost>(uid, 'fixedCosts', setFixedCosts, 'month'),
-      subscribe<Debt>(uid, 'debts', setDebts, 'dueDate'),
-      subscribe<Budget>(uid, 'budgets', setBudgets),
-      subscribe<InventoryItem>(uid, 'inventory', setInventory),
-      subscribe<ShoppingItem>(uid, 'shopping', setShopping, 'createdAt'),
-      subscribe<UserSettings>(uid, 'settings', (rows) => { setSettingsDocs(rows); setReady(true); }),
+      subscribe<ExchangeRate>(uid, 'rates', setRates, fail, 'date'),
+      subscribe<Category>(uid, 'categories', setCategories, fail),
+      subscribe<Place>(uid, 'places', setPlaces, fail),
+      subscribe<Creditor>(uid, 'creditors', setCreditors, fail),
+      subscribe<IncomeSource>(uid, 'incomeSources', setIncomeSources, fail),
+      subscribe<Income>(uid, 'incomes', setIncomes, fail, 'date'),
+      subscribe<Expense>(uid, 'expenses', setExpenses, fail, 'date'),
+      subscribe<FixedCost>(uid, 'fixedCosts', setFixedCosts, fail, 'month'),
+      subscribe<Debt>(uid, 'debts', setDebts, fail, 'dueDate'),
+      subscribe<Budget>(uid, 'budgets', setBudgets, fail),
+      subscribe<InventoryItem>(uid, 'inventory', setInventory, fail),
+      subscribe<ShoppingItem>(uid, 'shopping', setShopping, fail, 'createdAt'),
+      subscribe<Role>(uid, 'roles', setRoles, fail),
+      subscribe<Member>(uid, 'members', setMembers, fail),
+      subscribe<UserSettings>(uid, 'settings', (rows) => { setSettingsDocs(rows); setReady(true); }, fail),
     ];
     return () => unsubs.forEach((u) => u());
   }, [uid]);
@@ -50,15 +61,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return uid;
     };
     return {
-      ready,
-      rates, categories, incomes, expenses, fixedCosts, debts, budgets, inventory, shopping, settings, currentRate,
+      ready, error,
+      rates, categories, places, creditors, incomeSources, incomes, expenses,
+      fixedCosts, debts, budgets, inventory, shopping, roles, members, settings, currentRate,
       add: (name, data) => create(requireUid(), name, data),
+      addMany: (name, rows, onProgress) => createMany(requireUid(), name, rows, onProgress),
       set: (name, id, data) => upsert(requireUid(), name, id, data),
       update: (name, id, data) => patch(requireUid(), name, id, data),
       del: (name, id) => remove(requireUid(), name, id),
     };
-  }, [uid, ready, rates, categories, incomes, expenses, fixedCosts, debts, budgets, inventory, shopping, settingsDocs]);
+  }, [uid, ready, error, rates, categories, places, creditors, incomeSources, incomes, expenses, fixedCosts, debts, budgets, inventory, shopping, roles, members, settingsDocs]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
-

@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useData } from '../hooks/useData';
+import { usePermissions } from '../hooks/usePermissions';
 import EmptyState from '../components/ui/EmptyState';
 import Money from '../components/ui/Money';
 import type { ShoppingItem, ShoppingPriority, StockUnit } from '../types';
@@ -14,6 +15,8 @@ const PRIORITY_ORDER: ShoppingPriority[] = ['urgente', 'normal', 'cuando_se_pued
 
 export default function Shopping() {
   const { shopping, inventory, currentRate, add, update, del } = useData();
+  const { canEdit } = usePermissions();
+  const editable = canEdit('compras');
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState<StockUnit>('und');
@@ -53,7 +56,7 @@ export default function Shopping() {
           <Money amount={totalUsd} currency="USD" rate={currentRate} dual size="lg" />
           <span className="tiny muted">Precios tomados de tu última compra registrada.</span>
         </div>
-        <form onSubmit={submit} className="card shop-form">
+        <form onSubmit={submit} className={`card shop-form${editable ? '' : ' shop-form-hidden'}`}>
           <input className="input" placeholder="Producto" value={name} onChange={(e) => onNameChange(e.target.value)} list="shop-names" required />
           <datalist id="shop-names">{inventory.map((i) => <option key={i.id} value={i.name} />)}</datalist>
           <div className="shop-form-row">
@@ -76,11 +79,11 @@ export default function Shopping() {
                 <h3 className={`shop-group-title ${p}`}>{PRIORITY_LABEL[p]} <span className="muted num">· {formatUsd(sum(rows.map((s) => s.estimatedUsd * s.quantity)))}</span></h3>
                 <ul>
                   {rows.map((s) => (
-                    <li key={s.id} className="list-item">
-                      <input type="checkbox" className="shop-check" checked={s.checked} onChange={() => toggle(s)} aria-label={`Comprado ${s.name}`} />
-                      <div className="grow"><div className="strong truncate">{s.name}</div><div className="tiny muted num">{s.quantity} {s.unit} × {formatUsd(s.estimatedUsd)}</div></div>
+                    <li key={s.id} className="shop-row">
+                      <input type="checkbox" className="shop-check" checked={s.checked} disabled={!editable} onChange={() => toggle(s)} aria-label={`Comprado ${s.name}`} />
+                      <div className="shop-info"><div className="strong truncate">{s.name}</div><div className="tiny muted num">{s.quantity} {s.unit} × {formatUsd(s.estimatedUsd)}</div></div>
                       <Money amount={s.estimatedUsd * s.quantity} currency="USD" rate={currentRate} dual size="sm" />
-                      <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => del('shopping', s.id)}><Trash2 size={16} /></button>
+                      {editable && <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => del('shopping', s.id)}><Trash2 size={16} /></button>}
                     </li>
                   ))}
                 </ul>

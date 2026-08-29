@@ -8,3 +8,12 @@
 .shop-group-title.cuando_se_pueda { color: var(--color-muted); }
 .shop-check { width: 20px; height: 20px; accent-color: var(--color-primary); flex: none; }
 .shop-done { opacity: 0.55; text-decoration: line-through; }
+
+.shop-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center; gap: var(--space-3);
+  padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border);
+}
+.shop-row:last-child { border-bottom: none; }
+.shop-info { min-width: 0; }
+.shop-form-hidden { display: none; }

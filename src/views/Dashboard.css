@@ -1,6 +1,12 @@
 .dash-donut { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
 .dash-legend { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--space-2); }
-.dash-legend-item { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.dash-legend-item {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center; gap: var(--space-2); font-size: var(--text-sm);
+}
+.dash-legend-name { min-width: 0; }
+.dash-legend-value { font-variant-numeric: tabular-nums; }
+.dash-legend-share { min-width: 42px; text-align: right; }
 .dash-inflation {
   display: flex; gap: var(--space-2); align-items: flex-start;
   margin-top: var(--space-3); padding: var(--space-3);
@@ -8,8 +14,7 @@
   font-size: var(--text-sm);
 }
 .dash-fixed-hint { margin-top: var(--space-2); }
-.dash-kv { display: flex; flex-direction: column; gap: var(--space-2); }
-.dash-kv > div { display: flex; justify-content: space-between; font-size: var(--text-sm); }
-.dash-kv dt { color: var(--color-muted); }
-.dash-kv dd { font-weight: 700; }
-.text-warn { color: var(--color-warn); }
+/* .dash-kv usa las reglas globales de .kv */
+
+.dash-donut { align-items: flex-start; }
+@media (max-width: 480px) { .dash-donut { flex-direction: column; align-items: center; } .dash-legend { width: 100%; } }

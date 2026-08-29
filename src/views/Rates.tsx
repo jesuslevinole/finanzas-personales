@@ -80,12 +80,14 @@ export default function Rates() {
               const prev = rates[i + 1];
               const change = prev ? r.rate / prev.rate - 1 : null;
               return (
-                <li key={r.id} className="list-item">
-                  <span className="rates-date">{shortDate(r.date)}</span>
-                  <span className="grow num strong">{formatBs(r.rate)}</span>
-                  {change !== null && <span className={`tag ${change > 0 ? 'danger' : 'ok'}`}>{change > 0 ? '+' : ''}{formatPct(change)}</span>}
-                  <span className="tag">{r.source}</span>
-                  <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar la tasa del ${shortDate(r.date)}?`)) void del('rates', r.id); }}><Trash2 size={16} /></button>
+                <li key={r.id} className="record">
+                  <span className="record-date rates-date">{shortDate(r.date)}</span>
+                  <span className="record-main"><span className="num strong">{formatBs(r.rate)}</span></span>
+                  <span className="record-meta">
+                    {change !== null && <span className={`tag ${change > 0 ? 'danger' : 'ok'}`}>{change > 0 ? '+' : ''}{formatPct(change)}</span>}
+                    <span className="tag">{r.source}</span>
+                  </span>
+                  <span className="record-actions"><button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar la tasa del ${shortDate(r.date)}?`)) void del('rates', r.id); }}><Trash2 size={16} /></button></span>
                 </li>
               );
             })}

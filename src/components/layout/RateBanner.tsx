@@ -19,10 +19,10 @@ export default function RateBanner() {
       {latest ? (
         <>
           <span className="rate-banner-value num">{formatBs(latest.rate)}</span>
-          <span className="rate-banner-date">{shortDate(latest.date)}</span>
+          <span className="rate-banner-date hide-mobile">{shortDate(latest.date)}</span>
           {weekChange !== null && (
-            <span className={`tag ${weekChange > 0.01 ? 'danger' : 'ok'}`}>
-              <TrendingUp size={12} /> {formatPct(weekChange)} en 7 días
+            <span className={`tag ${weekChange > 0.01 ? 'danger' : 'ok'} hide-mobile`}>
+              <TrendingUp size={12} /> {formatPct(weekChange)} / 7d
             </span>
           )}
         </>

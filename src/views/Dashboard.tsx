@@ -11,11 +11,12 @@ import Money from '../components/ui/Money';
 import ProgressBar from '../components/ui/ProgressBar';
 import { debtCapacity, expensesByCategory, inflationSummary, ownIncomeUsd } from '../utils/finance';
 import { formatPct, formatUsd, sum } from '../utils/money';
+import { getRelationName } from '../utils/relations';
 import { daysBetween, monthOf, shortDate, todayIso } from '../utils/dates';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const { categories, currentRate, rates, inventory, shopping, settings, debts } = useData();
+  const { categories, creditors, currentRate, rates, inventory, shopping, settings, debts } = useData();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
 
   const incomeUsd = ownIncomeUsd(monthIncomes);
@@ -66,9 +67,9 @@ export default function Dashboard() {
                 {byCat.slice(0, 6).map((c) => (
                   <li key={c.categoryId} className="dash-legend-item">
                     <span className="dot" style={{ '--dot-color': c.color } as CSSProperties} />
-                    <span className="grow truncate">{c.name}</span>
-                    <span className="num strong">{formatUsd(c.usd)}</span>
-                    <span className="num muted tiny">{formatPct(c.share)}</span>
+                    <span className="dash-legend-name truncate">{c.name}</span>
+                    <span className="num strong dash-legend-value">{formatUsd(c.usd)}</span>
+                    <span className="num muted tiny dash-legend-share">{formatPct(c.share)}</span>
                   </li>
                 ))}
               </ul>
@@ -96,11 +97,16 @@ export default function Dashboard() {
               {dueSoon.map((d) => {
                 const days = daysBetween(today, d.dueDate);
                 return (
-                  <li key={d.id} className="list-item">
-                    <CalendarClock size={16} className={days < 0 ? 'text-danger' : 'muted'} />
-                    <div className="grow"><div className="strong truncate">{d.merchant}</div><div className="tiny muted">{d.creditor} · {shortDate(d.dueDate)}</div></div>
-                    <span className="num strong">{formatUsd(d.amountUsd)}</span>
-                    <span className={`tag ${days < 0 ? 'danger' : days <= 2 ? 'warn' : ''}`}>{days < 0 ? 'Vencida' : days === 0 ? 'Hoy' : `${days} d`}</span>
+                  <li key={d.id} className="record">
+                    <span className="record-main">
+                      <CalendarClock size={14} className={days < 0 ? 'text-danger' : 'muted'} />
+                      <span className="record-title">{d.merchant}</span>
+                    </span>
+                    <span className="record-meta">
+                      <span className="truncate">{getRelationName(creditors, d.creditorId)} · {shortDate(d.dueDate)}</span>
+                      <span className={`tag ${days < 0 ? 'danger' : days <= 2 ? 'warn' : ''}`}>{days < 0 ? 'Vencida' : days === 0 ? 'Hoy' : `${days} d`}</span>
+                    </span>
+                    <span className="record-amount num strong">{formatUsd(d.amountUsd)}</span>
                   </li>
                 );
               })}
@@ -116,7 +122,7 @@ export default function Dashboard() {
               <p className="small muted dash-fixed-hint">{formatUsd(sum(pendingFixed.map((f) => f.amountUsd)))} pendientes de {formatUsd(sum(monthFixed.map((f) => f.amountUsd)))}</p>
               <ul>
                 {pendingFixed.slice(0, 4).map((f) => (
-                  <li key={f.id} className="list-item"><span className="grow truncate">{f.description}</span><span className="num">{formatUsd(f.amountUsd)}</span></li>
+                  <li key={f.id} className="record"><span className="record-main"><span className="record-title">{f.description}</span></span><span className="record-amount num">{formatUsd(f.amountUsd)}</span></li>
                 ))}
               </ul>
             </>
@@ -125,7 +131,7 @@ export default function Dashboard() {
 
         <section className="card">
           <div className="card-header"><h2 className="card-title">Despensa y compras</h2><Link to="/compras" className="small">Lista</Link></div>
-          <dl className="dash-kv">
+          <dl className="kv dash-kv">
             <div><dt>Productos por reponer</dt><dd className={lowStock.length ? 'text-warn' : ''}>{lowStock.length}</dd></div>
             <div><dt>Compras urgentes</dt><dd className={urgent.length ? 'text-danger' : ''}>{urgent.length}</dd></div>
             <div><dt>Costo estimado lista</dt><dd className="num">{formatUsd(sum(shopping.filter((s) => !s.checked).map((s) => s.estimatedUsd * s.quantity)))}</dd></div>
