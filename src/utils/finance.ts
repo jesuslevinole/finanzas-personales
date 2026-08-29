@@ -3,9 +3,11 @@ import { daysBetween } from './dates';
 import { sum } from './money';
 
 export const DEFAULT_SETTINGS: Omit<UserSettings, 'id'> = {
-  maxDebtRatioPct: 35,
-  emergencyFundMonths: 3,
-  split: { necesidad: 50, deseo: 30, ahorro: 20 },
+  maxDebtRatioPct: 25,
+  emergencyFundMonths: 4,
+  savingsTargetPct: 15,
+  householdSize: 3,
+  split: { necesidad: 55, deseo: 20, ahorro: 25 },
 };
 
 export const GROUP_LABEL: Record<BudgetGroup, string> = {
@@ -198,4 +200,142 @@ export const emergencyFundTarget = (fixedCosts: FixedCost[], months: number): nu
 export const rateForDate = (rates: ExchangeRate[], date: string, fallback: number): number => {
   const sorted = [...rates].filter((r) => r.date <= date).sort((a, b) => b.date.localeCompare(a.date));
   return sorted[0]?.rate ?? fallback;
+};
+
+
+/* ---------------------------------------------------------------
+   Liquidez y plan de acción
+   --------------------------------------------------------------- */
+
+export interface CashNeed {
+  /** Vencido y sin pagar. */
+  overdueUsd: number;
+  /** Vence dentro de la ventana (por defecto, 7 días). */
+  dueSoonUsd: number;
+  /** Compras marcadas como urgentes. */
+  urgentBuysUsd: number;
+  totalUsd: number;
+  items: number;
+}
+
+/**
+ * Cuánto necesitas tener disponible AHORA: lo vencido, lo que vence en los
+ * próximos `days` días y las compras urgentes.
+ */
+export const cashNeeded = (
+  debts: Debt[],
+  fixedCosts: FixedCost[],
+  urgentBuysUsd: number,
+  today: string,
+  horizon: string,
+): CashNeed => {
+  const openDebts = debts.filter((d) => d.status !== 'pagada');
+  const openFixed = fixedCosts.filter((f) => f.status !== 'pagada');
+
+  const overdueUsd = sum(openDebts.filter((d) => d.dueDate < today).map((d) => d.amountUsd));
+  const dueSoonUsd = sum(openDebts.filter((d) => d.dueDate >= today && d.dueDate <= horizon).map((d) => d.amountUsd));
+  const fixedTotal = sum(openFixed.map((f) => f.amountUsd));
+  const items = openDebts.filter((d) => d.dueDate <= horizon).length + openFixed.length;
+
+  return {
+    overdueUsd,
+    dueSoonUsd: dueSoonUsd + fixedTotal,
+    urgentBuysUsd,
+    totalUsd: overdueUsd + dueSoonUsd + fixedTotal + urgentBuysUsd,
+    items,
+  };
+};
+
+export type AdviceLevel = 'ok' | 'atencion' | 'urgente';
+
+export interface Advice {
+  id: string;
+  level: AdviceLevel;
+  title: string;
+  detail: string;
+}
+
+export interface HealthInput {
+  incomeUsd: number;
+  expensesUsd: number;
+  fixedUsd: number;
+  debtUsd: number;
+  savedUsd: number;
+  emergencyTargetUsd: number;
+  wantsUsd: number;
+  settings: Omit<UserSettings, 'id'>;
+}
+
+/** Puntaje 0-100 de salud financiera, con el peso de cada componente. */
+export const healthScore = (h: HealthInput): { score: number; parts: { label: string; value: number; max: number }[] } => {
+  const ratio = (value: number, best: number, worst: number): number => {
+    if (best === worst) return 1;
+    return Math.max(0, Math.min(1, (worst - value) / (worst - best)));
+  };
+  const savingsRate = h.incomeUsd > 0 ? (h.incomeUsd - h.expensesUsd) / h.incomeUsd : 0;
+  const parts = [
+    { label: 'Ahorro del mes', value: Math.round(ratio(-savingsRate, -h.settings.savingsTargetPct / 100, 0.1) * 30), max: 30 },
+    { label: 'Peso de la deuda', value: Math.round(ratio(h.incomeUsd > 0 ? h.debtUsd / h.incomeUsd : 1, 0, h.settings.maxDebtRatioPct / 100) * 25), max: 25 },
+    { label: 'Costos fijos', value: Math.round(ratio(h.incomeUsd > 0 ? h.fixedUsd / h.incomeUsd : 1, 0.25, 0.6) * 20), max: 20 },
+    { label: 'Fondo de emergencia', value: Math.round(Math.min(1, h.emergencyTargetUsd > 0 ? h.savedUsd / h.emergencyTargetUsd : 0) * 15), max: 15 },
+    { label: 'Gasto en deseos', value: Math.round(ratio(h.incomeUsd > 0 ? h.wantsUsd / h.incomeUsd : 0, 0.05, h.settings.split.deseo / 100) * 10), max: 10 },
+  ];
+  return { score: sum(parts.map((p) => p.value)), parts };
+};
+
+/** Recomendaciones concretas, ordenadas por urgencia. */
+export const buildAdvice = (h: HealthInput, overdueUsd: number, topCategory?: { name: string; usd: number }): Advice[] => {
+  const advice: Advice[] = [];
+  const pct = (v: number) => (h.incomeUsd > 0 ? v / h.incomeUsd : 0);
+  const savings = h.incomeUsd - h.expensesUsd;
+
+  if (overdueUsd > 0) {
+    advice.push({ id: 'vencido', level: 'urgente', title: 'Paga primero lo vencido',
+      detail: `Tienes ${formatMoney(overdueUsd)} vencidos. En Venezuela el atraso se encarece dos veces: por recargo y por devaluación mientras esperas.` });
+  }
+  if (savings < 0) {
+    advice.push({ id: 'deficit', level: 'urgente', title: 'Gastaste más de lo que entró',
+      detail: `El mes cierra en ${formatMoney(savings)}. Antes de recortar rubros pequeños, revisa cuotas y deseos: son lo único que puedes frenar de inmediato.` });
+  }
+  if (pct(h.debtUsd) > h.settings.maxDebtRatioPct / 100) {
+    advice.push({ id: 'deuda', level: 'urgente', title: 'La deuda pasó tu techo',
+      detail: `Las cuotas se llevan ${(pct(h.debtUsd) * 100).toFixed(1)}% del ingreso, por encima del ${h.settings.maxDebtRatioPct}% que te fijaste. No asumas cuotas nuevas hasta bajar de ahí.` });
+  } else if (pct(h.debtUsd) > 0.2) {
+    advice.push({ id: 'deuda-media', level: 'atencion', title: 'La deuda pesa más de lo cómodo',
+      detail: `${(pct(h.debtUsd) * 100).toFixed(1)}% del ingreso va a cuotas. Cada compra a crédito hoy es un ingreso comprometido de las próximas seis semanas.` });
+  }
+  if (pct(h.fixedUsd) > 0.5) {
+    advice.push({ id: 'fijos', level: 'atencion', title: 'Costos fijos muy altos',
+      detail: `Los fijos son ${(pct(h.fixedUsd) * 100).toFixed(1)}% de lo que entra. Con esa estructura, un mes flojo de ingresos te deja sin margen.` });
+  }
+  if (h.savedUsd < h.emergencyTargetUsd) {
+    const falta = h.emergencyTargetUsd - h.savedUsd;
+    advice.push({ id: 'fondo', level: h.savedUsd <= 0 ? 'atencion' : 'ok', title: 'Completa el fondo de emergencia',
+      detail: `Te faltan ${formatMoney(falta)} para cubrir ${h.settings.emergencyFundMonths} meses de costos fijos. Guárdalo en divisas, no en bolívares.` });
+  }
+  if (pct(h.wantsUsd) > h.settings.split.deseo / 100) {
+    advice.push({ id: 'deseos', level: 'atencion', title: 'Los deseos se pasaron del reparto',
+      detail: `${formatMoney(h.wantsUsd)} en deseos, ${(pct(h.wantsUsd) * 100).toFixed(1)}% del ingreso. Tu meta es ${h.settings.split.deseo}%.` });
+  }
+  if (topCategory && pct(topCategory.usd) > 0.25) {
+    advice.push({ id: 'concentracion', level: 'atencion', title: `«${topCategory.name}» concentra el gasto`,
+      detail: `Un solo rubro se lleva ${(pct(topCategory.usd) * 100).toFixed(1)}% del ingreso. Vale la pena ponerle tope y revisarlo semana a semana.` });
+  }
+  if (savings > 0 && pct(savings) >= h.settings.savingsTargetPct / 100) {
+    advice.push({ id: 'bien', level: 'ok', title: 'Vas por encima de tu meta de ahorro',
+      detail: `Apartaste ${formatMoney(savings)} (${(pct(savings) * 100).toFixed(1)}%). Muévelo a divisas el mismo día que cobras y no lo dejes en la cuenta.` });
+  }
+
+  const order: Record<AdviceLevel, number> = { urgente: 0, atencion: 1, ok: 2 };
+  return advice.sort((a, b) => order[a.level] - order[b.level]);
+};
+
+const formatMoney = (n: number): string => `$${n.toFixed(2)}`;
+
+/** Aporte mensual necesario para llegar a una meta en su fecha. */
+export const monthlyContribution = (targetUsd: number, savedUsd: number, deadline?: string, today = new Date()): number | null => {
+  if (!deadline) return null;
+  const end = new Date(`${deadline}T00:00:00`);
+  const months = Math.max(1, (end.getFullYear() - today.getFullYear()) * 12 + end.getMonth() - today.getMonth());
+  return Math.max(0, (targetUsd - savedUsd) / months);
 };

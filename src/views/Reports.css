@@ -1,20 +1,29 @@
-.report-capacity { border-left: 4px solid var(--color-ok); }
-.report-capacity.alerta { border-left-color: var(--color-warn); }
-.report-capacity.critico { border-left-color: var(--color-danger); }
-.report-capacity-grid { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
-@media (min-width: 768px) { .report-capacity-grid { grid-template-columns: 1.4fr 1fr; } }
-.report-capacity-meter { display: flex; flex-direction: column; gap: var(--space-2); justify-content: center; padding: var(--space-4); border-radius: var(--radius); background: var(--color-surface-2); }
-.report-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); line-height: 1; }
-/* .report-kv hereda de .kv global; aquí solo lo específico */
-.report-kv-main { padding-top: var(--space-2); border-top: 1px dashed var(--color-border); }
-.report-kv-main dt { color: var(--color-text); font-weight: 600; }
-.report-kv-main dd { color: var(--color-primary); font-size: var(--text-md); }
-.report-sep { border: none; border-top: 1px solid var(--color-border); margin: var(--space-3) 0; }
-.report-tips { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
-.report-tips li { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm); }
-.report-tips li.ok { background: var(--color-ok-soft); color: var(--color-ok); }
-.report-tips li.warn { background: var(--color-warn-soft); color: var(--color-warn); }
-.report-tips li.danger { background: var(--color-danger-soft); color: var(--color-danger); }
-.report-history { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-1); margin-top: var(--space-2); }
-.report-history li > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.report-history li { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.rep-health { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
+@media (min-width: 768px) { .rep-health { grid-template-columns: 180px 1fr; align-items: center; } }
+.rep-health-score { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-3); border-radius: var(--radius); background: var(--color-surface-2); }
+.rep-score { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); line-height: 1; }
+.rep-health-parts { display: grid; gap: var(--space-2); grid-template-columns: 1fr; }
+@media (min-width: 640px) { .rep-health-parts { grid-template-columns: 1fr 1fr; gap: var(--space-2) var(--space-4); } }
+.rep-health-parts li { display: flex; flex-direction: column; gap: 2px; }
+
+.rep-advice { display: flex; flex-direction: column; gap: var(--space-2); }
+.rep-advice-item { display: flex; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-sm); align-items: flex-start; }
+.rep-advice-item.urgente { background: var(--color-danger-soft); color: var(--color-danger); }
+.rep-advice-item.atencion { background: var(--color-warn-soft); color: var(--color-warn); }
+.rep-advice-item.ok { background: var(--color-ok-soft); color: var(--color-ok); }
+.rep-advice-icon { flex: none; margin-top: 2px; }
+.rep-advice-item p:last-child { color: var(--color-text); opacity: 0.85; }
+
+.rep-capacity { border-left: 4px solid var(--color-ok); }
+.rep-capacity.alerta { border-left-color: var(--color-warn); }
+.rep-capacity.critico { border-left-color: var(--color-danger); }
+.rep-capacity-grid { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
+@media (min-width: 768px) { .rep-capacity-grid { grid-template-columns: 1.4fr 1fr; } }
+.rep-capacity-meter { display: flex; flex-direction: column; gap: var(--space-2); justify-content: center; padding: var(--space-4); border-radius: var(--radius); background: var(--color-surface-2); }
+.rep-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); line-height: 1; }
+.rep-kv-main { padding-top: var(--space-2); border-top: 1px dashed var(--color-border); }
+.rep-kv-main dt { color: var(--color-text); font-weight: 600; }
+.rep-kv-main dd { color: var(--color-primary); font-size: var(--text-md); }
+
+.rep-groups { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-3); }
+.rep-note { margin-top: var(--space-2); }

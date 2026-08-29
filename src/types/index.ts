@@ -84,6 +84,12 @@ export interface FixedCost {
   status: PayStatus;
   paidDate?: string;
   reference?: string;
+  /** Recargo por pagar tarde (condominio: $25 hasta el día 10, $30 después). */
+  lateAmountUsd?: number;
+  /** Último día con el precio normal. */
+  lateAfterDay?: number;
+  /** Nota libre: por ejemplo, que el alquiler se paga a tasa Binance. */
+  note?: string;
 }
 
 export interface Debt {
@@ -173,7 +179,7 @@ export interface ShoppingItem {
 export type ModuleKey =
   | 'resumen' | 'recordatorios' | 'movimientos' | 'costos-fijos' | 'deudas' | 'presupuesto'
   | 'reportes' | 'inventario' | 'compras' | 'tasa' | 'catalogos'
-  | 'importar' | 'usuarios' | 'ajustes';
+  | 'importar' | 'usuarios' | 'metas' | 'ajustes';
 
 export type AccessLevel = 'sin_acceso' | 'ver' | 'editar';
 
@@ -199,8 +205,28 @@ export interface UserSettings {
   maxDebtRatioPct: number;
   /** Meses de costos fijos que debe cubrir el fondo de emergencia. */
   emergencyFundMonths: number;
+  /** Porcentaje del ingreso que quieres apartar cada mes. */
+  savingsTargetPct: number;
+  /** Personas en el hogar: cambia las referencias de gasto por cabeza. */
+  householdSize: number;
   /** Reparto objetivo 50/30/20. */
   split: Record<BudgetGroup, number>;
+}
+
+export type GoalKind = 'fondo_emergencia' | 'ahorro' | 'compra' | 'salir_de_deuda' | 'inversion';
+
+/** Meta de ahorro con aportes registrados a mano. */
+export interface Goal {
+  id: string;
+  name: string;
+  kind: GoalKind;
+  targetUsd: number;
+  savedUsd: number;
+  /** YYYY-MM-DD opcional: si está, se calcula cuánto aportar por mes. */
+  deadline?: string;
+  priority: number;
+  note?: string;
+  createdAt: string;
 }
 
 /** Cualquier documento persistido tiene id. */

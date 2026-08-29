@@ -1,6 +1,6 @@
 import { useMemo, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, CalendarClock, CreditCard, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowDownCircle, ArrowUpCircle, CalendarClock, CreditCard, Landmark, ShieldCheck } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useMonth } from '../hooks/useMonth';
 import MonthPicker from '../components/ui/MonthPicker';
@@ -9,14 +9,14 @@ import Donut from '../components/ui/Donut';
 import Sparkline from '../components/ui/Sparkline';
 import Money from '../components/ui/Money';
 import ProgressBar from '../components/ui/ProgressBar';
-import { debtCapacity, expensesByCategory, inflationSummary, ownIncomeUsd } from '../utils/finance';
+import { cashNeeded, debtCapacity, expensesByCategory, inflationSummary, ownIncomeUsd } from '../utils/finance';
 import { formatPct, formatUsd, sum } from '../utils/money';
 import { getRelationName } from '../utils/relations';
 import { daysBetween, monthOf, shortDate, todayIso } from '../utils/dates';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const { categories, creditors, currentRate, rates, inventory, shopping, settings, debts } = useData();
+  const { categories, creditors, currentRate, rates, inventory, shopping, settings, debts, fixedCosts } = useData();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
 
   const incomeUsd = ownIncomeUsd(monthIncomes);
@@ -35,6 +35,9 @@ export default function Dashboard() {
   }, [monthExpenses]);
 
   const today = todayIso();
+  const horizon = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const urgentBuysUsd = sum(shopping.filter((s) => !s.checked && s.priority === 'urgente').map((s) => s.estimatedUsd * s.quantity));
+  const cash = cashNeeded(debts, fixedCosts.filter((f) => f.month === month), urgentBuysUsd, today, horizon);
   const dueSoon = debts.filter((d) => d.status !== 'pagada' && daysBetween(today, d.dueDate) <= 7).slice(0, 5);
   const lowStock = inventory.filter((i) => i.quantity <= i.minQuantity);
   const urgent = shopping.filter((s) => !s.checked && s.priority === 'urgente');
@@ -49,6 +52,23 @@ export default function Dashboard() {
         </div>
         <MonthPicker month={month} onPrev={prev} onNext={next} />
       </div>
+
+      <section className={`card dash-cash ${cash.overdueUsd > 0 ? 'alert' : ''}`}>
+        <div className="dash-cash-main">
+          <span className="stat-icon dash-cash-icon"><Landmark size={18} /></span>
+          <div>
+            <span className="field-label">Deberías tener disponible ahora</span>
+            <div className="dash-cash-value"><Money amount={cash.totalUsd} currency="USD" rate={currentRate} dual size="lg" align="start" /></div>
+            <p className="tiny muted">{cash.items} compromisos entre lo vencido, lo que vence en 7 días y lo urgente por comprar.</p>
+          </div>
+        </div>
+        <dl className="kv dash-cash-kv">
+          <div><dt>Vencido</dt><dd className={cash.overdueUsd > 0 ? 'text-danger' : ''}>{formatUsd(cash.overdueUsd)}</dd></div>
+          <div><dt>Vence en 7 días + fijos del mes</dt><dd>{formatUsd(cash.dueSoonUsd)}</dd></div>
+          <div><dt>Compras urgentes</dt><dd>{formatUsd(cash.urgentBuysUsd)}</dd></div>
+          <div className="dash-cash-total"><dt>Balance del mes menos esto</dt><dd className={balance - cash.totalUsd < 0 ? 'text-danger' : 'text-ok'}>{formatUsd(balance - cash.totalUsd)}</dd></div>
+        </dl>
+      </section>
 
       <div className="grid grid-4">
         <StatCard tone="usd" icon={<ArrowUpCircle size={18} />} label="Ingresos propios" value={<Money amount={incomeUsd} currency="USD" rate={currentRate} dual size="md" />} />

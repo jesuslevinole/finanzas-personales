@@ -17,6 +17,7 @@ import Reports from './views/Reports';
 import Inventory from './views/Inventory';
 import Shopping from './views/Shopping';
 import Rates from './views/Rates';
+import Goals from './views/Goals';
 import Catalogs from './views/Catalogs';
 import Import from './views/Import';
 import Users from './views/Users';
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="/inventario" element={<Guard module="inventario"><Inventory /></Guard>} />
         <Route path="/compras" element={<Guard module="compras"><Shopping /></Guard>} />
         <Route path="/tasa" element={<Guard module="tasa"><Rates /></Guard>} />
+        <Route path="/metas" element={<Guard module="metas"><Goals /></Guard>} />
         <Route path="/catalogos" element={<Guard module="catalogos"><Catalogs /></Guard>} />
         <Route path="/importar" element={<Guard module="importar"><Import /></Guard>} />
         <Route path="/usuarios" element={<Guard module="usuarios"><Users /></Guard>} />

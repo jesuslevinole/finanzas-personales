@@ -29,6 +29,7 @@ export type CollectionName =
   | 'fixedCosts'
   | 'debts'
   | 'budgets'
+  | 'goals'
   | 'inventory'
   | 'shopping'
   | 'shoppingLists'

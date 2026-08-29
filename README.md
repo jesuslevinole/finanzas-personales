@@ -38,7 +38,8 @@ Primer uso: entra en **Ajustes → Cargar rubros sugeridos** y en **Tasa BCV →
 | `/catalogos` | Rubros, lugares, acreedores y orígenes de ingreso: color, activo/inactivo, uso en registros |
 | `/importar` | Lee el Excel (TASA_BCV, BD_INGRESOS, BD_GASTOS, BD_COSTOSFIJOS, BD_DEUDAS, LISTA, URGENCIAS), crea los catálogos que falten y carga todo a Firestore |
 | `/usuarios` | Roles con tres niveles por módulo (sin acceso / ver / editar) y usuarios invitados por correo |
-| `/ajustes` | % máximo de deuda, meses de fondo de emergencia, reparto 50/30/20 |
+| `/metas` | Metas de ahorro (fondo de emergencia, compras, salir de deuda) con aportes, progreso y aporte mensual necesario |
+| `/ajustes` | Techo de deuda, meses de fondo de emergencia, meta de ahorro mensual, tamaño del hogar y reparto del ingreso |
 
 ## Estructura
 
@@ -61,6 +62,10 @@ src/
 ## Tablas, filtros y detalle
 
 Todos los módulos de datos (movimientos, deudas, costos fijos, inventario, tasas, recordatorios, compras) usan el mismo componente `DataTable`: tabla en escritorio y tarjetas etiquetadas en móvil, con la fila clicable para abrir la ficha de detalle (`DetailSheet`) y botones de editar/eliminar tanto en la fila como en el detalle. Los filtros (`FilterBar`) recalculan las tarjetas de totales que están arriba, así que ves el total del subconjunto filtrado, no del mes completo.
+
+## Reportes y recomendaciones
+
+`utils/finance.ts` calcula un puntaje de salud financiera (0–100) sobre cinco componentes —ahorro, peso de la deuda, costos fijos, fondo de emergencia y gasto en deseos— y genera recomendaciones ordenadas por urgencia con `buildAdvice`. Las gráficas de barras (`BarChart`) comparan gasto real contra tope por rubro, el reparto real contra el objetivo, y seis meses de ingresos contra gastos.
 
 ## Ciclo de cobro
 

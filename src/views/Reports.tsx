@@ -1,145 +1,209 @@
 import { useMemo } from 'react';
-import { AlertTriangle, ShieldCheck, TrendingDown, TrendingUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Info, PiggyBank, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useMonth } from '../hooks/useMonth';
 import MonthPicker from '../components/ui/MonthPicker';
 import ProgressBar from '../components/ui/ProgressBar';
-import Sparkline from '../components/ui/Sparkline';
-import { debtCapacity, emergencyFundTarget, expensesByCategory, groupTargets, GROUP_LABEL, inflationSummary, ownIncomeUsd, productInflation } from '../utils/finance';
+import BarChart, { type Bar } from '../components/ui/BarChart';
+import StatCard from '../components/ui/StatCard';
+import {
+  buildAdvice, categoryTargets, debtCapacity, emergencyFundTarget, expensesByCategory,
+  groupTargets, GROUP_LABEL, healthScore, inflationSummary, ownIncomeUsd, productInflation,
+} from '../utils/finance';
 import { formatPct, formatUsd, sum } from '../utils/money';
 import { addMonths, monthLabel, monthOf } from '../utils/dates';
 import './Reports.css';
 
 const LEVEL_LABEL = { sano: 'Sano', alerta: 'En alerta', critico: 'Crítico' } as const;
+const ADVICE_ICON = { urgente: <AlertTriangle size={16} />, atencion: <Info size={16} />, ok: <CheckCircle2 size={16} /> };
 
 export default function Reports() {
-  const { categories, rates, incomes, expenses, inventory, settings } = useData();
+  const { categories, rates, incomes, expenses, budgets, goals, inventory, settings } = useData();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
 
   const incomeUsd = ownIncomeUsd(monthIncomes);
   const expenseUsd = sum(monthExpenses.map((e) => e.totalUsd));
   const capacity = debtCapacity(incomeUsd, monthDebts, monthFixed, settings);
   const groups = groupTargets(incomeUsd, monthExpenses, monthDebts.filter((d) => d.status === 'pagada'), categories, settings);
-  const savingsRate = incomeUsd > 0 ? (incomeUsd - expenseUsd - sum(monthDebts.filter((d) => d.status === 'pagada' && d.owner === 'propio').map((d) => d.amountUsd))) / incomeUsd : 0;
+  const byCat = expensesByCategory(monthExpenses, categories);
+  const targets = categoryTargets(incomeUsd, monthExpenses, budgets.filter((b) => b.month === month), categories);
   const emergency = emergencyFundTarget(monthFixed, settings.emergencyFundMonths);
-  const inflation = inflationSummary(rates.filter((r) => r.date >= addMonths(month, -2) + '-01' && monthOf(r.date) <= month));
-  const products = productInflation(inventory).slice(0, 8);
-  const topCats = expensesByCategory(monthExpenses, categories).slice(0, 5);
+  const savedUsd = sum(goals.map((g) => g.savedUsd));
+  const wantsUsd = groups.find((g) => g.group === 'deseo')?.actualUsd ?? 0;
+  const savings = incomeUsd - expenseUsd;
+  const savingsRate = incomeUsd > 0 ? savings / incomeUsd : 0;
 
-  /** Últimos 6 meses: ingresos vs gastos en USD. */
+  const health = healthScore({
+    incomeUsd, expensesUsd: expenseUsd, fixedUsd: capacity.fixedCostsUsd, debtUsd: capacity.monthlyDebtUsd,
+    savedUsd, emergencyTargetUsd: emergency, wantsUsd, settings,
+  });
+  const advice = buildAdvice(
+    { incomeUsd, expensesUsd: expenseUsd, fixedUsd: capacity.fixedCostsUsd, debtUsd: capacity.monthlyDebtUsd, savedUsd, emergencyTargetUsd: emergency, wantsUsd, settings },
+    sum(monthDebts.filter((d) => d.status !== 'pagada' && d.dueDate < month + '-32').map(() => 0)),
+    byCat[0] ? { name: byCat[0].name, usd: byCat[0].usd } : undefined,
+  );
+
+  /* Últimos 6 meses */
   const history = useMemo(() => {
     const months = Array.from({ length: 6 }, (_, i) => addMonths(month, i - 5));
     return months.map((m) => ({
       month: m,
       income: ownIncomeUsd(incomes.filter((i) => monthOf(i.date) === m)),
-      expense: sum(expenses.filter((e) => monthOf(e.date) === m).map((e) => e.totalUsd)),
+      expense: sum(expenses.filter((e) => monthOf(e.date) === m).map((x) => x.totalUsd)),
     }));
   }, [month, incomes, expenses]);
 
+  const historyBars: Bar[] = history.map((h) => ({
+    label: monthLabel(h.month).slice(0, 3),
+    value: h.expense,
+    compare: h.income,
+    color: h.expense > h.income ? 'var(--color-danger)' : 'var(--color-primary)',
+  }));
+
+  const categoryBars: Bar[] = targets.slice(0, 10).map((t) => ({
+    label: t.name,
+    value: t.actualUsd,
+    compare: t.budgetUsd ?? (t.suggestedUsd > 0 ? t.suggestedUsd : undefined),
+    color: t.color,
+  }));
+
+  const groupBars: Bar[] = groups.map((g) => ({ label: GROUP_LABEL[g.group], value: g.actualUsd, compare: g.targetUsd }));
+
+  const inflation = inflationSummary(rates.filter((r) => monthOf(r.date) <= month && r.date >= `${addMonths(month, -2)}-01`));
+  const products = productInflation(inventory).slice(0, 6);
+  const perPerson = settings.householdSize > 0 ? expenseUsd / settings.householdSize : expenseUsd;
   const fixedRatio = incomeUsd > 0 ? capacity.fixedCostsUsd / incomeUsd : 0;
   const freeAfterFixedAndDebt = incomeUsd - capacity.fixedCostsUsd - capacity.monthlyDebtUsd;
 
   return (
     <div className="page">
       <div className="page-header">
-        <div><h1>Reportes</h1><p className="page-subtitle">Lo que los números dicen de tu mes, en dólares BCV.</p></div>
+        <div><h1>Reportes</h1><p className="page-subtitle">Qué dicen tus números y qué conviene hacer con ellos este mes.</p></div>
         <MonthPicker month={month} onPrev={prev} onNext={next} />
       </div>
 
-      <section className={`card report-capacity ${capacity.level}`}>
+      {/* 1. Diagnóstico */}
+      <section className="card rep-health">
+        <div className="rep-health-score">
+          <span className="rep-score num">{health.score}</span>
+          <span className="tiny muted">de 100</span>
+          <span className={`tag ${health.score >= 70 ? 'ok' : health.score >= 45 ? 'warn' : 'danger'}`}>
+            {health.score >= 70 ? 'Buena salud' : health.score >= 45 ? 'Mejorable' : 'Frágil'}
+          </span>
+        </div>
+        <ul className="rep-health-parts">
+          {health.parts.map((p) => (
+            <li key={p.label}>
+              <div className="row-between tiny"><span>{p.label}</span><span className="num">{p.value}/{p.max}</span></div>
+              <ProgressBar ratio={p.value / p.max} color={p.value / p.max > 0.7 ? 'var(--color-ok)' : p.value / p.max > 0.4 ? 'var(--color-warn)' : 'var(--color-danger)'} />
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* 2. Qué hacer */}
+      <section className="card">
+        <div className="card-header"><h2 className="card-title">Qué conviene hacer</h2><span className="tag primary">{advice.length}</span></div>
+        <ul className="rep-advice">
+          {advice.map((a) => (
+            <li key={a.id} className={`rep-advice-item ${a.level}`}>
+              <span className="rep-advice-icon">{ADVICE_ICON[a.level]}</span>
+              <div><p className="strong small">{a.title}</p><p className="small">{a.detail}</p></div>
+            </li>
+          ))}
+          {advice.length === 0 && <li className="muted small">Sin observaciones este mes.</li>}
+        </ul>
+      </section>
+
+      {/* 3. Números base */}
+      <div className="grid grid-4">
+        <StatCard tone="usd" icon={<TrendingUp size={18} />} label="Ingreso propio"
+          value={<span className="num">{formatUsd(incomeUsd)}</span>} hint={`${monthIncomes.length} entradas`} />
+        <StatCard tone={savings >= 0 ? 'ok' : 'danger'} icon={<PiggyBank size={18} />} label="Ahorro del mes"
+          value={<span className={`num ${savings < 0 ? 'text-danger' : ''}`}>{formatUsd(savings)}</span>}
+          hint={`${formatPct(savingsRate)} · meta ${settings.savingsTargetPct}%`} />
+        <StatCard tone="bs" icon={<Users size={18} />} label="Gasto por persona"
+          value={<span className="num">{formatUsd(perPerson)}</span>} hint={`Hogar de ${settings.householdSize}`} />
+        <StatCard tone={freeAfterFixedAndDebt < 0 ? 'danger' : 'primary'} icon={<TrendingDown size={18} />} label="Libre tras fijos y cuotas"
+          value={<span className="num">{formatUsd(freeAfterFixedAndDebt)}</span>} hint="Para vivir el resto del mes" />
+      </div>
+
+      {/* 4. Capacidad de endeudamiento */}
+      <section className={`card rep-capacity ${capacity.level}`}>
         <div className="card-header">
           <h2 className="card-title">Capacidad de endeudamiento</h2>
           <span className={`tag ${capacity.level === 'sano' ? 'ok' : capacity.level === 'alerta' ? 'warn' : 'danger'}`}>{LEVEL_LABEL[capacity.level]}</span>
         </div>
-        <div className="report-capacity-grid">
-          <dl className="kv report-kv">
+        <div className="rep-capacity-grid">
+          <dl className="kv">
             <div><dt>Ingreso propio del mes</dt><dd className="num">{formatUsd(capacity.incomeUsd)}</dd></div>
             <div><dt>Costos fijos ({formatPct(fixedRatio)})</dt><dd className="num">{formatUsd(capacity.fixedCostsUsd)}</dd></div>
-            <div><dt>Cuotas de deuda este mes</dt><dd className="num">{formatUsd(capacity.monthlyDebtUsd)}</dd></div>
-            <div><dt>Tope recomendado de deuda ({settings.maxDebtRatioPct}%)</dt><dd className="num">{formatUsd(capacity.maxDebtUsd)}</dd></div>
-            <div className="report-kv-main"><dt>Aún podrías comprometer en cuotas</dt><dd className="num">{formatUsd(capacity.availableUsd)}</dd></div>
+            <div><dt>Cuotas de deuda del mes</dt><dd className="num">{formatUsd(capacity.monthlyDebtUsd)}</dd></div>
+            <div><dt>Tope que te fijaste ({settings.maxDebtRatioPct}%)</dt><dd className="num">{formatUsd(capacity.maxDebtUsd)}</dd></div>
+            <div className="rep-kv-main"><dt>Podrías comprometer</dt><dd className="num">{formatUsd(capacity.availableUsd)}</dd></div>
           </dl>
-          <div className="report-capacity-meter">
-            <span className="report-big num">{formatPct(capacity.ratio)}</span>
+          <div className="rep-capacity-meter">
+            <span className="rep-big num">{formatPct(capacity.ratio)}</span>
             <span className="tiny muted">de tu ingreso va a deuda</span>
-            <ProgressBar ratio={capacity.ratio / (settings.maxDebtRatioPct / 100)} color={capacity.level === 'sano' ? 'var(--color-ok)' : capacity.level === 'alerta' ? 'var(--color-warn)' : 'var(--color-danger)'} />
-            <p className="tiny muted">Después de fijos y cuotas te quedan <strong className={`num ${freeAfterFixedAndDebt < 0 ? 'text-danger' : ''}`}>{formatUsd(freeAfterFixedAndDebt)}</strong> para vivir el mes.</p>
+            <ProgressBar ratio={capacity.ratio / (settings.maxDebtRatioPct / 100)}
+              color={capacity.level === 'sano' ? 'var(--color-ok)' : capacity.level === 'alerta' ? 'var(--color-warn)' : 'var(--color-danger)'} />
+            <p className="tiny muted">Una cuota nueva de más de <strong className="num">{formatUsd(capacity.availableUsd)}</strong> al mes te saca de tu propio límite.</p>
           </div>
         </div>
       </section>
 
+      {/* 5. Distribución */}
       <div className="grid grid-2">
         <section className="card">
-          <div className="card-header"><h2 className="card-title">¿Cuánto deberías gastar?</h2></div>
-          <ul className="stack">
-            {groups.map((g) => (
-              <li key={g.group} className="row-between small">
-                <span><span className="strong">{GROUP_LABEL[g.group]}</span> <span className="muted">· {g.targetPct}%</span></span>
-                <span className="num"><strong>{formatUsd(g.targetUsd)}</strong> <span className={g.diffUsd < 0 ? 'text-danger' : 'muted'}>(llevas {formatUsd(g.actualUsd)})</span></span>
-              </li>
-            ))}
-          </ul>
-          <hr className="report-sep" />
-          <p className="small strong">Donde más se va el dinero</p>
-          <ul className="stack">
-            {topCats.map((c) => <li key={c.categoryId} className="row-between small"><span>{c.name}</span><span className="num">{formatUsd(c.usd)} <span className="muted">({formatPct(c.share)})</span></span></li>)}
-            {topCats.length === 0 && <li className="muted small">Sin gastos este mes.</li>}
-          </ul>
+          <div className="card-header"><h2 className="card-title">Ingresos vs. gastos</h2><span className="tiny muted">6 meses</span></div>
+          <BarChart bars={historyBars} format={(n) => formatUsd(n)} orientation="vertical" />
+          <p className="tiny muted rep-note">Barra ancha: gasto. Barra fina gris: ingreso del mismo mes.</p>
         </section>
 
         <section className="card">
-          <div className="card-header"><h2 className="card-title">Salud financiera</h2></div>
-          <dl className="kv report-kv">
-            <div><dt>Tasa de ahorro</dt><dd className={`num ${savingsRate < 0 ? 'text-danger' : savingsRate >= 0.2 ? 'text-ok' : ''}`}>{formatPct(savingsRate)}</dd></div>
-            <div><dt>Fondo de emergencia objetivo ({settings.emergencyFundMonths} meses de fijos)</dt><dd className="num">{formatUsd(emergency)}</dd></div>
-            <div><dt>Costos fijos / ingreso</dt><dd className={`num ${fixedRatio > 0.5 ? 'text-danger' : ''}`}>{formatPct(fixedRatio)}</dd></div>
-          </dl>
-          <ul className="report-tips">
-            {savingsRate < 0 && <li className="danger"><AlertTriangle size={14} /> Gastaste más de lo que entró. Revisa deseos y cuotas antes de asumir nuevas.</li>}
-            {savingsRate >= 0 && savingsRate < 0.1 && <li className="warn"><AlertTriangle size={14} /> Ahorro por debajo del 10%. El primer objetivo es un colchón de {formatUsd(emergency)} en dólares.</li>}
-            {savingsRate >= 0.2 && <li className="ok"><ShieldCheck size={14} /> Ahorras 20% o más. Mantén el excedente en divisas, no en bolívares.</li>}
-            {fixedRatio > 0.5 && <li className="warn"><AlertTriangle size={14} /> Más de la mitad del ingreso son costos fijos: poco margen ante un mes flojo.</li>}
+          <div className="card-header"><h2 className="card-title">Reparto {settings.split.necesidad}/{settings.split.deseo}/{settings.split.ahorro}</h2></div>
+          <BarChart bars={groupBars} format={(n) => formatUsd(n)} valueLabel="Real" compareLabel="Objetivo" />
+          <ul className="rep-groups">
+            {groups.map((g) => (
+              <li key={g.group} className="row-between tiny">
+                <span>{GROUP_LABEL[g.group]}</span>
+                <span className={g.diffUsd < 0 ? 'text-danger num' : 'text-ok num'}>{g.diffUsd < 0 ? `${formatUsd(-g.diffUsd)} por encima` : `${formatUsd(g.diffUsd)} libres`}</span>
+              </li>
+            ))}
           </ul>
         </section>
       </div>
 
+      <section className="card">
+        <div className="card-header"><h2 className="card-title">A dónde se va el dinero</h2><span className="tiny muted">Real contra tope por rubro</span></div>
+        <BarChart bars={categoryBars} format={(n) => formatUsd(n)} valueLabel="Gastado" compareLabel="Tope o sugerido" />
+        <p className="tiny muted rep-note">Las barras rojas se pasaron de su tope. Ajusta topes en Presupuesto.</p>
+      </section>
+
+      {/* 6. Inflación */}
       <div className="grid grid-2">
         <section className="card">
-          <div className="card-header"><h2 className="card-title">Ingresos vs. gastos (6 meses)</h2></div>
-          <Sparkline values={history.map((h) => h.income)} height={70} tone="usd" />
-          <Sparkline values={history.map((h) => h.expense)} height={70} tone="danger" />
-          <ul className="report-history">
-            {history.map((h) => (
-              <li key={h.month}><span className="tiny muted">{monthLabel(h.month).slice(0, 3)}</span><span className="tiny num text-usd">{formatUsd(h.income)}</span><span className="tiny num text-danger">{formatUsd(h.expense)}</span></li>
-            ))}
-          </ul>
+          <div className="card-header"><h2 className="card-title">Inflación y devaluación</h2><span className="tag bs">Bs</span></div>
+          {inflation ? (
+            <dl className="kv">
+              <div><dt>Devaluación (3 meses)</dt><dd className="num text-danger">{formatPct(inflation.devaluationPct)}</dd></div>
+              <div><dt>Ritmo diario promedio</dt><dd className="num">{formatPct(inflation.dailyPct)}</dd></div>
+              <div><dt>Pérdida por cada 1.000 Bs guardados</dt><dd className="num text-danger">{formatUsd(inflation.lossPer1000Bs)}</dd></div>
+              <div><dt>Costo de esperar una semana</dt><dd className="num text-danger">{formatPct(inflation.dailyPct * 7)}</dd></div>
+            </dl>
+          ) : <p className="muted small">Registra tasas de al menos dos días para medir la devaluación.</p>}
+          <p className="tiny muted rep-note">Si tienes {formatUsd(freeAfterFixedAndDebt > 0 ? freeAfterFixedAndDebt : 0)} libres en bolívares, esperar una semana para cambiarlos cuesta {inflation ? formatUsd(Math.max(0, freeAfterFixedAndDebt) * inflation.dailyPct * 7) : '—'}.</p>
         </section>
 
         <section className="card">
-          <div className="card-header"><h2 className="card-title">Inflación real</h2><span className="tag bs">Bs</span></div>
-          {inflation ? (
-            <dl className="kv report-kv">
-              <div><dt>Devaluación (últimos 3 meses)</dt><dd className="num text-danger">{formatPct(inflation.devaluationPct)}</dd></div>
-              <div><dt>Ritmo diario promedio</dt><dd className="num">{formatPct(inflation.dailyPct)}</dd></div>
-              <div><dt>Pérdida por cada 1.000 Bs guardados</dt><dd className="num text-danger">{formatUsd(inflation.lossPer1000Bs)}</dd></div>
-            </dl>
-          ) : <p className="muted small">Registra tasas de al menos dos días para medir la devaluación.</p>}
-          <hr className="report-sep" />
-          <p className="small strong">Productos que más subieron (en $)</p>
-          {products.length === 0 ? <p className="muted small">Marca "sumar al inventario" al registrar compras: con dos o más compras del mismo producto verás su inflación real.</p> : (
-            <ul className="stack">
-              {products.map((p) => (
-                <li key={p.item.id} className="row-between small">
-                  <span className="truncate">{p.item.name}</span>
-                  <span className={`row num ${p.changePct > 0 ? 'text-danger' : 'text-ok'}`}>{p.changePct > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}{formatPct(p.changePct)} <span className="muted">({formatUsd(p.firstUsd)} → {formatUsd(p.lastUsd)})</span></span>
-                </li>
-              ))}
-            </ul>
+          <div className="card-header"><h2 className="card-title">Productos que más subieron</h2><span className="tag usd">en $</span></div>
+          {products.length === 0 ? (
+            <p className="muted small">Marca «sumar al inventario» al registrar compras: con dos o más compras del mismo producto verás su inflación real.</p>
+          ) : (
+            <BarChart bars={products.map((p) => ({ label: p.item.name, value: Math.round(p.changePct * 1000) / 10, color: p.changePct > 0 ? 'var(--color-danger)' : 'var(--color-ok)' }))}
+              format={(n) => `${n > 0 ? '+' : ''}${n.toFixed(1)}%`} />
           )}
-          <ul className="report-tips">
-            <li className="ok"><ShieldCheck size={14} /> Convierte el excedente a divisas el mismo día que cobras; cada día en Bs cuesta {inflation ? formatPct(inflation.dailyPct) : 'dinero'}.</li>
-            <li className="ok"><ShieldCheck size={14} /> Compra no perecederos cuando su precio en $ esté por debajo de tu historial.</li>
-          </ul>
+          <p className="tiny muted rep-note">Subidas en dólares: no es la tasa, es el producto encareciéndose de verdad.</p>
         </section>
       </div>
     </div>

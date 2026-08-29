@@ -1,0 +1,9 @@
+.goals-list { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.goal-card {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-4); background: var(--color-surface);
+  border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.goal-card.done { border-color: var(--color-ok); background: linear-gradient(180deg, var(--color-ok-soft), var(--color-surface) 60%); }
+.goal-actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
+.goal-actions .btn-icon { margin-left: auto; }

@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarClock, Check, ChevronLeft, ChevronRight, CreditCard, Package, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, CalendarClock, Check, CreditCard, Package, ShoppingCart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useData } from '../hooks/useData';
 import { usePayCycle, type CycleDue } from '../hooks/usePayCycle';
@@ -22,7 +22,7 @@ const KIND_ICON = {
 export default function Reminders() {
   const { currentRate, update } = useData();
   const { canEdit } = usePermissions();
-  const { cycle, goPrev, goNext, goCurrent, overdue, dueThisCycle, upcoming, lowStock } = usePayCycle();
+  const { horizon, overdue, dueThisCycle, upcoming, lowStock } = usePayCycle();
   const today = todayIso();
   const toPayday = daysToPayday(today);
 
@@ -55,25 +55,21 @@ export default function Reminders() {
       <div className="page-header">
         <div>
           <h1>Recordatorios</h1>
-          <p className="page-subtitle">Todo se agrupa por semana de cobro: del sábado al viernes siguiente.</p>
+          <p className="page-subtitle">Solo lo vencido y lo que vence en los próximos 7 días. Cobras los sábados: esto es lo que ese cobro debe cubrir.</p>
         </div>
-        <div className="rem-cycle">
-          <button type="button" className="btn btn-ghost btn-icon" onClick={goPrev} aria-label="Semana anterior"><ChevronLeft size={18} /></button>
-          <button type="button" className="rem-cycle-label" onClick={goCurrent}>{cycle.label}</button>
-          <button type="button" className="btn btn-ghost btn-icon" onClick={goNext} aria-label="Semana siguiente"><ChevronRight size={18} /></button>
-        </div>
+        <span className="tag primary rem-window">Hasta {shortDate(horizon)}</span>
       </div>
 
       <div className="grid grid-4">
         <StatCard tone={overdue.length ? 'danger' : 'ok'} icon={<AlertTriangle size={18} />} label="Vencido"
           value={<Money amount={overdueTotal} currency="USD" rate={currentRate} dual size="lg" align="start" />}
           hint={`${overdue.length} pendientes de antes`} />
-        <StatCard tone="primary" icon={<CalendarClock size={18} />} label="Esta semana de cobro"
+        <StatCard tone="primary" icon={<CalendarClock size={18} />} label="Vence en 7 días"
           value={<Money amount={cycleTotal} currency="USD" rate={currentRate} dual size="lg" align="start" />}
           hint={`${dueThisCycle.length} conceptos`} />
-        <StatCard tone="warn" icon={<CreditCard size={18} />} label="Semanas siguientes"
+        <StatCard tone="warn" icon={<CreditCard size={18} />} label="Después de esos 7 días"
           value={<span className="num">{formatUsd(upcomingTotal)}</span>}
-          hint={`${upcoming.length} conceptos por venir`} />
+          hint={`${upcoming.length} conceptos más adelante`} />
         <StatCard tone="usd" icon={<Package size={18} />} label="Próximo cobro"
           value={<span>{toPayday === 0 ? 'Hoy' : `En ${toPayday} d`}</span>}
           hint={`Necesitas ${formatUsd(overdueTotal + cycleTotal)} para cubrir lo abierto`} />
@@ -88,17 +84,17 @@ export default function Reminders() {
 
       <section className="card card-tight">
         <div className="card-header">
-          <h2 className="card-title">Del {cycle.label}</h2>
+          <h2 className="card-title">Vence en los próximos 7 días</h2>
           <span className="tag primary">{formatUsd(cycleTotal)}</span>
         </div>
         <DataTable rows={dueThisCycle} columns={columns} actions={actions}
-          empty={<EmptyState title="Nada pendiente esta semana" hint="Ni cuotas, ni costos fijos, ni compras urgentes en esta ventana." />} />
+          empty={<EmptyState title="Nada vence esta semana" hint="Ni cuotas, ni costos fijos, ni compras urgentes en los próximos 7 días." />} />
       </section>
 
       <div className="grid grid-2">
         <section className="card card-tight">
           <div className="card-header"><h2 className="card-title">Se viene después</h2><Link to="/deudas" className="small">Ver deudas</Link></div>
-          <DataTable rows={upcoming.slice(0, 8)} columns={columns.filter((c) => c.key !== 'subtitle')}
+          <DataTable rows={upcoming.slice(0, 6)} columns={columns.filter((c) => c.key !== 'subtitle')}
             empty={<EmptyState title="Sin vencimientos futuros" />} />
         </section>
 

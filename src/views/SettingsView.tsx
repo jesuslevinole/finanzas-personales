@@ -14,6 +14,8 @@ export default function SettingsView() {
   const editable = canEdit('ajustes');
   const [maxDebt, setMaxDebt] = useState(String(settings.maxDebtRatioPct));
   const [months, setMonths] = useState(String(settings.emergencyFundMonths));
+  const [savings, setSavings] = useState(String(settings.savingsTargetPct));
+  const [household, setHousehold] = useState(String(settings.householdSize));
   const [split, setSplit] = useState<Record<BudgetGroup, string>>({
     necesidad: String(settings.split.necesidad),
     deseo: String(settings.split.deseo),
@@ -27,8 +29,10 @@ export default function SettingsView() {
     e.preventDefault();
     if (splitTotal !== 100) return;
     await set<UserSettings>('settings', SETTINGS_DOC, {
-      maxDebtRatioPct: Number(maxDebt) || 35,
-      emergencyFundMonths: Number(months) || 3,
+      maxDebtRatioPct: Number(maxDebt) || 25,
+      emergencyFundMonths: Number(months) || 4,
+      savingsTargetPct: Number(savings) || 15,
+      householdSize: Number(household) || 1,
       split: { necesidad: Number(split.necesidad), deseo: Number(split.deseo), ahorro: Number(split.ahorro) },
     });
     setSaved(true);
@@ -37,7 +41,7 @@ export default function SettingsView() {
 
   return (
     <div className="page">
-      <div className="page-header"><div><h1>Ajustes</h1><p className="page-subtitle">Las reglas con las que se calculan tus reportes.</p></div></div>
+      <div className="page-header"><div><h1>Ajustes</h1><p className="page-subtitle">Las reglas con las que se calculan tus reportes y recomendaciones.</p></div></div>
 
       <form className="card stack" onSubmit={saveSettings}>
         <h2 className="card-title">Reglas financieras</h2>
@@ -45,12 +49,22 @@ export default function SettingsView() {
           <label className="field">
             <span className="field-label">Máx. deuda sobre ingreso (%)</span>
             <input className="input num" type="number" min="1" max="100" value={maxDebt} disabled={!editable} onChange={(e) => setMaxDebt(e.target.value)} />
-            <span className="field-hint">Recomendado: 30–35%.</span>
+            <span className="field-hint">Con ingresos variables, 20–25% es más seguro que el 35% clásico.</span>
           </label>
           <label className="field">
             <span className="field-label">Fondo de emergencia (meses)</span>
             <input className="input num" type="number" min="1" max="12" value={months} disabled={!editable} onChange={(e) => setMonths(e.target.value)} />
             <span className="field-hint">Meses de costos fijos a cubrir.</span>
+          </label>
+          <label className="field">
+            <span className="field-label">Meta de ahorro mensual (%)</span>
+            <input className="input num" type="number" min="0" max="80" value={savings} disabled={!editable} onChange={(e) => setSavings(e.target.value)} />
+            <span className="field-hint">Del ingreso propio, apartado el día que cobras.</span>
+          </label>
+          <label className="field">
+            <span className="field-label">Personas en el hogar</span>
+            <input className="input num" type="number" min="1" max="15" value={household} disabled={!editable} onChange={(e) => setHousehold(e.target.value)} />
+            <span className="field-hint">Se usa para el gasto por persona en Reportes.</span>
           </label>
         </div>
         <span className="field-label">Reparto del ingreso</span>
@@ -67,10 +81,11 @@ export default function SettingsView() {
       </form>
 
       <section className="card">
-        <h2 className="card-title">Catálogos y accesos</h2>
+        <h2 className="card-title">Metas, catálogos y accesos</h2>
         <p className="small muted settings-note">
-          Los rubros, lugares, acreedores y orígenes de ingreso se administran en <Link to="/catalogos">Catálogos</Link>.
-          Los permisos por módulo, en <Link to="/usuarios">Usuarios y roles</Link>.
+          Las metas de ahorro se configuran en <Link to="/metas">Metas</Link>.
+          Los rubros, lugares, acreedores y orígenes en <Link to="/catalogos">Catálogos</Link>,
+          y los permisos por módulo en <Link to="/usuarios">Usuarios y roles</Link>.
         </p>
       </section>
     </div>

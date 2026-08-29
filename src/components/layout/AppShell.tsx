@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   AlarmClock, ArrowLeftRight, BarChart3, CalendarClock, CreditCard, FileSpreadsheet, LayoutDashboard, ListChecks,
-  LogOut, Menu, MoreHorizontal, Package, PieChart, Settings, Tags, Users2, Wallet, X,
+  LogOut, Menu, MoreHorizontal, Package, PieChart, Settings, Tags, Target, Users2, Wallet, X,
 } from 'lucide-react';
 import type { ModuleKey } from '../../types';
 import { MODULE_LABEL } from '../../utils/access';
@@ -29,6 +29,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { to: '/presupuesto', module: 'presupuesto', icon: <PieChart size={18} /> },
       { to: '/reportes', module: 'reportes', icon: <BarChart3 size={18} /> },
+      { to: '/metas', module: 'metas', icon: <Target size={18} /> },
       { to: '/tasa', module: 'tasa', icon: <Wallet size={18} /> },
     ],
   },

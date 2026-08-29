@@ -27,6 +27,7 @@ export default function Debts() {
   const today = todayIso();
   const cycle = cycleOf(today);
 
+  const [tab, setTab] = useState<'pendiente' | 'pagado'>('pendiente');
   const [creditorId, setCreditorId] = useState('');
   const [status, setStatus] = useState<'' | PayStatus>('');
   const [search, setSearch] = useState('');
@@ -37,18 +38,20 @@ export default function Debts() {
   const activeCount = [creditorId, status, search].filter(Boolean).length;
   const clearFilters = () => { setCreditorId(''); setStatus(''); setSearch(''); };
 
-  const rows = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return data.debts
       .filter((d) => (!creditorId || d.creditorId === creditorId)
         && (!status || d.status === status)
         && (!q || `${d.merchant} ${d.description ?? ''} ${getRelationName(data.creditors, d.creditorId, '')}`.toLowerCase().includes(q)))
-      .sort((a, b) => Number(a.status === 'pagada') - Number(b.status === 'pagada') || a.dueDate.localeCompare(b.dueDate));
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   }, [data.debts, data.creditors, creditorId, status, search]);
 
-  const openRows = rows.filter((d) => d.status !== 'pagada');
+  const openRows = filtered.filter((d) => d.status !== 'pagada');
+  const paidRows = filtered.filter((d) => d.status === 'pagada');
+  const rows = tab === 'pendiente' ? openRows : paidRows;
   const totalOpen = sum(openRows.map((d) => d.amountUsd));
-  const totalAll = sum(rows.map((d) => d.amountUsd));
+  const totalAll = sum(filtered.map((d) => d.amountUsd));
   const thisCycle = sum(openRows.filter((d) => inCycle(d.dueDate, cycle)).map((d) => d.amountUsd));
   const overdue = sum(openRows.filter((d) => d.dueDate < today).map((d) => d.amountUsd));
 
@@ -91,6 +94,11 @@ export default function Debts() {
       <div className="page-header">
         <div><h1>Deudas y cuotas</h1><p className="page-subtitle">Cashea, préstamos, cuotas de tiendas. Cada cuota es una fila con su vencimiento.</p></div>
         {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> Nueva cuota</button>}
+      </div>
+
+      <div className="tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'pendiente'} className={`tab${tab === 'pendiente' ? ' active' : ''}`} onClick={() => setTab('pendiente')}>Pendientes <span className="num muted">{openRows.length}</span></button>
+        <button type="button" role="tab" aria-selected={tab === 'pagado'} className={`tab${tab === 'pagado' ? ' active' : ''}`} onClick={() => setTab('pagado')}>Pagadas <span className="num muted">{paidRows.length}</span></button>
       </div>
 
       <div className="grid grid-4">
@@ -148,7 +156,7 @@ export default function Debts() {
               <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => removeDebt(d)}><Trash2 size={15} /></button>
             </>
           ) : undefined}
-          empty={<EmptyState title="Sin cuotas" hint={activeCount > 0 ? 'Ninguna cuota coincide con los filtros.' : 'Registra aquí cualquier compra a cuotas para vigilar tu capacidad de endeudamiento.'} />} />
+          empty={<EmptyState title={tab === 'pendiente' ? 'Sin cuotas pendientes' : 'Sin cuotas pagadas'} hint={activeCount > 0 ? 'Ninguna cuota coincide con los filtros.' : tab === 'pendiente' ? 'Buena señal: no hay cuotas abiertas.' : 'Aquí quedará el histórico de lo que vayas pagando.'} />} />
       </div>
 
       {detail && (
