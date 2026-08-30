@@ -1,8 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Check, Circle, FolderPlus, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, Circle, FolderPlus, Landmark, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
+import { useConfirm } from '../hooks/useConfirm';
 import { useVoiceInput } from '../hooks/useVoiceInput';
 import EmptyState from '../components/ui/EmptyState';
 import ProgressBar from '../components/ui/ProgressBar';
@@ -10,10 +11,11 @@ import StatCard from '../components/ui/StatCard';
 import Money from '../components/ui/Money';
 import CustomSelect from '../components/ui/CustomSelect';
 import DataTable, { type Column } from '../components/ui/DataTable';
-import type { ShoppingItem, ShoppingList, ShoppingPriority, StockUnit } from '../types';
+import type { Category, Expense, InventoryItem, PricePoint, ShoppingItem, ShoppingList, ShoppingPriority, StockUnit } from '../types';
 import { UNITS } from '../utils/units';
 import { parseVoiceItem } from '../utils/voiceParse';
-import { getRelationName } from '../utils/relations';
+import { getRelationName, colorForIndex } from '../utils/relations';
+import { availableBalanceBs } from '../utils/finance';
 import { formatBs, formatPct, formatUsd, round2, sum, toBs, toUsd } from '../utils/money';
 import { todayIso } from '../utils/dates';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
@@ -37,6 +39,7 @@ export default function Shopping() {
 function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
   const data = useData();
   const { canEdit } = usePermissions();
+  const confirm = useConfirm();
   const editable = canEdit('compras');
   const [creating, setCreating] = useState(false);
 
@@ -51,11 +54,16 @@ function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
     return { items, spent, planned };
   };
 
-  const removeList = (list: ShoppingList) => {
-    const items = data.shopping.filter((s) => s.listId === list.id);
-    if (!window.confirm(`¿Eliminar la carpeta «${list.name}» y sus ${items.length} productos?`)) return;
-    items.forEach((i) => void data.del('shopping', i.id));
-    void data.del('shoppingLists', list.id);
+  const removeList = async (list: ShoppingList) => {
+    const listItems = data.shopping.filter((s) => s.listId === list.id);
+    const ok = await confirm({
+      title: `¿Eliminar «${list.name}»?`,
+      message: `Se borra la carpeta y sus ${listItems.length} productos.`,
+      confirmLabel: 'Eliminar', danger: true,
+    });
+    if (!ok) return;
+    await Promise.all(listItems.map((i) => data.del('shopping', i.id)));
+    await data.del('shoppingLists', list.id);
   };
 
   return (
@@ -93,7 +101,7 @@ function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
                 {editable && (
                   <div className="shop-folder-actions">
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => data.update<ShoppingList>('shoppingLists', list.id, { status: 'cerrada', closedAt: todayIso() })}><Check size={14} /> Cerrar</button>
-                    <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar carpeta" onClick={() => removeList(list)}><Trash2 size={15} /></button>
+                    <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar carpeta" onClick={() => void removeList(list)}><Trash2 size={15} /></button>
                   </div>
                 )}
               </article>
@@ -193,6 +201,7 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [editingList, setEditingList] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
   const items = useMemo(
     () => data.shopping.filter((s) => s.listId === list.id),
@@ -210,6 +219,11 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const budget = list.budgetUsd;
   const ratio = budget > 0 ? spent / budget : 0;
   const remaining = budget - spent;
+
+  // Disponible en la cuenta menos lo que ya llevas en el carrito.
+  const availableBs = availableBalanceBs(data.incomes, data.expenses);
+  const availableUsd = toUsd(availableBs, rate);
+  const leftAfterCart = availableUsd - spent;
 
   const columns: Column<ShoppingItem>[] = [
     { key: 'seq', header: '#', width: '46px', hideOnMobile: true, render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
@@ -263,6 +277,9 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
       </div>
 
       <div className="grid grid-4">
+        <StatCard tone={leftAfterCart < 0 ? 'danger' : 'ok'} icon={<Landmark size={18} />} label="Te queda disponible"
+          value={<span className={`num ${leftAfterCart < 0 ? 'text-danger' : ''}`}>{formatUsd(leftAfterCart)}</span>}
+          hint={`${formatBs(toBs(leftAfterCart, rate))} · antes del carrito: ${formatUsd(availableUsd)}`} />
         <StatCard tone={ratio > 1 ? 'danger' : 'usd'} icon={<ShoppingBag size={18} />} label="Llevas en el carrito"
           value={<Money amount={spent} currency="USD" rate={rate} dual size="lg" align="start" />}
           hint={`${inCart.length} de ${items.length} productos`} />
@@ -277,6 +294,12 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
           hint={budget > 0 ? `Tope: ${formatUsd(budget)}` : `Proyectado: ${formatUsd(spent + pending)}`} />
       </div>
 
+      {editable && list.status === 'abierta' && inCart.length > 0 && (
+        <button type="button" className="btn btn-primary btn-block shop-finish" onClick={() => setFinishing(true)}>
+          <ShoppingBag size={18} /> Finalizar compra — {inCart.length} productos por {formatUsd(spent)}
+        </button>
+      )}
+
       {budget > 0 && (
         <div className="card shop-budget">
           <div className="row-between small"><span className="strong">{formatPct(ratio)} del tope</span><span className="muted num">{formatBs(toBs(spent, rate))} de {formatBs(toBs(budget, rate))}</span></div>
@@ -288,12 +311,7 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} rowClass={(i) => (i.checked ? 'muted-row' : '')}
           onRowClick={editable ? setPricing : undefined}
-          actions={editable ? (i) => (
-            <>
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar producto" onClick={() => setEditingItem(i)}><Pencil size={15} /></button>
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => data.del('shopping', i.id)}><Trash2 size={15} /></button>
-            </>
-          ) : undefined}
+
           empty={<EmptyState title="Carpeta vacía" hint="Agrega productos escribiendo o dictando: «dos kilos de harina 850 bolívares»." />} />
       </div>
 
@@ -306,15 +324,117 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
       <Modal title="Editar carpeta" open={editingList} onClose={() => setEditingList(false)}>
         <ListForm list={list} onDone={() => setEditingList(false)} />
       </Modal>
+      <Modal title="Finalizar compra" open={finishing} onClose={() => setFinishing(false)}>
+        <FinishForm list={list} items={inCart} rate={rate} onDone={() => { setFinishing(false); onBack(); }} />
+      </Modal>
 
-      {pricing && <PriceModal item={pricing} rate={rate} onClose={() => setPricing(null)} />}
+      {pricing && (
+        <PriceModal item={pricing} rate={rate} onClose={() => setPricing(null)}
+          onEdit={() => { setEditingItem(pricing); setPricing(null); }} />
+      )}
     </div>
   );
 }
 
+/**
+ * Cierra la carpeta y pasa cada producto del carrito a Movimientos como gasto,
+ * con la tasa del día. Opcionalmente suma al inventario para seguir el precio.
+ */
+function FinishForm({ list, items, rate, onDone }: { list: ShoppingList; items: ShoppingItem[]; rate: number; onDone: () => void }) {
+  const data = useData();
+  const [categoryId, setCategoryId] = useState(data.categories[0]?.id ?? '');
+  const [date, setDate] = useState(todayIso());
+  const [toStock, setToStock] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState('');
+
+  const total = sum(items.map((i) => (i.actualUsd ?? i.estimatedUsd) * i.quantity));
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!categoryId || items.length === 0) return;
+    setSaving(true);
+    try {
+      for (const [index, item] of items.entries()) {
+        setProgress(`Registrando ${index + 1} de ${items.length}…`);
+        const unitUsd = item.actualUsd ?? item.estimatedUsd;
+        const unitBs = item.actualBs ?? round2(toBs(unitUsd, rate));
+        const inventoryItem = data.inventory.find((inv) => inv.id === item.inventoryItemId
+          || inv.name.trim().toLowerCase() === item.name.trim().toLowerCase());
+
+        await data.add<Expense>('expenses', {
+          date,
+          placeId: list.placeId ?? '',
+          // Cada producto usa el rubro de su ficha de inventario si la tiene.
+          categoryId: inventoryItem?.categoryId ?? categoryId,
+          product: item.name,
+          unitPriceBs: unitBs,
+          quantity: item.quantity,
+          totalBs: round2(unitBs * item.quantity),
+          rate,
+          totalUsd: round2(unitUsd * item.quantity),
+          inventoryItemId: inventoryItem?.id,
+          note: `Compra: ${list.name}`,
+        });
+
+        if (toStock) {
+          const point: PricePoint = { date, priceBs: unitBs, priceUsd: round2(unitUsd), rate };
+          if (inventoryItem) {
+            await data.update<InventoryItem>('inventory', inventoryItem.id, {
+              quantity: inventoryItem.quantity + item.quantity,
+              lastPriceBs: point.priceBs, lastPriceUsd: point.priceUsd,
+              lastPurchaseDate: date, lastPlaceId: list.placeId,
+              priceHistory: [...inventoryItem.priceHistory, point],
+            });
+          } else {
+            await data.add<InventoryItem>('inventory', {
+              name: item.name, categoryId, quantity: item.quantity, unit: item.unit, minQuantity: 1,
+              lastPriceBs: point.priceBs, lastPriceUsd: point.priceUsd,
+              lastPurchaseDate: date, lastPlaceId: list.placeId, priceHistory: [point],
+            });
+          }
+        }
+      }
+      setProgress('Cerrando carpeta…');
+      await data.update<ShoppingList>('shoppingLists', list.id, { status: 'cerrada', closedAt: date });
+      onDone();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="stack">
+      <dl className="kv shop-finish-summary">
+        <div><dt>Productos</dt><dd className="num">{items.length}</dd></div>
+        <div><dt>Total pagado</dt><dd className="num text-usd">{formatUsd(total)}</dd></div>
+        <div><dt>En bolívares</dt><dd className="num text-bs">{formatBs(toBs(total, rate))}</dd></div>
+      </dl>
+      <div className="form-grid">
+        <label className="field"><span className="field-label">Fecha de la compra</span>
+          <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        </label>
+        <div className="field"><span className="field-label">Rubro por defecto</span>
+          <CustomSelect items={data.categories} value={categoryId} onChange={setCategoryId}
+            onCreate={(name) => data.add<Category>('categories', { name, color: colorForIndex(data.categories.length), active: true, group: 'necesidad' })} />
+        </div>
+      </div>
+      <p className="field-hint">Los productos que ya existen en el inventario usan su propio rubro; el resto usa este.</p>
+      <label className="row small"><input type="checkbox" checked={toStock} onChange={(e) => setToStock(e.target.checked)} /> Sumar al inventario y guardar los precios</label>
+      {progress && <p className="small muted">{progress}</p>}
+      <div className="form-actions">
+        <button type="submit" className="btn btn-primary" disabled={saving || !categoryId}>
+          {saving ? 'Registrando…' : `Registrar ${items.length} gastos y cerrar`}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /** Modal para cargar el precio real del producto al meterlo al carrito. */
-function PriceModal({ item, rate, onClose }: { item: ShoppingItem; rate: number; onClose: () => void }) {
-  const { update } = useData();
+function PriceModal({ item, rate, onClose, onEdit }: { item: ShoppingItem; rate: number; onClose: () => void; onEdit: () => void }) {
+  const { update, del } = useData();
+  const confirm = useConfirm();
   const [currency, setCurrency] = useState<'VES' | 'USD'>('VES');
   const [value, setValue] = useState(item.actualBs !== undefined ? String(item.actualBs) : '');
   const [saving, setSaving] = useState(false);
@@ -341,8 +461,15 @@ function PriceModal({ item, rate, onClose }: { item: ShoppingItem; rate: number;
     onClose();
   };
 
+  const removeItem = async () => {
+    const ok = await confirm({ title: `¿Eliminar «${item.name}»?`, message: 'Sale de esta carpeta de compra.', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
+    await del('shopping', item.id);
+    onClose();
+  };
+
   return (
-    <Modal title={item.name} open onClose={onClose}>
+    <Modal title={item.name} open onClose={onClose} confirmOnClose={false}>
       <div className="stack">
         <dl className="kv">
           <div><dt>Cantidad</dt><dd className="num">{item.quantity} {item.unit}</dd></div>
@@ -372,10 +499,13 @@ function PriceModal({ item, rate, onClose }: { item: ShoppingItem; rate: number;
           )}
         </dl>
 
+        <div className="shop-modal-tools">
+          <button type="button" className="btn btn-outline btn-sm" onClick={onEdit}><Pencil size={15} /> Editar</button>
+          <button type="button" className="btn btn-danger btn-sm" onClick={removeItem}><Trash2 size={15} /> Eliminar</button>
+          {item.checked && <button type="button" className="btn btn-ghost btn-sm" onClick={removeFromCart} disabled={saving}>Sacar del carrito</button>}
+        </div>
+
         <div className="form-actions">
-          {item.checked && (
-            <button type="button" className="btn btn-outline" onClick={removeFromCart} disabled={saving}>Sacar del carrito</button>
-          )}
           <button type="button" className="btn btn-primary" onClick={save} disabled={saving || n <= 0}>
             <Check size={16} /> {item.checked ? 'Actualizar precio' : 'Al carrito'}
           </button>

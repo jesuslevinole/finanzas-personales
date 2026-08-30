@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { RefreshCw, Trash2 } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import Sparkline from '../components/ui/Sparkline';
+import DetailSheet from '../components/ui/DetailSheet';
+import { useConfirm } from '../hooks/useConfirm';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import EmptyState from '../components/ui/EmptyState';
 import { fetchBcvRate } from '../services/rates';
@@ -14,12 +16,14 @@ import './Rates.css';
 
 export default function Rates() {
   const { rates, set, del } = useData();
+  const confirm = useConfirm();
   const [date, setDate] = useState(todayIso());
   const [rate, setRate] = useState('');
   const [bsAmount, setBsAmount] = useState('');
   const [usdAmount, setUsdAmount] = useState('');
   const [fetching, setFetching] = useState(false);
   const [msg, setMsg] = useState('');
+  const [detail, setDetail] = useState<ExchangeRate | null>(null);
 
   const latest = rates[0];
   const current = latest?.rate ?? 0;
@@ -92,10 +96,26 @@ export default function Rates() {
 
       <section className="card card-tight">
         <div className="card-header"><h2 className="card-title">Historial</h2><span className="tag">{rates.length} días</span></div>
-        <DataTable rows={rates.slice(0, 90)} columns={rateColumns}
-          actions={(r) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => { if (window.confirm(`¿Eliminar la tasa del ${shortDate(r.date)}?`)) void del('rates', r.id); }}><Trash2 size={15} /></button>}
+        <DataTable rows={rates.slice(0, 90)} columns={rateColumns} onRowClick={setDetail}
           empty={<EmptyState title="Sin tasas" hint="Actualiza desde BCV o registra la tasa a mano." />} />
       </section>
+
+      {detail && (
+        <DetailSheet open title={`Tasa del ${shortDate(detail.date)}`} subtitle={`Fuente: ${detail.source}`}
+          onClose={() => setDetail(null)}
+          onDelete={async () => {
+            const ok = await confirm({ title: `¿Eliminar la tasa del ${shortDate(detail.date)}?`, message: 'Los movimientos ya registrados conservan la tasa con la que se guardaron.', confirmLabel: 'Eliminar', danger: true });
+            if (!ok) return;
+            await del('rates', detail.id);
+            setDetail(null);
+          }}
+          fields={[
+            { label: 'Bs por dólar', value: <span className="num text-bs">{formatBs(detail.rate)}</span> },
+            { label: 'Fecha', value: shortDate(detail.date) },
+            { label: '1.000 Bs equivalen a', value: <span className="num text-usd">{formatUsd(1000 / detail.rate)}</span> },
+            { label: '$100 equivalen a', value: <span className="num text-bs">{formatBs(detail.rate * 100)}</span> },
+          ]} />
+      )}
     </div>
   );
 }

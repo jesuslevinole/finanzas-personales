@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type FormEvent } from 'react';
 import { EyeOff, Plus, Trash2 } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
+import { useConfirm } from '../hooks/useConfirm';
 import EmptyState from '../components/ui/EmptyState';
 import type { BudgetGroup, CatalogItem, Category, Creditor, IncomeSource, Place } from '../types';
 import type { CollectionName } from '../services/firestore';
@@ -21,6 +22,7 @@ const TABS: { key: CatalogKey; label: string; hint: string }[] = [
 export default function Catalogs() {
   const data = useData();
   const { canEdit } = usePermissions();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<CatalogKey>('categories');
   const editable = canEdit('catalogos');
 
@@ -32,10 +34,18 @@ export default function Catalogs() {
     return data.incomes.filter((i) => i.sourceId === id).length;
   };
 
-  const remove = (item: CatalogItem) => {
+  const remove = async (item: CatalogItem) => {
     const used = usage(item.id);
-    if (used > 0) { window.alert(`«${item.name}» está en ${used} registro(s). Desactívalo en vez de borrarlo para no romper el histórico.`); return; }
-    if (window.confirm(`¿Eliminar «${item.name}»?`)) void data.del(tab as CollectionName, item.id);
+    if (used > 0) {
+      await confirm({
+        title: 'No se puede eliminar',
+        message: `«${item.name}» está en ${used} registro(s). Desactívalo en vez de borrarlo para no romper el histórico.`,
+        confirmLabel: 'Entendido', cancelLabel: 'Cerrar',
+      });
+      return;
+    }
+    const ok = await confirm({ title: `¿Eliminar «${item.name}»?`, confirmLabel: 'Eliminar', danger: true });
+    if (ok) await data.del(tab as CollectionName, item.id);
   };
 
   const current = TABS.find((t) => t.key === tab);
@@ -70,7 +80,7 @@ export default function Catalogs() {
                 {editable && (
                   <span className="cat-actions">
                     <button type="button" className="btn btn-ghost btn-icon" title={item.active === false ? 'Reactivar' : 'Desactivar'} aria-label="Activar o desactivar" onClick={() => data.update<CatalogItem>(tab as CollectionName, item.id, { active: item.active === false })}><EyeOff size={15} /></button>
-                    <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => remove(item)}><Trash2 size={15} /></button>
+                    <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void remove(item)}><Trash2 size={15} /></button>
                   </span>
                 )}
               </li>

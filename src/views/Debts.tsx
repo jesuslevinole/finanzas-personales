@@ -1,7 +1,8 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Check, CreditCard, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
+import { Check, CreditCard, Plus, Wallet } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
+import { useConfirm } from '../hooks/useConfirm';
 import Modal from '../components/ui/Modal';
 import Money from '../components/ui/Money';
 import EmptyState from '../components/ui/EmptyState';
@@ -24,6 +25,7 @@ const STATUS_LABEL: Record<PayStatus, string> = { pendiente: 'Pendiente', en_pro
 export default function Debts() {
   const data = useData();
   const { canEdit } = usePermissions();
+  const confirm = useConfirm();
   const editable = canEdit('deudas');
   const today = todayIso();
   const cycle = cycleOf(today);
@@ -63,9 +65,10 @@ export default function Debts() {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [openRows]);
 
-  const removeDebt = (d: Debt) => {
-    if (!window.confirm(`¿Eliminar la cuota de ${d.merchant}?`)) return;
-    void data.del('debts', d.id);
+  const removeDebt = async (d: Debt) => {
+    const ok = await confirm({ title: `¿Eliminar la cuota de ${d.merchant}?`, message: 'Se borra de forma permanente.', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
+    await data.del('debts', d.id);
     setDetail(null);
   };
 
@@ -152,13 +155,7 @@ export default function Debts() {
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
           rowClass={(d) => (d.status === 'pagada' ? 'muted-row' : d.dueDate < today ? 'danger-row' : '')}
-          actions={editable ? (d) => (
-            <>
-              {d.status !== 'pagada' && <button type="button" className="btn btn-ghost btn-icon" aria-label="Marcar pagada" onClick={() => data.update<Debt>('debts', d.id, { status: 'pagada' })}><Check size={15} /></button>}
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(d)}><Pencil size={15} /></button>
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => removeDebt(d)}><Trash2 size={15} /></button>
-            </>
-          ) : undefined}
+
           empty={<EmptyState title={tab === 'pendiente' ? 'Sin cuotas pendientes' : 'Sin cuotas pagadas'} hint={activeCount > 0 ? 'Ninguna cuota coincide con los filtros.' : tab === 'pendiente' ? 'Buena señal: no hay cuotas abiertas.' : 'Aquí quedará el histórico de lo que vayas pagando.'} />} />
       </div>
 
@@ -166,7 +163,7 @@ export default function Debts() {
         <DetailSheet open title={detail.merchant} subtitle={`${getRelationName(data.creditors, detail.creditorId)} · vence ${shortDate(detail.dueDate)}`}
           onClose={() => setDetail(null)}
           onEdit={editable ? () => { setEditing(detail); setDetail(null); } : undefined}
-          onDelete={editable ? () => removeDebt(detail) : undefined}
+          onDelete={editable ? () => void removeDebt(detail) : undefined}
           fields={[
             { label: 'Monto', value: <span className="num text-usd">{formatUsd(detail.amountUsd)}</span> },
             { label: 'Equivale hoy', value: <span className="num">{formatUsd(detail.amountUsd)} · Bs {(detail.amountUsd * data.currentRate).toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span> },
@@ -175,7 +172,13 @@ export default function Debts() {
             { label: 'Dinero', value: detail.owner },
             { label: 'Referencia', value: detail.reference ?? '—' },
             { label: 'Descripción', value: detail.description ?? '—', wide: true },
-          ]} />
+          ]}>
+          {editable && detail.status !== 'pagada' && (
+            <button type="button" className="btn btn-outline btn-block" onClick={() => { void data.update<Debt>('debts', detail.id, { status: 'pagada' }); setDetail(null); }}>
+              <Check size={16} /> Marcar como pagada
+            </button>
+          )}
+        </DetailSheet>
       )}
 
       <Modal title="Nueva cuota" open={creating} onClose={() => setCreating(false)}>

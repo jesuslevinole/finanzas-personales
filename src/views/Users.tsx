@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ShieldCheck, Trash2, Plus } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
+import { useConfirm } from '../hooks/useConfirm';
 import EmptyState from '../components/ui/EmptyState';
 import type { AccessLevel, Role } from '../types';
 import { ACCESS_LABEL, ACCESS_LEVELS, DEFAULT_ROLES, MODULE_KEYS, MODULE_LABEL } from '../utils/access';
@@ -15,6 +16,7 @@ import './Users.css';
 export default function Users() {
   const { roles, add, update, del } = useData();
   const { roleName } = usePermissions();
+  const confirm = useConfirm();
   const [openRole, setOpenRole] = useState<string | null>(null);
 
   const seedRoles = () => Promise.all(DEFAULT_ROLES.map((r) => add<Role>('roles', r)));
@@ -53,7 +55,10 @@ export default function Users() {
                       <span className="tiny muted">{role.description ?? `${count} de ${MODULE_KEYS.length} módulos`}</span>
                     </button>
                     <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar rol"
-                      onClick={() => { if (window.confirm(`¿Eliminar el rol «${role.name}»?`)) void del('roles', role.id); }}><Trash2 size={16} /></button>
+                      onClick={async () => {
+                        const ok = await confirm({ title: `¿Eliminar el rol «${role.name}»?`, confirmLabel: 'Eliminar', danger: true });
+                        if (ok) await del('roles', role.id);
+                      }}><Trash2 size={16} /></button>
                   </div>
                   {open && (
                     <ul className="users-matrix">

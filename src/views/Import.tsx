@@ -2,6 +2,7 @@ import { useState, type ChangeEvent } from 'react';
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, Trash2, Upload } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
+import { useConfirm } from '../hooks/useConfirm';
 import type { Category, Creditor, Debt, ExchangeRate, Expense, FixedCost, Income, IncomeSource, NewDoc, Place, ShoppingItem } from '../types';
 import { matrixToLooseRows, matrixToRows, parseWorkbook, resolveKey, type Cell, type ParsedWorkbook, type RawRow } from '../utils/excel';
 import { formatUsd, sum } from '../utils/money';
@@ -21,6 +22,7 @@ const SHEET_LABEL: Record<keyof Selection, string> = {
 export default function Import() {
   const data = useData();
   const { canEdit } = usePermissions();
+  const confirm = useConfirm();
   const [step, setStep] = useState<Step>('idle');
   const [parsed, setParsed] = useState<ParsedWorkbook | null>(null);
   const [fileName, setFileName] = useState('');
@@ -110,8 +112,12 @@ export default function Import() {
 
   /** Deja el espacio vacío para reimportar sin duplicar. No toca roles ni ajustes. */
   const wipeData = async () => {
-    const answer = window.prompt('Esto borra movimientos, deudas, costos fijos, tasas, inventario, lista y catálogos. Escribe BORRAR para confirmar.');
-    if (answer !== 'BORRAR') return;
+    const ok = await confirm({
+      title: '¿Vaciar todos los datos?',
+      message: 'Se borran movimientos, deudas, costos fijos, tasas, inventario, lista de compras y catálogos. No afecta a roles ni ajustes. Esto no se puede deshacer.',
+      confirmLabel: 'Sí, borrar todo', danger: true,
+    });
+    if (!ok) return;
     setWiping(true);
     setWipeMessage('');
     try {

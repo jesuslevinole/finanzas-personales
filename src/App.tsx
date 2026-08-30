@@ -6,6 +6,7 @@ import type { ModuleKey } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useData } from './hooks/useData';
 import { usePermissions } from './hooks/usePermissions';
+import { useLastRoute } from './hooks/useLastRoute';
 import AppShell from './components/layout/AppShell';
 const Dashboard = lazy(() => import('./views/Dashboard'));
 const Reminders = lazy(() => import('./views/Reminders'));
@@ -39,6 +40,7 @@ function Guard({ module, children }: { module: ModuleKey; children: ReactNode })
 
 export default function App() {
   const { loading, error: authError } = useAuth();
+  useLastRoute();
   const { ready, error } = useData();
 
   if (loading) return <div className="splash muted">Entrando…</div>;

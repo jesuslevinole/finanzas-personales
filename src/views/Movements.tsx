@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Receipt, Trash2 } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, Plus, Receipt } from 'lucide-react';
 import { useData } from '../hooks/useData';
+import { useConfirm } from '../hooks/useConfirm';
 import { useMonth } from '../hooks/useMonth';
 import { usePermissions } from '../hooks/usePermissions';
 import MonthPicker from '../components/ui/MonthPicker';
@@ -25,6 +26,7 @@ type Tab = 'gastos' | 'ingresos';
 export default function Movements() {
   const data = useData();
   const { canEdit } = usePermissions();
+  const confirm = useConfirm();
   const { month, prev, next, monthIncomes, monthExpenses } = useMonth();
   const [tab, setTab] = useState<Tab>('gastos');
   const editable = canEdit('movimientos');
@@ -84,11 +86,16 @@ export default function Movements() {
     return { name: getRelationName(tab === 'gastos' ? data.categories : data.incomeSources, top[0]), usd: top[1] };
   }, [tab, expenses, incomes, data.categories, data.incomeSources]);
 
-  const removeRecord = (row: Expense | Income) => {
+  const removeRecord = async (row: Expense | Income) => {
     const isExpense = 'product' in row;
     const label = isExpense ? row.product : getRelationName(data.incomeSources, row.sourceId);
-    if (!window.confirm(`¿Eliminar «${label}»?`)) return;
-    void data.del(isExpense ? 'expenses' : 'incomes', row.id);
+    const ok = await confirm({
+      title: `¿Eliminar «${label}»?`,
+      message: 'El registro se borra de forma permanente.',
+      confirmLabel: 'Eliminar', danger: true,
+    });
+    if (!ok) return;
+    await data.del(isExpense ? 'expenses' : 'incomes', row.id);
     setDetail(null);
   };
 
@@ -118,13 +125,6 @@ export default function Movements() {
     { key: 'bs', header: 'Bs', align: 'end', width: '130px', hideOnMobile: true, render: (i) => <span className="text-bs">{formatBs(i.amountBs)}</span> },
     { key: 'usd', header: 'USD', align: 'end', width: '100px', render: (i) => <span className="text-usd strong">{formatUsd(i.amountUsd)}</span> },
   ];
-
-  const rowActions = (row: Expense | Income) => (
-    <>
-      <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(row)}><Pencil size={15} /></button>
-      <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => removeRecord(row)}><Trash2 size={15} /></button>
-    </>
-  );
 
   const detailIsExpense = detail !== null && 'product' in detail;
 
@@ -209,10 +209,10 @@ export default function Movements() {
 
       <div className="card card-tight">
         {tab === 'gastos' ? (
-          <DataTable rows={expenses} columns={expenseColumns} onRowClick={setDetail} actions={editable ? rowActions : undefined}
+          <DataTable rows={expenses} columns={expenseColumns} onRowClick={setDetail}
             empty={<EmptyState title="Sin gastos" hint={activeCount > 0 ? 'Ningún gasto coincide con los filtros.' : 'Registra lo que compras para saber en qué se va el dinero.'} />} />
         ) : (
-          <DataTable rows={incomes} columns={incomeColumns} onRowClick={setDetail} actions={editable ? rowActions : undefined}
+          <DataTable rows={incomes} columns={incomeColumns} onRowClick={setDetail}
             empty={<EmptyState title="Sin ingresos" hint={activeCount > 0 ? 'Ningún ingreso coincide con los filtros.' : 'Registra lo que entra y marca el dinero de terceros.'} />} />
         )}
       </div>
@@ -223,7 +223,7 @@ export default function Movements() {
           open title={(detail as Expense).product} subtitle={`${shortDate(detail.date)} · ${getRelationName(data.places, (detail as Expense).placeId, 'sin lugar')}`}
           onClose={() => setDetail(null)}
           onEdit={editable ? () => { setEditing(detail); setDetail(null); } : undefined}
-          onDelete={editable ? () => removeRecord(detail) : undefined}
+          onDelete={editable ? () => void removeRecord(detail) : undefined}
           fields={[
             { label: 'Rubro', value: getRelationName(data.categories, (detail as Expense).categoryId) },
             { label: 'Cantidad', value: <span className="num">{(detail as Expense).quantity}</span> },
@@ -240,7 +240,7 @@ export default function Movements() {
           open title={getRelationName(data.incomeSources, (detail as Income).sourceId, 'Ingreso')} subtitle={shortDate(detail.date)}
           onClose={() => setDetail(null)}
           onEdit={editable ? () => { setEditing(detail); setDetail(null); } : undefined}
-          onDelete={editable ? () => removeRecord(detail) : undefined}
+          onDelete={editable ? () => void removeRecord(detail) : undefined}
           fields={[
             { label: 'Dinero', value: (detail as Income).owner },
             { label: 'Tipo', value: ((detail as Income).kind ?? 'variable') === 'fijo' ? 'Fijo' : 'Variable' },

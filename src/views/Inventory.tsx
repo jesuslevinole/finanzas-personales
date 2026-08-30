@@ -1,10 +1,11 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { UNITS } from '../utils/units';
-import { Minus, Package, Plus, ShoppingCart, TrendingUp, Trash2 } from 'lucide-react';
+import { Minus, Package, Plus, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import Modal from '../components/ui/Modal';
 import CustomSelect from '../components/ui/CustomSelect';
 import { usePermissions } from '../hooks/usePermissions';
+import { useConfirm } from '../hooks/useConfirm';
 import EmptyState from '../components/ui/EmptyState';
 import Sparkline from '../components/ui/Sparkline';
 import DataTable, { type Column } from '../components/ui/DataTable';
@@ -24,12 +25,14 @@ export default function Inventory() {
   const data = useData();
   const { inventory, categories, places, shopping, currentRate, add, update, del } = data;
   const { canEdit } = usePermissions();
+  const confirm = useConfirm();
   const editable = canEdit('inventario');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
   const [detail, setDetail] = useState<InventoryItem | null>(null);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 
   const seq = useMemo(() => sequenceMap(inventory, (i) => i.name.toLowerCase()), [inventory]);
 
@@ -55,9 +58,10 @@ export default function Inventory() {
     });
   };
 
-  const removeItem = (item: InventoryItem) => {
-    if (!window.confirm(`¿Eliminar «${item.name}» del inventario?`)) return;
-    void del('inventory', item.id);
+  const removeItem = async (item: InventoryItem) => {
+    const ok = await confirm({ title: `¿Eliminar «${item.name}»?`, message: 'Se borra del inventario junto con su historial de precios.', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
+    await del('inventory', item.id);
     setDetail(null);
   };
 
@@ -124,19 +128,15 @@ export default function Inventory() {
       <div className="card card-tight">
         <DataTable rows={items} columns={columns} onRowClick={setDetail}
           rowClass={(i) => (i.quantity <= i.minQuantity ? 'warn-row' : '')}
-          actions={editable ? (i) => (
-            <>
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Enviar a la lista" onClick={() => sendToList(i)}><ShoppingCart size={15} /></button>
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => removeItem(i)}><Trash2 size={15} /></button>
-            </>
-          ) : undefined}
+
           empty={<EmptyState title="Sin productos" hint="Agrega productos aquí o marca «sumar al inventario» al registrar un gasto." />} />
       </div>
 
       {detail && (
         <DetailSheet open title={detail.name} subtitle={`${getRelationName(categories, detail.categoryId)}${detail.lastPlaceId ? ` · ${getRelationName(places, detail.lastPlaceId, '')}` : ''}`}
           onClose={() => setDetail(null)}
-          onDelete={editable ? () => removeItem(detail) : undefined}
+          onEdit={editable ? () => { setEditingItem(detail); setDetail(null); } : undefined}
+          onDelete={editable ? () => void removeItem(detail) : undefined}
           fields={[
             { label: 'Existencia', value: <span className="num">{detail.quantity} {detail.unit}</span> },
             { label: 'Mínimo', value: <span className="num">{detail.minQuantity} {detail.unit}</span> },
@@ -145,6 +145,11 @@ export default function Inventory() {
             { label: 'Última compra', value: detail.lastPurchaseDate ? shortDate(detail.lastPurchaseDate) : '—' },
             { label: 'Compras registradas', value: <span className="num">{detail.priceHistory.length}</span> },
           ]}>
+          {editable && (
+            <button type="button" className="btn btn-outline btn-block inv-detail-btn" onClick={() => { sendToList(detail); setDetail(null); }}>
+              <ShoppingCart size={16} /> Enviar a la lista de compras
+            </button>
+          )}
           {detail.priceHistory.length >= 2 && (
             <div className="inv-detail-trend">
               <span className="field-label">Precio en dólares por compra</span>
@@ -160,6 +165,13 @@ export default function Inventory() {
           onCreateCategory={(name) => data.add<Category>('categories', { name, color: colorForIndex(categories.length), active: true, group: 'necesidad' })}
           onSubmit={async (d) => { await add<InventoryItem>('inventory', d); setOpen(false); }} />
       </Modal>
+      <Modal title="Editar producto" open={editingItem !== null} onClose={() => setEditingItem(null)}>
+        {editingItem && (
+          <InventoryForm categories={categories} currentRate={currentRate} item={editingItem}
+            onCreateCategory={(name) => data.add<Category>('categories', { name, color: colorForIndex(categories.length), active: true, group: 'necesidad' })}
+            onSubmit={async (d) => { await update<InventoryItem>('inventory', editingItem.id, d); setEditingItem(null); }} />
+        )}
+      </Modal>
     </div>
   );
 }
@@ -167,17 +179,19 @@ export default function Inventory() {
 interface InventoryFormProps {
   categories: Category[];
   currentRate: number;
+  /** Si viene, el formulario edita ese producto. */
+  item?: InventoryItem;
   onCreateCategory: (name: string) => Promise<string>;
   onSubmit: (d: NewDoc<InventoryItem>) => Promise<void>;
 }
 
-function InventoryForm({ categories, currentRate, onCreateCategory, onSubmit }: InventoryFormProps) {
-  const [name, setName] = useState('');
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
-  const [quantity, setQuantity] = useState('1');
-  const [unit, setUnit] = useState<StockUnit>('und');
-  const [minQuantity, setMinQuantity] = useState('1');
-  const [priceUsd, setPriceUsd] = useState('');
+function InventoryForm({ categories, currentRate, item, onCreateCategory, onSubmit }: InventoryFormProps) {
+  const [name, setName] = useState(item?.name ?? '');
+  const [categoryId, setCategoryId] = useState(item?.categoryId ?? categories[0]?.id ?? '');
+  const [quantity, setQuantity] = useState(String(item?.quantity ?? 1));
+  const [unit, setUnit] = useState<StockUnit>(item?.unit ?? 'und');
+  const [minQuantity, setMinQuantity] = useState(String(item?.minQuantity ?? 1));
+  const [priceUsd, setPriceUsd] = useState(item ? String(item.lastPriceUsd) : '');
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -186,8 +200,11 @@ function InventoryForm({ categories, currentRate, onCreateCategory, onSubmit }: 
     const today = todayIso();
     await onSubmit({
       name: name.trim(), categoryId, quantity: Number(quantity) || 0, unit, minQuantity: Number(minQuantity) || 0,
-      lastPriceUsd: usd, lastPriceBs: usd * currentRate, lastPurchaseDate: usd > 0 ? today : undefined,
-      priceHistory: usd > 0 ? [{ date: today, priceUsd: usd, priceBs: usd * currentRate, rate: currentRate }] : [],
+      lastPriceUsd: usd, lastPriceBs: usd * currentRate,
+      lastPurchaseDate: item?.lastPurchaseDate ?? (usd > 0 ? today : undefined),
+      lastPlaceId: item?.lastPlaceId,
+      // Al editar se conserva el historial; solo se agrega punto en el alta.
+      priceHistory: item?.priceHistory ?? (usd > 0 ? [{ date: today, priceUsd: usd, priceBs: usd * currentRate, rate: currentRate }] : []),
     });
   };
 
@@ -201,7 +218,7 @@ function InventoryForm({ categories, currentRate, onCreateCategory, onSubmit }: 
         <label className="field"><span className="field-label">Mínimo</span><input className="input num" type="number" step="0.01" min="0" value={minQuantity} onChange={(e) => setMinQuantity(e.target.value)} /></label>
         <label className="field"><span className="field-label">Precio unitario ($)</span><input className="input num" type="number" step="0.01" min="0" value={priceUsd} onChange={(e) => setPriceUsd(e.target.value)} /></label>
       </div>
-      <div className="form-actions"><button type="submit" className="btn btn-primary">Guardar</button></div>
+      <div className="form-actions"><button type="submit" className="btn btn-primary">{item ? 'Guardar cambios' : 'Guardar'}</button></div>
     </form>
   );
 }

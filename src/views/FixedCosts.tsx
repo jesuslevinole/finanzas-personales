@@ -1,8 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { CalendarClock, Check, Copy, Pencil, Plus, Trash2, Wallet } from 'lucide-react';
+import { CalendarClock, Check, Copy, Plus, Wallet } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useMonth } from '../hooks/useMonth';
 import { usePermissions } from '../hooks/usePermissions';
+import { useConfirm } from '../hooks/useConfirm';
 import MonthPicker from '../components/ui/MonthPicker';
 import Modal from '../components/ui/Modal';
 import Money from '../components/ui/Money';
@@ -24,6 +25,7 @@ const STATUS_TAG: Record<PayStatus, string> = { pendiente: 'warn', en_proceso: '
 export default function FixedCosts() {
   const data = useData();
   const { canEdit } = usePermissions();
+  const confirm = useConfirm();
   const { month, prev, next, monthFixed } = useMonth();
   const editable = canEdit('costos-fijos');
   const today = todayIso();
@@ -47,13 +49,15 @@ export default function FixedCosts() {
   const prevCosts = data.fixedCosts.filter((f) => f.month === prevMonth);
 
   const markPaid = (f: FixedCost) => data.update<FixedCost>('fixedCosts', f.id, { status: 'pagada', paidDate: today });
-  const removeCost = (f: FixedCost) => {
-    if (!window.confirm(`¿Eliminar «${f.description}»?`)) return;
-    void data.del('fixedCosts', f.id);
+  const removeCost = async (f: FixedCost) => {
+    const ok = await confirm({ title: `¿Eliminar «${f.description}»?`, message: 'Se borra de forma permanente.', confirmLabel: 'Eliminar', danger: true });
+    if (!ok) return;
+    await data.del('fixedCosts', f.id);
     setDetail(null);
   };
   const copyFromPrev = async () => {
-    if (!window.confirm(`¿Copiar los ${prevCosts.length} costos del mes anterior como pendientes?`)) return;
+    const ok = await confirm({ title: 'Copiar del mes anterior', message: `Se crearán ${prevCosts.length} costos fijos como pendientes en este mes.`, confirmLabel: 'Copiar' });
+    if (!ok) return;
     await Promise.all(prevCosts.map((f) => data.add<FixedCost>('fixedCosts', { description: f.description, amountUsd: f.amountUsd, month, dueDay: f.dueDay, status: 'pendiente' })));
   };
 
@@ -108,13 +112,7 @@ export default function FixedCosts() {
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
           rowClass={(f) => (f.status === 'pagada' ? 'muted-row' : fixedCostDate(f.month, f.dueDay) < today ? 'danger-row' : '')}
-          actions={editable ? (f) => (
-            <>
-              {f.status !== 'pagada' && <button type="button" className="btn btn-ghost btn-icon" aria-label="Marcar pagada" onClick={() => markPaid(f)}><Check size={15} /></button>}
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(f)}><Pencil size={15} /></button>
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => removeCost(f)}><Trash2 size={15} /></button>
-            </>
-          ) : undefined}
+
           empty={<EmptyState title={tab === 'pendiente' ? 'Nada pendiente' : 'Nada pagado aún'} hint={tab === 'pendiente' ? 'Todos los costos fijos del mes están pagados.' : 'Marca como pagados los que ya cubriste.'} />} />
       </div>
 
@@ -122,7 +120,7 @@ export default function FixedCosts() {
         <DetailSheet open title={detail.description} subtitle={`Día ${detail.dueDay} · ${STATUS_LABEL[detail.status]}`}
           onClose={() => setDetail(null)}
           onEdit={editable ? () => { setEditing(detail); setDetail(null); } : undefined}
-          onDelete={editable ? () => removeCost(detail) : undefined}
+          onDelete={editable ? () => void removeCost(detail) : undefined}
           fields={[
             { label: 'Monto', value: <span className="num text-usd">{formatUsd(detail.amountUsd)}</span> },
             { label: 'En bolívares hoy', value: <span className="num">{(detail.amountUsd * data.currentRate).toLocaleString('es-VE', { maximumFractionDigits: 2 })}</span> },
@@ -131,7 +129,13 @@ export default function FixedCosts() {
             { label: 'Referencia', value: detail.reference ?? '—' },
             { label: 'Recargo por atraso', value: detail.lateAmountUsd !== undefined ? `${formatUsd(detail.lateAmountUsd)} tras el día ${detail.lateAfterDay}` : '—' },
             { label: 'Nota', value: detail.note ?? '—', wide: true },
-          ]} />
+          ]}>
+          {editable && detail.status !== 'pagada' && (
+            <button type="button" className="btn btn-outline btn-block" onClick={() => { void markPaid(detail); setDetail(null); }}>
+              <Check size={16} /> Marcar como pagada
+            </button>
+          )}
+        </DetailSheet>
       )}
 
       <Modal title="Nuevo costo fijo" open={creating} onClose={() => setCreating(false)}>

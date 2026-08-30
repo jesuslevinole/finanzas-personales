@@ -9,3 +9,5 @@
 .goal-actions .btn-icon { margin-left: auto; }
 
 @media (max-width: 767px) { .goals-list { grid-template-columns: 1fr; } .goal-card { padding: var(--space-3); } }
+
+.goal-amount { min-height: 56px; font-size: 1.4rem; font-weight: 700; text-align: right; }

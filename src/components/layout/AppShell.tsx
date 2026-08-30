@@ -63,7 +63,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => canView(i.module)) })).filter((g) => g.items.length > 0);
   const allItems = groups.flatMap((g) => g.items);
   const primary = allItems.filter((i) => MOBILE_PRIMARY.includes(i.module));
-  const secondary = allItems.filter((i) => !MOBILE_PRIMARY.includes(i.module));
   const currentTitle = allItems.find((i) => i.to === pathname)?.module;
 
   return (
@@ -126,10 +125,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <button type="button" className="btn btn-ghost btn-icon" onClick={() => setMoreOpen(false)} aria-label="Cerrar menú"><X size={18} /></button>
             </div>
             <nav className="drawer-nav">
-              {(secondary.length > 0 ? secondary : allItems).map((n) => (
-                <NavLink key={n.to} to={n.to} className={linkClass('drawer-link')} onClick={() => setMoreOpen(false)}>
-                  {n.icon}<span className="truncate">{MODULE_LABEL[n.module]}</span>
-                </NavLink>
+              {groups.map((group) => (
+                <div key={group.label} className="drawer-group">
+                  <span className="drawer-group-label">{group.label}</span>
+                  {group.items.map((n) => (
+                    <NavLink key={n.to} to={n.to} end={n.to === '/'} className={linkClass('drawer-link')} onClick={() => setMoreOpen(false)}>
+                      {n.icon}<span className="truncate">{MODULE_LABEL[n.module]}</span>
+                    </NavLink>
+                  ))}
+                </div>
               ))}
             </nav>
 

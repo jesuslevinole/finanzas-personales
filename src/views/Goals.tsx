@@ -7,6 +7,7 @@ import StatCard from '../components/ui/StatCard';
 import ProgressBar from '../components/ui/ProgressBar';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
+import { useConfirm } from '../hooks/useConfirm';
 import type { Goal, GoalKind } from '../types';
 import { emergencyFundTarget, monthlyContribution, ownIncomeUsd } from '../utils/finance';
 import { formatPct, formatUsd, sum } from '../utils/money';
@@ -24,9 +25,11 @@ const KIND_LABEL: Record<GoalKind, string> = {
 export default function Goals() {
   const data = useData();
   const { canEdit } = usePermissions();
+  const confirm = useConfirm();
   const { monthIncomes, monthFixed } = useMonth();
   const editable = canEdit('metas');
   const [creating, setCreating] = useState(false);
+  const [contributing, setContributing] = useState<{ goal: Goal; sign: 1 | -1 } | null>(null);
 
   const incomeUsd = ownIncomeUsd(monthIncomes);
   const emergencyTarget = emergencyFundTarget(monthFixed, data.settings.emergencyFundMonths);
@@ -36,12 +39,7 @@ export default function Goals() {
   const monthlyNeeded = sum(goals.map((g) => monthlyContribution(g.targetUsd, g.savedUsd, g.deadline) ?? 0));
   const savingsTarget = incomeUsd * (data.settings.savingsTargetPct / 100);
 
-  const contribute = (goal: Goal, delta: number) => {
-    const raw = window.prompt(delta > 0 ? `¿Cuánto aportas a «${goal.name}»? (USD)` : `¿Cuánto retiras de «${goal.name}»? (USD)`);
-    const amount = Number(raw);
-    if (!raw || !Number.isFinite(amount) || amount <= 0) return;
-    void data.update<Goal>('goals', goal.id, { savedUsd: Math.max(0, goal.savedUsd + amount * delta) });
-  };
+
 
   const seedEmergency = () => data.add<Goal>('goals', {
     name: 'Fondo de emergencia', kind: 'fondo_emergencia',
@@ -100,10 +98,13 @@ export default function Goals() {
                 {goal.note && <p className="tiny muted">{goal.note}</p>}
                 {editable && (
                   <div className="goal-actions">
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => contribute(goal, 1)}><Plus size={14} /> Aportar</button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => contribute(goal, -1)}><Minus size={14} /> Retirar</button>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => setContributing({ goal, sign: 1 })}><Plus size={14} /> Aportar</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setContributing({ goal, sign: -1 })}><Minus size={14} /> Retirar</button>
                     <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar meta"
-                      onClick={() => { if (window.confirm(`¿Eliminar la meta «${goal.name}»?`)) void data.del('goals', goal.id); }}><Trash2 size={15} /></button>
+                      onClick={async () => {
+                        const ok = await confirm({ title: `¿Eliminar la meta «${goal.name}»?`, confirmLabel: 'Eliminar', danger: true });
+                        if (ok) await data.del('goals', goal.id);
+                      }}><Trash2 size={15} /></button>
                   </div>
                 )}
               </li>
@@ -115,7 +116,41 @@ export default function Goals() {
       <Modal title="Nueva meta" open={creating} onClose={() => setCreating(false)}>
         <GoalForm nextPriority={goals.length + 1} onDone={() => setCreating(false)} />
       </Modal>
+      <Modal title={contributing?.sign === -1 ? 'Retirar de la meta' : 'Aportar a la meta'} open={contributing !== null} onClose={() => setContributing(null)}>
+        {contributing && <ContributionForm goal={contributing.goal} sign={contributing.sign} onDone={() => setContributing(null)} />}
+      </Modal>
     </div>
+  );
+}
+
+function ContributionForm({ goal, sign, onDone }: { goal: Goal; sign: 1 | -1; onDone: () => void }) {
+  const { update } = useData();
+  const [amount, setAmount] = useState('');
+  const value = Number(amount) || 0;
+  const next = Math.max(0, goal.savedUsd + value * sign);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (value <= 0) return;
+    await update<Goal>('goals', goal.id, { savedUsd: next });
+    onDone();
+  };
+
+  return (
+    <form onSubmit={submit} className="stack">
+      <dl className="kv">
+        <div><dt>Meta</dt><dd>{goal.name}</dd></div>
+        <div><dt>Tienes ahora</dt><dd className="num">{formatUsd(goal.savedUsd)}</dd></div>
+        <div><dt>Objetivo</dt><dd className="num">{formatUsd(goal.targetUsd)}</dd></div>
+      </dl>
+      <label className="field">
+        <span className="field-label">{sign === 1 ? 'Cuánto aportas ($)' : 'Cuánto retiras ($)'}</span>
+        <input className="input num goal-amount" type="number" inputMode="decimal" step="0.01" min="0" autoFocus
+          value={amount} onChange={(e) => setAmount(e.target.value)} required />
+      </label>
+      <p className="field-hint">Quedaría en <strong className="num">{formatUsd(next)}</strong> ({formatPct(goal.targetUsd > 0 ? next / goal.targetUsd : 0)} de la meta).</p>
+      <div className="form-actions"><button type="submit" className="btn btn-primary" disabled={value <= 0}>Guardar</button></div>
+    </form>
   );
 }
 

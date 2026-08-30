@@ -1,0 +1,20 @@
+.confirm-backdrop {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgb(20 18 43 / 0.55);
+  display: grid; place-items: center; padding: var(--space-4);
+}
+.confirm {
+  width: 100%; max-width: 380px;
+  background: var(--color-surface); border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-4);
+  box-shadow: var(--shadow-lg); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  animation: confirm-in 0.15s ease-out;
+}
+@keyframes confirm-in { from { transform: scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.confirm-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary); }
+.confirm-icon.danger { background: var(--color-danger-soft); color: var(--color-danger); }
+.confirm-title { font-size: var(--text-lg); }
+.confirm-message { color: var(--color-muted); font-size: var(--text-sm); }
+.confirm-actions { display: flex; gap: var(--space-2); width: 100%; margin-top: var(--space-3); }
+.confirm-actions .btn { flex: 1; }

@@ -23,7 +23,7 @@ interface Props {
 /** Ficha de detalle de un registro, con acciones de editar y eliminar. */
 export default function DetailSheet({ title, subtitle, open, onClose, fields, onEdit, onDelete, children }: Props) {
   return (
-    <Modal title={title} open={open} onClose={onClose}>
+    <Modal title={title} open={open} onClose={onClose} confirmOnClose={false}>
       {subtitle && <p className="detail-subtitle">{subtitle}</p>}
       <dl className="detail-grid">
         {fields.map((f) => (
