@@ -14,7 +14,7 @@ export const MODULE_LABEL: Record<ModuleKey, string> = {
   metas: 'Metas',
   catalogos: 'Catálogos',
   importar: 'Importar Excel',
-  usuarios: 'Usuarios y roles',
+  usuarios: 'Roles',
   ajustes: 'Ajustes',
 };
 
