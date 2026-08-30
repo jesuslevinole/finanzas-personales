@@ -13,6 +13,8 @@ export interface Column<T> {
   hideOnMobile?: boolean;
   /** Columna principal: en móvil ocupa la primera línea de la tarjeta. */
   primary?: boolean;
+  /** Elemento de la izquierda (checkbox, ícono): en móvil queda fijo a la izquierda. */
+  leading?: boolean;
 }
 
 interface Props<T extends { id: string }> {
@@ -51,7 +53,9 @@ export default function DataTable<T extends { id: string }>({ rows, columns, onR
               tabIndex={onRowClick ? 0 : undefined}
               onKeyDown={onRowClick ? (e) => { if (e.key === 'Enter') onRowClick(row); } : undefined}>
               {columns.map((c) => (
-                <td key={c.key} className={`dt-td${c.align === 'end' ? ' end' : ''}${c.hideOnMobile ? ' hide-sm' : ''}${c.primary ? ' primary' : ''}`} data-label={c.header}>
+                <td key={c.key}
+                  className={`dt-td${c.align === 'end' ? ' end' : ''}${c.hideOnMobile ? ' hide-sm' : ''}${c.primary ? ' primary' : ''}${c.leading ? ' leading' : ''}`}
+                  data-label={c.header}>
                   {c.render(row)}
                 </td>
               ))}

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useData } from '../../hooks/useData';
 import CustomSelect from '../ui/CustomSelect';
-import type { Income, IncomeSource, MoneyOwner } from '../../types';
+import type { Income, IncomeKind, IncomeSource, MoneyOwner } from '../../types';
 import { rateForDate } from '../../utils/finance';
 import { colorForIndex } from '../../utils/relations';
 import { round2, toUsd } from '../../utils/money';
@@ -20,6 +20,7 @@ export default function IncomeForm({ income, onDone }: Props) {
   const [amountBs, setAmountBs] = useState(income ? String(income.amountBs) : '');
   const [rate, setRate] = useState(String(income?.rate ?? rateForDate(data.rates, todayIso(), data.currentRate) ?? ''));
   const [owner, setOwner] = useState<MoneyOwner>(income?.owner ?? 'propio');
+  const [kind, setKind] = useState<IncomeKind>(income?.kind ?? 'variable');
   const [note, setNote] = useState(income?.note ?? '');
   const [saving, setSaving] = useState(false);
 
@@ -32,7 +33,7 @@ export default function IncomeForm({ income, onDone }: Props) {
     e.preventDefault();
     if (!sourceId || bs <= 0 || rateNum <= 0) return;
     setSaving(true);
-    const payload = { date, sourceId, amountBs: bs, rate: rateNum, amountUsd: round2(toUsd(bs, rateNum)), owner, note: note || undefined };
+    const payload = { date, sourceId, kind, amountBs: bs, rate: rateNum, amountUsd: round2(toUsd(bs, rateNum)), owner, note: note || undefined };
     if (income) await data.update<Income>('incomes', income.id, payload);
     else await data.add<Income>('incomes', payload);
     setSaving(false);
@@ -58,6 +59,13 @@ export default function IncomeForm({ income, onDone }: Props) {
           </select>
         </label>
       </div>
+      <label className="field"><span className="field-label">Tipo de ingreso</span>
+        <select className="input" value={kind} onChange={(e) => setKind(e.target.value as IncomeKind)}>
+          <option value="fijo">Fijo — se repite todos los meses</option>
+          <option value="variable">Variable — no está garantizado</option>
+        </select>
+        <span className="field-hint">Los fijos son la base sobre la que puedes comprometerte; los variables, no.</span>
+      </label>
       <label className="field"><span className="field-label">Nota</span><input className="input" value={note} onChange={(e) => setNote(e.target.value)} /></label>
       <p className="field-hint">Equivale a <strong className="text-usd num">${round2(toUsd(bs, rateNum)).toFixed(2)}</strong> a la tasa indicada.</p>
       <div className="form-actions"><button type="submit" className="btn btn-primary" disabled={saving}>{income ? 'Guardar cambios' : 'Guardar ingreso'}</button></div>

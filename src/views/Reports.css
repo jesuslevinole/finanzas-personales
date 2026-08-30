@@ -20,7 +20,7 @@
 .rep-capacity-grid { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
 @media (min-width: 768px) { .rep-capacity-grid { grid-template-columns: 1.4fr 1fr; } }
 .rep-capacity-meter { display: flex; flex-direction: column; gap: var(--space-2); justify-content: center; padding: var(--space-4); border-radius: var(--radius); background: var(--color-surface-2); }
-.rep-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); line-height: 1; }
+.rep-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); line-height: 1; white-space: nowrap; }
 .rep-kv-main { padding-top: var(--space-2); border-top: 1px dashed var(--color-border); }
 .rep-kv-main dt { color: var(--color-text); font-weight: 600; }
 .rep-kv-main dd { color: var(--color-primary); font-size: var(--text-md); }

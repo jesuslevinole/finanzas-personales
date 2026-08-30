@@ -37,8 +37,8 @@ export default function Reminders() {
   };
 
   const columns: Column<CycleDue>[] = [
-    { key: 'seq', header: '#', width: '46px', render: (i) => <span className="seq num">{[...overdue, ...dueThisCycle, ...upcoming].findIndex((x) => x.id === i.id) + 1}</span> },
-    { key: 'kind', header: 'Tipo', width: '44px', render: (i) => <span className={`rem-kind ${i.kind}`}>{KIND_ICON[i.kind]}</span> },
+    { key: 'seq', header: '#', width: '46px', hideOnMobile: true, render: (i) => <span className="seq num">{[...overdue, ...dueThisCycle, ...upcoming].findIndex((x) => x.id === i.id) + 1}</span> },
+    { key: 'kind', header: 'Tipo', width: '44px', leading: true, render: (i) => <span className={`rem-kind ${i.kind}`}>{KIND_ICON[i.kind]}</span> },
     { key: 'title', header: 'Concepto', primary: true, render: (i) => <span className="truncate">{i.title}</span> },
     { key: 'subtitle', header: 'Detalle', width: '150px', hideOnMobile: true, render: (i) => <span className="muted truncate">{i.subtitle}</span> },
     { key: 'date', header: 'Vence', width: '120px', render: (i) => (

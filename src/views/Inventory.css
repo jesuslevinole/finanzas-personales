@@ -1,4 +1,4 @@
-.inv-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-xl); }
+.inv-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-figure); white-space: nowrap; }
 .inv-toolbar { margin-bottom: var(--space-3); }
 .btn-outline.active { background: var(--color-primary-soft); color: var(--color-primary); border-color: transparent; }
 .inv-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }

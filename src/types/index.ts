@@ -48,10 +48,14 @@ export interface ExchangeRate {
   source: 'BCV' | 'manual' | 'excel';
 }
 
+/** Un ingreso fijo se repite todos los meses; uno variable no está garantizado. */
+export type IncomeKind = 'fijo' | 'variable';
+
 export interface Income {
   id: string;
   date: string;
   sourceId: string;
+  kind?: IncomeKind;
   amountBs: number;
   rate: number;
   amountUsd: number;

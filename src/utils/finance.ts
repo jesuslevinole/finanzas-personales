@@ -20,6 +20,15 @@ export const GROUP_LABEL: Record<BudgetGroup, string> = {
 export const ownIncomeUsd = (incomes: Income[]): number =>
   sum(incomes.filter((i) => i.owner === 'propio').map((i) => i.amountUsd));
 
+/** Reparto del ingreso propio entre lo que se repite y lo que no está garantizado. */
+export const incomeByKind = (incomes: Income[]): { fixedUsd: number; variableUsd: number; stability: number } => {
+  const own = incomes.filter((i) => i.owner === 'propio');
+  const fixedUsd = sum(own.filter((i) => i.kind === 'fijo').map((i) => i.amountUsd));
+  const variableUsd = sum(own.filter((i) => i.kind !== 'fijo').map((i) => i.amountUsd));
+  const total = fixedUsd + variableUsd;
+  return { fixedUsd, variableUsd, stability: total > 0 ? fixedUsd / total : 0 };
+};
+
 export const expensesByCategory = (expenses: Expense[], categories: Category[]) => {
   const total = sum(expenses.map((e) => e.totalUsd));
   const map = new Map<string, number>();

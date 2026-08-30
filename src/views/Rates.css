@@ -1,3 +1,3 @@
-.rates-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); color: var(--color-bs); }
+.rates-big { font-family: var(--font-display); font-weight: 800; font-size: var(--text-2xl); color: var(--color-bs); white-space: nowrap; }
 .rates-form { align-items: end; }
 .rates-date { width: 64px; flex: none; font-size: var(--text-sm); color: var(--color-muted); }

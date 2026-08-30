@@ -13,7 +13,7 @@ import DetailSheet from '../components/ui/DetailSheet';
 import StatCard from '../components/ui/StatCard';
 import ExpenseForm from '../components/forms/ExpenseForm';
 import IncomeForm from '../components/forms/IncomeForm';
-import type { Expense, Income, MoneyOwner } from '../types';
+import type { Expense, Income, IncomeKind, MoneyOwner } from '../types';
 import { getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
 import { shortDate } from '../utils/dates';
@@ -35,6 +35,7 @@ export default function Movements() {
   const [placeId, setPlaceId] = useState('');
   const [sourceId, setSourceId] = useState('');
   const [owner, setOwner] = useState<'' | MoneyOwner>('');
+  const [incomeKind, setIncomeKind] = useState<'' | IncomeKind>('');
   const [minUsd, setMinUsd] = useState('');
 
   // Detalle y edición
@@ -42,8 +43,8 @@ export default function Movements() {
   const [editing, setEditing] = useState<Expense | Income | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setMinUsd(''); };
-  const activeCount = [search, categoryId, placeId, sourceId, owner, minUsd].filter(Boolean).length;
+  const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setIncomeKind(''); setMinUsd(''); };
+  const activeCount = [search, categoryId, placeId, sourceId, owner, incomeKind, minUsd].filter(Boolean).length;
 
   const expenseSeqAll = useMemo(() => sequenceMap(monthExpenses, (e) => e.date), [monthExpenses]);
   const incomeSeqAll = useMemo(() => sequenceMap(monthIncomes, (i) => i.date), [monthIncomes]);
@@ -65,8 +66,9 @@ export default function Movements() {
       (!q || `${getRelationName(data.incomeSources, i.sourceId, '')} ${i.note ?? ''}`.toLowerCase().includes(q))
       && (!sourceId || i.sourceId === sourceId)
       && (!owner || i.owner === owner)
+      && (!incomeKind || (i.kind ?? 'variable') === incomeKind)
       && (min <= 0 || i.amountUsd >= min));
-  }, [monthIncomes, incomeSeqAll, search, sourceId, owner, minUsd, data.incomeSources]);
+  }, [monthIncomes, incomeSeqAll, search, sourceId, owner, incomeKind, minUsd, data.incomeSources]);
 
   /* Totales del conjunto filtrado */
   const totalUsd = tab === 'gastos' ? sum(expenses.map((e) => e.totalUsd)) : sum(incomes.map((i) => i.amountUsd));
@@ -108,7 +110,10 @@ export default function Movements() {
     { key: 'seq', header: '#', width: '54px', render: (i) => <span className="seq num">{incomeSeqAll.get(i.id)}</span> },
     { key: 'date', header: 'Fecha', width: '92px', render: (i) => <span className="muted">{shortDate(i.date)}</span> },
     { key: 'source', header: 'Origen', primary: true, render: (i) => <span className="truncate">{getRelationName(data.incomeSources, i.sourceId, 'Sin origen')}</span> },
-    { key: 'owner', header: 'Dinero', width: '110px', render: (i) => <span className={`tag ${i.owner === 'propio' ? 'ok' : ''}`}>{i.owner}</span> },
+    { key: 'kind', header: 'Tipo', width: '110px', render: (i) => (
+      <span className={`tag ${(i.kind ?? 'variable') === 'fijo' ? 'primary' : ''}`}>{(i.kind ?? 'variable') === 'fijo' ? 'Fijo' : 'Variable'}</span>
+    ) },
+    { key: 'owner', header: 'Dinero', width: '110px', hideOnMobile: true, render: (i) => <span className={`tag ${i.owner === 'propio' ? 'ok' : ''}`}>{i.owner}</span> },
     { key: 'note', header: 'Nota', hideOnMobile: true, render: (i) => <span className="truncate muted">{i.note ?? '—'}</span> },
     { key: 'bs', header: 'Bs', align: 'end', width: '130px', hideOnMobile: true, render: (i) => <span className="text-bs">{formatBs(i.amountBs)}</span> },
     { key: 'usd', header: 'USD', align: 'end', width: '100px', render: (i) => <span className="text-usd strong">{formatUsd(i.amountUsd)}</span> },
@@ -188,6 +193,13 @@ export default function Movements() {
                 <option value="tercero">De terceros</option>
               </select>
             </label>
+            <label className="field"><span className="field-label">Tipo</span>
+              <select className="input" value={incomeKind} onChange={(e) => setIncomeKind(e.target.value as '' | IncomeKind)}>
+                <option value="">Todos</option>
+                <option value="fijo">Fijos</option>
+                <option value="variable">Variables</option>
+              </select>
+            </label>
           </>
         )}
         <label className="field"><span className="field-label">Monto mínimo ($)</span>
@@ -231,6 +243,7 @@ export default function Movements() {
           onDelete={editable ? () => removeRecord(detail) : undefined}
           fields={[
             { label: 'Dinero', value: (detail as Income).owner },
+            { label: 'Tipo', value: ((detail as Income).kind ?? 'variable') === 'fijo' ? 'Fijo' : 'Variable' },
             { label: 'Tasa del día', value: <span className="num">{formatBs(detail.rate)}</span> },
             { label: 'Monto Bs', value: <span className="num text-bs">{formatBs((detail as Income).amountBs)}</span> },
             { label: 'Monto USD', value: <span className="num text-usd">{formatUsd((detail as Income).amountUsd)}</span> },

@@ -201,8 +201,8 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const toggle = (item: ShoppingItem) => data.update<ShoppingItem>('shopping', item.id, { checked: !item.checked });
 
   const columns: Column<ShoppingItem>[] = [
-    { key: 'seq', header: '#', width: '46px', render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
-    { key: 'check', header: '', width: '44px', render: (i) => (
+    { key: 'seq', header: '#', width: '46px', hideOnMobile: true, render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
+    { key: 'check', header: '', width: '44px', leading: true, render: (i) => (
       <input type="checkbox" className="shop-check" checked={i.checked} disabled={!editable} onChange={() => toggle(i)}
         aria-label={`En el carrito: ${i.name}`} onClick={(e) => e.stopPropagation()} />
     ) },
