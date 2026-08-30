@@ -49,7 +49,7 @@ src/
   App.css              ← cascarón (sidebar escritorio / barra inferior móvil)
   types/index.ts       ← única fuente de tipos
   utils/finance.ts     ← toda la lógica de reportes (capacidad de deuda, 50/30/20, inflación…)
-  services/firestore.ts← CRUD genérico tipado bajo users/{uid}/{colección}
+  services/firestore.ts← CRUD genérico tipado sobre colecciones de primer nivel
   context/             ← AuthProvider y DataProvider (un solo onSnapshot por colección, las vistas no re-fetchean)
   hooks/               ← useAuth, useData, useMonth, useLiveRate
   components/ui/       ← Money, StatCard, Modal, Donut, Sparkline, MonthPicker, ProgressBar, EmptyState, CustomSelect (cada uno con su .css hermano)
@@ -62,6 +62,14 @@ src/
 ## Tablas, filtros y detalle
 
 Todos los módulos de datos (movimientos, deudas, costos fijos, inventario, tasas, recordatorios, compras) usan el mismo componente `DataTable`: tabla en escritorio y tarjetas etiquetadas en móvil, con la fila clicable para abrir la ficha de detalle (`DetailSheet`) y botones de editar/eliminar tanto en la fila como en el detalle. Los filtros (`FilterBar`) recalculan las tarjetas de totales que están arriba, así que ves el total del subconjunto filtrado, no del mes completo.
+
+## Modelo de datos
+
+Colecciones de primer nivel, una por entidad: `expenses`, `incomes`, `fixedCosts`, `debts`, `budgets`, `goals`, `inventory`, `shopping`, `shoppingLists`, `rates`, `categories`, `places`, `creditors`, `incomeSources`, `roles`, `members`, `settings`.
+
+Cada documento lleva `ownerId` con el uid de su dueño, y toda consulta filtra por ese campo. Las reglas de `firestore.rules` conceden acceso al dueño y a los miembros invitados según el nivel de su rol. Los documentos con id conocido (tasas por fecha, ajustes, miembros) se guardan como `<uid>__<id>` para que no colisionen entre usuarios.
+
+El orden se resuelve en memoria en vez de con `orderBy`: combinar `where('ownerId')` con `orderBy` sobre otro campo exigiría un índice compuesto por colección, y los volúmenes de una app personal no lo justifican.
 
 ## Reportes y recomendaciones
 

@@ -81,8 +81,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       add: (name, data) => guard(() => create(requireUid(), name, data)),
       addMany: (name, rows, onProgress) => guard(() => createMany(requireUid(), name, rows, onProgress)),
       set: (name, id, data) => guard(() => upsert(requireUid(), name, id, data)),
-      update: (name, id, data) => guard(() => patch(requireUid(), name, id, data)),
-      del: (name, id) => guard(() => remove(requireUid(), name, id)),
+      update: (name, id, data) => guard(() => { requireUid(); return patch(name, id, data); }),
+      del: (name, id) => guard(() => { requireUid(); return remove(name, id); }),
       delAll: (name) => guard(() => removeAll(requireUid(), name)),
     };
   }, [uid, ready, error, writeError, rates, categories, places, creditors, incomeSources, incomes, expenses, fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settingsDocs]);

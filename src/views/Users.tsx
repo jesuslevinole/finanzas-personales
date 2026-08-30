@@ -142,7 +142,7 @@ function NewMemberForm({ roles }: { roles: Role[] }) {
     e.preventDefault();
     const clean = email.trim().toLowerCase();
     if (!clean || !roleId) return;
-    // El id del documento es el correo: así las reglas de Firestore lo resuelven directo.
+    // El servicio guarda el documento como `<uid>__<correo>`, que es lo que buscan las reglas.
     await set<Member>('members', clean, { email: clean, name: name.trim() || undefined, roleId, createdAt: todayIso() });
     setEmail(''); setName('');
   };

@@ -2,27 +2,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Todo vive bajo users/{uid}. El dueño manda; los miembros invitados
-    // entran con el nivel que les da su rol (sin_acceso / ver / editar).
-    match /users/{uid}/{collection}/{doc} {
+    // Colecciones de primer nivel. Cada documento lleva `ownerId` con el uid de
+    // su dueño; los miembros invitados leen y escriben según el nivel de su rol.
+    match /{collection}/{doc} {
 
-      function isOwner() {
-        return request.auth != null && request.auth.uid == uid;
+      function signedIn() {
+        return request.auth != null;
       }
 
-      function memberPath() {
-        return /databases/$(database)/documents/users/$(uid)/members/$(request.auth.token.email.lower());
+      function ownerOf(data) {
+        return signedIn() && data.ownerId == request.auth.uid;
       }
 
-      function isMember() {
-        return request.auth != null
+      // El id del documento de miembro es "<uidDelDueño>__<correo>".
+      function memberDoc(ownerId) {
+        return /databases/$(database)/documents/members/$(ownerId + '__' + request.auth.token.email.lower());
+      }
+
+      function isMember(ownerId) {
+        return signedIn()
           && request.auth.token.email != null
-          && exists(memberPath());
-      }
-
-      function roleAccess() {
-        let member = get(memberPath()).data;
-        return get(/databases/$(database)/documents/users/$(uid)/roles/$(member.roleId)).data.access;
+          && exists(memberDoc(ownerId));
       }
 
       // Nombre de colección -> clave de módulo en el rol.
@@ -31,20 +31,32 @@ service cloud.firestore {
           : collection == 'fixedCosts' ? 'costos-fijos'
           : collection == 'debts' ? 'deudas'
           : collection == 'budgets' ? 'presupuesto'
+          : collection == 'goals' ? 'metas'
           : collection == 'inventory' ? 'inventario'
-          : collection == 'shopping' ? 'compras'
+          : collection == 'shopping' || collection == 'shoppingLists' ? 'compras'
           : collection == 'rates' ? 'tasa'
           : collection == 'roles' || collection == 'members' ? 'usuarios'
           : collection == 'settings' ? 'ajustes'
           : 'catalogos';
       }
 
-      function memberLevel() {
-        return roleAccess().get(moduleKey(), 'sin_acceso');
+      function memberLevel(ownerId) {
+        let member = get(memberDoc(ownerId)).data;
+        let role = get(/databases/$(database)/documents/roles/$(member.roleId)).data;
+        return role.access.get(moduleKey(), 'sin_acceso');
       }
 
-      allow read: if isOwner() || (isMember() && memberLevel() != 'sin_acceso');
-      allow write: if isOwner() || (isMember() && memberLevel() == 'editar');
+      allow read: if ownerOf(resource.data)
+        || (isMember(resource.data.ownerId) && memberLevel(resource.data.ownerId) != 'sin_acceso');
+
+      allow create: if ownerOf(request.resource.data)
+        || (isMember(request.resource.data.ownerId) && memberLevel(request.resource.data.ownerId) == 'editar');
+
+      allow update: if (ownerOf(resource.data) && ownerOf(request.resource.data))
+        || (isMember(resource.data.ownerId) && memberLevel(resource.data.ownerId) == 'editar');
+
+      allow delete: if ownerOf(resource.data)
+        || (isMember(resource.data.ownerId) && memberLevel(resource.data.ownerId) == 'editar');
     }
   }
 }
