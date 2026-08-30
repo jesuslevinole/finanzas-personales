@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Check, FolderPlus, Mic, Plus, ShoppingBag, Trash2, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, Circle, FolderPlus, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
@@ -65,7 +65,7 @@ function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
         {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating((v) => !v)}><FolderPlus size={16} /> Nueva carpeta</button>}
       </div>
 
-      {creating && editable && <NewListForm onDone={() => setCreating(false)} />}
+      {creating && editable && <ListForm onDone={() => setCreating(false)} />}
 
       {openLists.length === 0 && closedLists.length === 0 && loose.length === 0 && (
         <div className="card"><EmptyState title="Sin carpetas" hint="Crea una carpeta con el nombre del comercio (Maraplus, Finca…) y su tope de gasto." /></div>
@@ -148,28 +148,36 @@ function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
   );
 }
 
-function NewListForm({ onDone }: { onDone: () => void }) {
+function ListForm({ list, onDone }: { list?: ShoppingList; onDone: () => void }) {
   const data = useData();
-  const [name, setName] = useState('');
-  const [placeId, setPlaceId] = useState('');
-  const [budgetUsd, setBudgetUsd] = useState('');
+  const [name, setName] = useState(list?.name ?? '');
+  const [placeId, setPlaceId] = useState(list?.placeId ?? '');
+  const [budgetUsd, setBudgetUsd] = useState(list ? String(list.budgetUsd) : '');
+  const [status, setStatus] = useState<'abierta' | 'cerrada'>(list?.status ?? 'abierta');
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    await data.add<ShoppingList>('shoppingLists', {
-      name: name.trim(), placeId: placeId || undefined, budgetUsd: Number(budgetUsd) || 0,
-      status: 'abierta', createdAt: todayIso(),
-    });
+    const payload = { name: name.trim(), placeId: placeId || undefined, budgetUsd: Number(budgetUsd) || 0, status };
+    if (list) await data.update<ShoppingList>('shoppingLists', list.id, payload);
+    else await data.add<ShoppingList>('shoppingLists', { ...payload, createdAt: todayIso() });
     onDone();
   };
 
   return (
-    <form className="card shop-newlist" onSubmit={submit}>
+    <form className={list ? 'stack' : 'card shop-newlist'} onSubmit={submit}>
       <label className="field"><span className="field-label">Nombre de la carpeta</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Maraplus, Finca, Farmacia…" required autoFocus /></label>
       <div className="field"><span className="field-label">Lugar (opcional)</span><CustomSelect items={data.places} value={placeId} onChange={setPlaceId} placeholder="Del catálogo" /></div>
       <label className="field"><span className="field-label">Máximo a gastar ($)</span><input className="input num" type="number" min="0" step="1" value={budgetUsd} onChange={(e) => setBudgetUsd(e.target.value)} placeholder="0 = sin tope" /></label>
-      <button type="submit" className="btn btn-primary"><Plus size={16} /> Crear carpeta</button>
+      {list && (
+        <label className="field"><span className="field-label">Estado</span>
+          <select className="input" value={status} onChange={(e) => setStatus(e.target.value as 'abierta' | 'cerrada')}>
+            <option value="abierta">Abierta</option>
+            <option value="cerrada">Cerrada</option>
+          </select>
+        </label>
+      )}
+      <button type="submit" className="btn btn-primary"><Plus size={16} /> {list ? 'Guardar cambios' : 'Crear carpeta'}</button>
     </form>
   );
 }
@@ -182,10 +190,12 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const editable = canEdit('compras');
   const rate = data.currentRate;
   const [pricing, setPricing] = useState<ShoppingItem | null>(null);
+  const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
+  const [editingList, setEditingList] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const items = useMemo(
-    () => data.shopping.filter((s) => s.listId === list.id).sort((a, b) => Number(a.checked) - Number(b.checked) || PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority)),
+    () => data.shopping.filter((s) => s.listId === list.id),
     [data.shopping, list.id],
   );
   const seq = useMemo(() => sequenceMap(items, (i) => i.createdAt + i.name), [items]);
@@ -193,30 +203,32 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
 
   const inCart = items.filter((i) => i.checked);
   const spent = sum(inCart.map(lineUsd));
+  const planned = sum(items.map((i) => i.estimatedUsd * i.quantity));
+  const plannedInCart = sum(inCart.map((i) => i.estimatedUsd * i.quantity));
+  const diff = spent - plannedInCart;
   const pending = sum(items.filter((i) => !i.checked).map(lineUsd));
   const budget = list.budgetUsd;
   const ratio = budget > 0 ? spent / budget : 0;
   const remaining = budget - spent;
 
-  const toggle = (item: ShoppingItem) => data.update<ShoppingItem>('shopping', item.id, { checked: !item.checked });
-
   const columns: Column<ShoppingItem>[] = [
     { key: 'seq', header: '#', width: '46px', hideOnMobile: true, render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
-    { key: 'check', header: '', width: '44px', leading: true, render: (i) => (
-      <input type="checkbox" className="shop-check" checked={i.checked} disabled={!editable} onChange={() => toggle(i)}
-        aria-label={`En el carrito: ${i.name}`} onClick={(e) => e.stopPropagation()} />
+    { key: 'state', header: '', width: '36px', leading: true, render: (i) => (
+      <span className={`shop-state${i.checked ? ' done' : ''}`} aria-hidden="true">
+        {i.checked ? <Check size={14} /> : <Circle size={14} />}
+      </span>
     ) },
     { key: 'name', header: 'Producto', primary: true, render: (i) => (
       <span className={`truncate${i.checked ? ' shop-done-text' : ''}`}>{i.name}</span>
     ) },
     { key: 'qty', header: 'Cantidad', width: '100px', render: (i) => <span className="num muted">{i.quantity} {i.unit}</span> },
-    { key: 'est', header: 'Estimado', align: 'end', width: '140px', render: (i) => (
+    { key: 'est', header: 'Presupuestado', align: 'end', width: '140px', render: (i) => (
       <span className="shop-two-lines">
         <span className="muted num">{formatUsd(i.estimatedUsd * i.quantity)}</span>
         <span className="tiny text-bs num">{formatBs(toBs(i.estimatedUsd * i.quantity, rate))}</span>
       </span>
     ) },
-    { key: 'real', header: 'Precio real', align: 'end', width: '150px', render: (i) => (
+    { key: 'real', header: 'Pagado', align: 'end', width: '140px', render: (i) => (
       i.actualUsd !== undefined ? (
         <span className="shop-two-lines">
           <span className="strong text-usd num">{formatUsd(i.actualUsd * i.quantity)}</span>
@@ -224,6 +236,12 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
         </span>
       ) : <span className="muted tiny">Toca para cargarlo</span>
     ) },
+    { key: 'diff', header: 'Diferencia', align: 'end', width: '120px', render: (i) => {
+      if (i.actualUsd === undefined) return <span className="muted">—</span>;
+      const d = (i.actualUsd - i.estimatedUsd) * i.quantity;
+      if (Math.abs(d) < 0.005) return <span className="tag ok">Igual</span>;
+      return <span className={`num strong ${d > 0 ? 'text-danger' : 'text-ok'}`}>{d > 0 ? '+' : '−'}{formatUsd(Math.abs(d))}</span>;
+    } },
   ];
 
   return (
@@ -236,19 +254,27 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
             <p className="page-subtitle">{list.placeId ? getRelationName(data.places, list.placeId, '') : 'Carpeta de compra'} · {list.status === 'abierta' ? 'abierta' : 'cerrada'}</p>
           </div>
         </div>
-        {editable && <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}><Plus size={16} /> Agregar producto</button>}
+        {editable && (
+          <div className="row wrap shop-head-actions">
+            <button type="button" className="btn btn-outline" onClick={() => setEditingList(true)}><Pencil size={16} /> Editar carpeta</button>
+            <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}><Plus size={16} /> Agregar producto</button>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-3">
+      <div className="grid grid-4">
         <StatCard tone={ratio > 1 ? 'danger' : 'usd'} icon={<ShoppingBag size={18} />} label="Llevas en el carrito"
           value={<Money amount={spent} currency="USD" rate={rate} dual size="lg" align="start" />}
           hint={`${inCart.length} de ${items.length} productos`} />
-        <StatCard tone={remaining < 0 ? 'danger' : 'ok'} icon={<Wallet size={18} />} label={budget > 0 ? 'Te queda del tope' : 'Sin tope definido'}
-          value={<span className={`num ${remaining < 0 ? 'text-danger' : ''}`}>{budget > 0 ? formatUsd(remaining) : '—'}</span>}
-          hint={budget > 0 ? `Tope: ${formatUsd(budget)} · ${formatBs(toBs(budget, rate))}` : 'Edita la carpeta para ponerle uno'} />
-        <StatCard tone="warn" icon={<Plus size={18} />} label="Falta por agarrar"
-          value={<span className="num">{formatUsd(pending)}</span>}
-          hint={`Proyectado: ${formatUsd(spent + pending)} · ${formatBs(toBs(spent + pending, rate))}`} />
+        <StatCard tone="primary" icon={<Wallet size={18} />} label="Presupuestado (todo)"
+          value={<span className="num">{formatUsd(planned)}</span>}
+          hint={formatBs(toBs(planned, rate))} />
+        <StatCard tone={diff > 0 ? 'danger' : 'ok'} icon={diff > 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />} label="Presupuesto vs. pagado"
+          value={<span className={`num ${diff > 0 ? 'text-danger' : 'text-ok'}`}>{diff > 0 ? '+' : diff < 0 ? '−' : ''}{formatUsd(Math.abs(diff))}</span>}
+          hint={plannedInCart > 0 ? `${formatPct(Math.abs(diff) / plannedInCart)} ${diff > 0 ? 'por encima' : 'por debajo'} de lo previsto` : 'Sin productos en el carrito'} />
+        <StatCard tone={remaining < 0 ? 'danger' : 'warn'} icon={<Plus size={18} />} label={budget > 0 ? 'Te queda del tope' : 'Falta por agarrar'}
+          value={<span className={`num ${remaining < 0 ? 'text-danger' : ''}`}>{budget > 0 ? formatUsd(remaining) : formatUsd(pending)}</span>}
+          hint={budget > 0 ? `Tope: ${formatUsd(budget)}` : `Proyectado: ${formatUsd(spent + pending)}`} />
       </div>
 
       {budget > 0 && (
@@ -262,12 +288,23 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} rowClass={(i) => (i.checked ? 'muted-row' : '')}
           onRowClick={editable ? setPricing : undefined}
-          actions={editable ? (i) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => data.del('shopping', i.id)}><Trash2 size={15} /></button> : undefined}
+          actions={editable ? (i) => (
+            <>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar producto" onClick={() => setEditingItem(i)}><Pencil size={15} /></button>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => data.del('shopping', i.id)}><Trash2 size={15} /></button>
+            </>
+          ) : undefined}
           empty={<EmptyState title="Carpeta vacía" hint="Agrega productos escribiendo o dictando: «dos kilos de harina 850 bolívares»." />} />
       </div>
 
       <Modal title="Agregar producto" open={adding} onClose={() => setAdding(false)}>
         <AddItemForm listId={list.id} rate={rate} onDone={() => setAdding(false)} />
+      </Modal>
+      <Modal title="Editar producto" open={editingItem !== null} onClose={() => setEditingItem(null)}>
+        {editingItem && <AddItemForm listId={list.id} rate={rate} item={editingItem} onDone={() => setEditingItem(null)} />}
+      </Modal>
+      <Modal title="Editar carpeta" open={editingList} onClose={() => setEditingList(false)}>
+        <ListForm list={list} onDone={() => setEditingList(false)} />
       </Modal>
 
       {pricing && <PriceModal item={pricing} rate={rate} onClose={() => setPricing(null)} />}
@@ -286,6 +323,13 @@ function PriceModal({ item, rate, onClose }: { item: ShoppingItem; rate: number;
   const unitUsd = currency === 'USD' ? n : toUsd(n, rate);
   const unitBs = currency === 'USD' ? toBs(n, rate) : n;
   const totalUsd = round2(unitUsd * item.quantity);
+
+  const removeFromCart = async () => {
+    setSaving(true);
+    await update<ShoppingItem>('shopping', item.id, { checked: false, actualUsd: undefined, actualBs: undefined });
+    setSaving(false);
+    onClose();
+  };
 
   const save = async () => {
     if (n <= 0) return;
@@ -329,8 +373,11 @@ function PriceModal({ item, rate, onClose }: { item: ShoppingItem; rate: number;
         </dl>
 
         <div className="form-actions">
+          {item.checked && (
+            <button type="button" className="btn btn-outline" onClick={removeFromCart} disabled={saving}>Sacar del carrito</button>
+          )}
           <button type="button" className="btn btn-primary" onClick={save} disabled={saving || n <= 0}>
-            <Check size={16} /> Al carrito
+            <Check size={16} /> {item.checked ? 'Actualizar precio' : 'Al carrito'}
           </button>
         </div>
       </div>
@@ -339,13 +386,13 @@ function PriceModal({ item, rate, onClose }: { item: ShoppingItem; rate: number;
 }
 
 /** Alta de producto por escrito o dictado. */
-function AddItemForm({ listId, rate, onDone }: { listId: string; rate: number; onDone: () => void }) {
+function AddItemForm({ listId, rate, item, onDone }: { listId: string; rate: number; item?: ShoppingItem; onDone: () => void }) {
   const data = useData();
-  const [name, setName] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unit, setUnit] = useState<StockUnit>('und');
-  const [estimatedUsd, setEstimatedUsd] = useState('');
-  const [priority, setPriority] = useState<ShoppingPriority>('normal');
+  const [name, setName] = useState(item?.name ?? '');
+  const [quantity, setQuantity] = useState(String(item?.quantity ?? 1));
+  const [unit, setUnit] = useState<StockUnit>(item?.unit ?? 'und');
+  const [estimatedUsd, setEstimatedUsd] = useState(item ? String(item.estimatedUsd) : '');
+  const [priority, setPriority] = useState<ShoppingPriority>(item?.priority ?? 'normal');
   const [heard, setHeard] = useState('');
 
   const fillFrom = (name: string) => {
@@ -372,12 +419,18 @@ function AddItemForm({ listId, rate, onDone }: { listId: string; rate: number; o
     e.preventDefault();
     if (!name.trim()) return;
     const match = data.inventory.find((i) => i.name.toLowerCase() === name.trim().toLowerCase());
-    await data.add<ShoppingItem>('shopping', {
-      listId, name: name.trim(), quantity: Number(quantity) || 1, unit,
-      estimatedUsd: Number(estimatedUsd) || 0, priority, checked: false,
-      inventoryItemId: match?.id, createdAt: todayIso(),
-    });
-    setName(''); setQuantity('1'); setEstimatedUsd(''); setHeard('');
+    const payload = {
+      name: name.trim(), quantity: Number(quantity) || 1, unit,
+      estimatedUsd: Number(estimatedUsd) || 0, priority,
+    };
+    if (item) {
+      await data.update<ShoppingItem>('shopping', item.id, payload);
+    } else {
+      await data.add<ShoppingItem>('shopping', {
+        ...payload, listId, checked: false, inventoryItemId: match?.id, createdAt: todayIso(),
+      });
+      setName(''); setQuantity('1'); setEstimatedUsd(''); setHeard('');
+    }
     onDone();
   };
 
@@ -403,7 +456,7 @@ function AddItemForm({ listId, rate, onDone }: { listId: string; rate: number; o
       </div>
       {heard && <p className="tiny muted">Escuché: «{heard}»</p>}
       {Number(estimatedUsd) > 0 && <p className="tiny muted">Equivale a {formatBs(toBs(Number(estimatedUsd) * (Number(quantity) || 1), rate))} en total.</p>}
-      <div className="form-actions"><button type="submit" className="btn btn-primary"><Plus size={16} /> Agregar</button></div>
+      <div className="form-actions"><button type="submit" className="btn btn-primary"><Plus size={16} /> {item ? 'Guardar cambios' : 'Agregar'}</button></div>
     </form>
   );
 }

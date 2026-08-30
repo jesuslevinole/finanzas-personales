@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 /**
  * La configuración web de Firebase no es un secreto (viaja al navegador), pero se
@@ -36,4 +36,7 @@ export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   ignoreUndefinedProperties: true,
+  // Caché en IndexedDB: la app abre al instante con los últimos datos y sigue
+  // funcionando sin señal; al recuperar red, sincroniza lo que se escribió.
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });

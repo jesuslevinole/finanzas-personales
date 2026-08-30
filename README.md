@@ -63,6 +63,12 @@ src/
 
 Todos los módulos de datos (movimientos, deudas, costos fijos, inventario, tasas, recordatorios, compras) usan el mismo componente `DataTable`: tabla en escritorio y tarjetas etiquetadas en móvil, con la fila clicable para abrir la ficha de detalle (`DetailSheet`) y botones de editar/eliminar tanto en la fila como en el detalle. Los filtros (`FilterBar`) recalculan las tarjetas de totales que están arriba, así que ves el total del subconjunto filtrado, no del mes completo.
 
+## PWA y rendimiento
+
+- `vite-plugin-pwa` genera el manifiesto y un service worker que precachea el shell: la segunda visita abre sin red y se puede instalar en la pantalla de inicio (Android: menú → «Añadir a pantalla principal»; iOS: Compartir → «Añadir a inicio»).
+- Firestore usa caché persistente en IndexedDB (`persistentLocalCache`), así que la app arranca con los últimos datos y sigue funcionando sin señal; lo que escribas se sincroniza al recuperar conexión. Útil dentro del supermercado, donde el 4G suele fallar.
+- Las vistas se cargan con `React.lazy`, y `firebase`, `react` y `xlsx` van en trozos separados: el arranque descarga solo lo necesario.
+
 ## Modelo de datos
 
 Colecciones de primer nivel, una por entidad: `expenses`, `incomes`, `fixedCosts`, `debts`, `budgets`, `goals`, `inventory`, `shopping`, `shoppingLists`, `rates`, `categories`, `places`, `creditors`, `incomeSources`, `roles`, `members`, `settings`.

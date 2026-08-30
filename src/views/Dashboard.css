@@ -36,7 +36,7 @@
 .dash-gap { display: flex; align-items: center; gap: var(--space-2); color: var(--color-warn); }
 
 /* ---------- KPIs ---------- */
-.kpis { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.kpis { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); }
 .kpi {
   display: flex; flex-direction: column; gap: 4px; min-width: 0;
   padding: var(--space-4); border-radius: var(--radius);
@@ -78,7 +78,7 @@
 
 /* ---------- Dona y tendencia ---------- */
 .dash-donut { display: flex; align-items: flex-start; gap: var(--space-4); flex-wrap: wrap; }
-.dash-legend { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--space-2); }
+.dash-legend { flex: 1; min-width: min(100%, 200px); display: flex; flex-direction: column; gap: var(--space-2); }
 .dash-legend-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .dash-legend-value { font-variant-numeric: tabular-nums; }
 .dash-legend-share { min-width: 42px; text-align: right; }

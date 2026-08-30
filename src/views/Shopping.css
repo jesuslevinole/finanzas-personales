@@ -22,8 +22,10 @@
 
 /* ---- Detalle ---- */
 .shop-budget { display: flex; flex-direction: column; gap: var(--space-2); }
-.shop-check { width: 22px; height: 22px; accent-color: var(--color-primary); flex: none; }
-@media (max-width: 767px) { .shop-check { width: 28px; height: 28px; } }
+/* Marca de estado: gris si falta, verde si ya está en el carrito. */
+.shop-state { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--color-surface-2); color: var(--color-muted); }
+.shop-state.done { background: var(--color-ok-soft); color: var(--color-ok); }
+.shop-head-actions { flex: none; }
 .shop-done-text { text-decoration: line-through; color: var(--color-muted); }
 
 .shop-add { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -61,4 +63,9 @@
   .shop-move { width: 100%; }
   .shop-price-modal { flex-direction: row; }
   .shop-price-big { min-height: 60px; font-size: 1.6rem; }
+}
+
+@media (max-width: 767px) {
+  .shop-head-actions { width: 100%; }
+  .shop-head-actions .btn { flex: 1; }
 }

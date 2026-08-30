@@ -1,3 +1,4 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import './App.css';
@@ -6,24 +7,24 @@ import { useAuth } from './hooks/useAuth';
 import { useData } from './hooks/useData';
 import { usePermissions } from './hooks/usePermissions';
 import AppShell from './components/layout/AppShell';
-import Dashboard from './views/Dashboard';
-import Reminders from './views/Reminders';
-import Movements from './views/Movements';
-import FixedCosts from './views/FixedCosts';
-import Debts from './views/Debts';
-import Budgets from './views/Budgets';
-import Reports from './views/Reports';
-import Inventory from './views/Inventory';
-import Shopping from './views/Shopping';
-import Rates from './views/Rates';
-import Goals from './views/Goals';
-import Catalogs from './views/Catalogs';
-import Import from './views/Import';
-import Users from './views/Users';
-import SettingsView from './views/SettingsView';
+const Dashboard = lazy(() => import('./views/Dashboard'));
+const Reminders = lazy(() => import('./views/Reminders'));
+const Movements = lazy(() => import('./views/Movements'));
+const FixedCosts = lazy(() => import('./views/FixedCosts'));
+const Debts = lazy(() => import('./views/Debts'));
+const Budgets = lazy(() => import('./views/Budgets'));
+const Reports = lazy(() => import('./views/Reports'));
+const Inventory = lazy(() => import('./views/Inventory'));
+const Shopping = lazy(() => import('./views/Shopping'));
+const Rates = lazy(() => import('./views/Rates'));
+const Goals = lazy(() => import('./views/Goals'));
+const Catalogs = lazy(() => import('./views/Catalogs'));
+const Import = lazy(() => import('./views/Import'));
+const Users = lazy(() => import('./views/Users'));
+const SettingsView = lazy(() => import('./views/SettingsView'));
 
 /** Oculta la vista si el rol no tiene al menos permiso de lectura. */
-function Guard({ module, children }: { module: ModuleKey; children: React.ReactNode }) {
+function Guard({ module, children }: { module: ModuleKey; children: ReactNode }) {
   const { canView } = usePermissions();
   if (!canView(module)) {
     return (
@@ -71,6 +72,7 @@ export default function App() {
 
   return (
     <AppShell>
+      <Suspense fallback={<div className="splash muted">Cargando…</div>}>
       <Routes>
         <Route path="/" element={<Guard module="resumen"><Dashboard /></Guard>} />
         <Route path="/recordatorios" element={<Guard module="recordatorios"><Reminders /></Guard>} />
@@ -89,6 +91,7 @@ export default function App() {
         <Route path="/ajustes" element={<Guard module="ajustes"><SettingsView /></Guard>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </AppShell>
   );
 }
