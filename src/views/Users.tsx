@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { Plus, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
-import { useAuth } from '../hooks/useAuth';
 import EmptyState from '../components/ui/EmptyState';
 import type { AccessLevel, Member, ModuleKey, Role } from '../types';
 import { ACCESS_LABEL, ACCESS_LEVELS, DEFAULT_ROLES, MODULE_KEYS, MODULE_LABEL, OWNER_ACCESS } from '../utils/access';
@@ -12,7 +11,6 @@ import './Users.css';
 export default function Users() {
   const { roles, members, add, update, del } = useData();
   const { canEdit, roleName } = usePermissions();
-  const { user } = useAuth();
   const editable = canEdit('usuarios');
   const [openRole, setOpenRole] = useState<string | null>(null);
 
@@ -33,8 +31,8 @@ export default function Users() {
       <div className="card users-me">
         <ShieldCheck size={18} className="text-ok" />
         <div className="grow">
-          <div className="strong">{user?.isAnonymous ? 'Sesión de invitado' : user?.email}</div>
-          <div className="tiny muted">Tu nivel: {roleName}</div>
+          <div className="strong">{roleName}</div>
+          <div className="tiny muted">La app funciona sin sesiones: todos los dispositivos ven y editan los mismos datos.</div>
         </div>
       </div>
 

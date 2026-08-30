@@ -2,15 +2,13 @@ import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   AlarmClock, ArrowLeftRight, BarChart3, CalendarClock, CreditCard, FileSpreadsheet, LayoutDashboard, ListChecks,
-  LogOut, Menu, MoreHorizontal, Package, PieChart, Settings, Tags, Target, Users2, Wallet, X,
+  Menu, MoreHorizontal, Package, PieChart, Settings, Tags, Target, Users2, Wallet, X,
 } from 'lucide-react';
 import type { ModuleKey } from '../../types';
 import { MODULE_LABEL } from '../../utils/access';
-import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import RateBanner from './RateBanner';
 import WriteErrorToast from './WriteErrorToast';
-import GuestBanner from './GuestBanner';
 
 interface NavItem { to: string; module: ModuleKey; icon: ReactNode; }
 interface NavGroup { label: string; items: NavItem[]; }
@@ -56,7 +54,7 @@ const GROUPS: NavGroup[] = [
 const MOBILE_PRIMARY: ModuleKey[] = ['resumen', 'recordatorios', 'movimientos', 'compras'];
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const { user, isGuest, linkGoogle, logout } = useAuth();
+
   const { canView, roleName } = usePermissions();
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname } = useLocation();
@@ -93,13 +91,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <span className="truncate strong">{isGuest ? 'Invitado' : user?.email}</span>
-            <span className="truncate">{roleName}</span>
-          </div>
-          {isGuest
-            ? <button type="button" className="btn btn-outline btn-sm btn-block" onClick={linkGoogle}>Vincular con Google</button>
-            : <button type="button" className="btn btn-ghost btn-sm btn-block" onClick={logout}><LogOut size={14} /> Cerrar sesión</button>}
+          <div className="sidebar-user"><span className="truncate">{roleName}</span></div>
         </div>
       </aside>
 
@@ -109,7 +101,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <h1 className="topbar-title truncate">{currentTitle ? MODULE_LABEL[currentTitle] : 'Bolívar Vivo'}</h1>
           <RateBanner />
         </header>
-        <main className="shell-content"><GuestBanner />{children}</main>
+        <main className="shell-content">{children}</main>
       </div>
 
       <nav className="bottomnav" aria-label="Navegación móvil">
@@ -140,11 +132,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 </NavLink>
               ))}
             </nav>
-            <div className="drawer-foot">
-              {isGuest
-                ? <button type="button" className="btn btn-outline btn-block" onClick={linkGoogle}>Vincular con Google</button>
-                : <button type="button" className="btn btn-ghost btn-block" onClick={logout}><LogOut size={16} /> Cerrar sesión</button>}
-            </div>
+
           </div>
         </div>
       )}

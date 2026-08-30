@@ -6,7 +6,6 @@ import { useAuth } from './hooks/useAuth';
 import { useData } from './hooks/useData';
 import { usePermissions } from './hooks/usePermissions';
 import AppShell from './components/layout/AppShell';
-import Login from './views/Login';
 import Dashboard from './views/Dashboard';
 import Reminders from './views/Reminders';
 import Movements from './views/Movements';
@@ -38,11 +37,23 @@ function Guard({ module, children }: { module: ModuleKey; children: React.ReactN
 }
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { loading, error: authError } = useAuth();
   const { ready, error } = useData();
 
   if (loading) return <div className="splash muted">Entrando…</div>;
-  if (!user) return <Login />;
+
+  if (authError) {
+    return (
+      <div className="splash">
+        <div className="card login-card">
+          <AlertTriangle size={22} className="text-danger" />
+          <p className="strong">No se pudo conectar con Firebase</p>
+          <p className="small muted">{authError}</p>
+          <p className="tiny muted">Habilita el proveedor <strong>Anónimo</strong> en Authentication → Sign-in method.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (

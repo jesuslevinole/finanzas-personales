@@ -37,23 +37,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) return;
     const fail = (e: Error) => setError(e.message);
     const unsubs = [
-      subscribe<ExchangeRate>(uid, 'rates', setRates, fail, 'date'),
-      subscribe<Category>(uid, 'categories', setCategories, fail),
-      subscribe<Place>(uid, 'places', setPlaces, fail),
-      subscribe<Creditor>(uid, 'creditors', setCreditors, fail),
-      subscribe<IncomeSource>(uid, 'incomeSources', setIncomeSources, fail),
-      subscribe<Income>(uid, 'incomes', setIncomes, fail, 'date'),
-      subscribe<Expense>(uid, 'expenses', setExpenses, fail, 'date'),
-      subscribe<FixedCost>(uid, 'fixedCosts', setFixedCosts, fail, 'month'),
-      subscribe<Debt>(uid, 'debts', setDebts, fail, 'dueDate'),
-      subscribe<Budget>(uid, 'budgets', setBudgets, fail),
-      subscribe<Goal>(uid, 'goals', setGoals, fail, 'priority'),
-      subscribe<InventoryItem>(uid, 'inventory', setInventory, fail),
-      subscribe<ShoppingItem>(uid, 'shopping', setShopping, fail, 'createdAt'),
-      subscribe<ShoppingList>(uid, 'shoppingLists', setShoppingLists, fail, 'createdAt'),
-      subscribe<Role>(uid, 'roles', setRoles, fail),
-      subscribe<Member>(uid, 'members', setMembers, fail),
-      subscribe<UserSettings>(uid, 'settings', (rows) => { setSettingsDocs(rows); setReady(true); }, fail),
+      subscribe<ExchangeRate>('rates', setRates, fail, 'date'),
+      subscribe<Category>('categories', setCategories, fail),
+      subscribe<Place>('places', setPlaces, fail),
+      subscribe<Creditor>('creditors', setCreditors, fail),
+      subscribe<IncomeSource>('incomeSources', setIncomeSources, fail),
+      subscribe<Income>('incomes', setIncomes, fail, 'date'),
+      subscribe<Expense>('expenses', setExpenses, fail, 'date'),
+      subscribe<FixedCost>('fixedCosts', setFixedCosts, fail, 'month'),
+      subscribe<Debt>('debts', setDebts, fail, 'dueDate'),
+      subscribe<Budget>('budgets', setBudgets, fail),
+      subscribe<Goal>('goals', setGoals, fail, 'priority'),
+      subscribe<InventoryItem>('inventory', setInventory, fail),
+      subscribe<ShoppingItem>('shopping', setShopping, fail, 'createdAt'),
+      subscribe<ShoppingList>('shoppingLists', setShoppingLists, fail, 'createdAt'),
+      subscribe<Role>('roles', setRoles, fail),
+      subscribe<Member>('members', setMembers, fail),
+      subscribe<UserSettings>('settings', (rows) => { setSettingsDocs(rows); setReady(true); }, fail),
     ];
     return () => unsubs.forEach((u) => u());
   }, [uid]);
@@ -61,9 +61,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value = useMemo<DataValue>(() => {
     const settings: Omit<UserSettings, 'id'> = settingsDocs[0] ?? DEFAULT_SETTINGS;
     const currentRate = rates[0]?.rate ?? 0;
-    const requireUid = (): string => {
-      if (!uid) throw new Error('No hay sesión activa');
-      return uid;
+    const requireSession = () => {
+      if (!uid) throw new Error('Sin conexión con Firebase todavía');
     };
     /** Envuelve una escritura para que un fallo de red se vea en pantalla. */
     const guard = <R,>(op: () => Promise<R>): Promise<R> =>
@@ -78,12 +77,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       clearWriteError: () => setWriteError(null),
       rates, categories, places, creditors, incomeSources, incomes, expenses,
       fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settings, currentRate,
-      add: (name, data) => guard(() => create(requireUid(), name, data)),
-      addMany: (name, rows, onProgress) => guard(() => createMany(requireUid(), name, rows, onProgress)),
-      set: (name, id, data) => guard(() => upsert(requireUid(), name, id, data)),
-      update: (name, id, data) => guard(() => { requireUid(); return patch(name, id, data); }),
-      del: (name, id) => guard(() => { requireUid(); return remove(name, id); }),
-      delAll: (name) => guard(() => removeAll(requireUid(), name)),
+      add: (name, data) => guard(() => { requireSession(); return create(name, data); }),
+      addMany: (name, rows, onProgress) => guard(() => { requireSession(); return createMany(name, rows, onProgress); }),
+      set: (name, id, data) => guard(() => { requireSession(); return upsert(name, id, data); }),
+      update: (name, id, data) => guard(() => { requireSession(); return patch(name, id, data); }),
+      del: (name, id) => guard(() => { requireSession(); return remove(name, id); }),
+      delAll: (name) => guard(() => { requireSession(); return removeAll(name); }),
     };
   }, [uid, ready, error, writeError, rates, categories, places, creditors, incomeSources, incomes, expenses, fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settingsDocs]);
 

@@ -13,11 +13,11 @@ npm run dev
 El proyecto ya viene apuntando a Firebase `finanzas-personales-5b660` (`.env` y `.env.production` incluidos).
 
 Falta hacer una sola vez en Firebase Console:
-1. **Authentication → Sign-in method**: habilitar **Anónimo** (la app entra sola, sin pantalla de login) y, opcionalmente, **Google** para vincular la cuenta después.
+1. **Authentication → Sign-in method**: habilitar **Anónimo**. Es el único proveedor que necesita la app.
 2. **Firestore Database**: crear la base en modo producción y pegar el contenido de `firestore.rules` en la pestaña Rules.
 3. **Authentication → Settings → Authorized domains**: agregar `localhost` y el dominio de Cloudflare (`tu-proyecto.pages.dev` y tu dominio propio si lo usas). Sin esto el login con Google falla en producción.
 
-La app abre directamente en el resumen con una sesión de invitado. Desde la barra lateral puedes **Vincular con Google** cuando quieras, y tus datos se conservan.
+La app abre directamente en el resumen. No hay inicio de sesión: quien abra la URL ve los mismos datos desde cualquier dispositivo.
 
 Primer uso: entra en **Ajustes → Cargar rubros sugeridos** y en **Tasa BCV → Actualizar desde BCV**.
 
@@ -67,7 +67,11 @@ Todos los módulos de datos (movimientos, deudas, costos fijos, inventario, tasa
 
 Colecciones de primer nivel, una por entidad: `expenses`, `incomes`, `fixedCosts`, `debts`, `budgets`, `goals`, `inventory`, `shopping`, `shoppingLists`, `rates`, `categories`, `places`, `creditors`, `incomeSources`, `roles`, `members`, `settings`.
 
-Cada documento lleva `ownerId` con el uid de su dueño, y toda consulta filtra por ese campo. Las reglas de `firestore.rules` conceden acceso al dueño y a los miembros invitados según el nivel de su rol. Los documentos con id conocido (tasas por fecha, ajustes, miembros) se guardan como `<uid>__<id>` para que no colisionen entre usuarios.
+Cada documento lleva `ownerId` con el id del **espacio compartido** (`src/workspace.ts`, por defecto `casa`), no con el uid del dispositivo. La app no tiene inicio de sesión: entra sola con un usuario anónimo de Firebase, que solo existe para que las reglas puedan exigir `request.auth != null`. Todos los equipos que abran la URL ven y editan exactamente los mismos datos.
+
+Para separar espacios (una copia de pruebas, por ejemplo) define `VITE_WORKSPACE_ID` y actualiza la función `workspace()` de `firestore.rules`.
+
+Los documentos con id conocido (tasas por fecha, ajustes) se guardan como `<espacio>__<id>`.
 
 El orden se resuelve en memoria en vez de con `orderBy`: combinar `where('ownerId')` con `orderBy` sobre otro campo exigiría un índice compuesto por colección, y los volúmenes de una app personal no lo justifican.
 

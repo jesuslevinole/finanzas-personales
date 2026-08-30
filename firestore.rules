@@ -2,62 +2,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Colecciones de primer nivel. Cada documento lleva `ownerId` con el uid de
-    // su dueño; los miembros invitados leen y escriben según el nivel de su rol.
+    // La app no tiene sesiones: todos los dispositivos comparten un mismo
+    // espacio de datos, identificado por el campo `ownerId`. Firebase entra solo
+    // con un usuario anónimo, y estas reglas exigen dos cosas:
+    //   1. que haya un usuario autenticado (aunque sea anónimo), y
+    //   2. que el documento pertenezca al espacio compartido.
+    // Así la base no queda abierta a peticiones sin autenticar, pero cualquiera
+    // que abra la app ve y edita lo mismo.
     match /{collection}/{doc} {
 
-      function isOwner(data) {
-        return request.auth != null && data.ownerId == request.auth.uid;
+      function workspace() {
+        return 'casa';
       }
 
-      // Una sesión anónima no trae `email` en el token: hay que comprobar que la
-      // clave exista ANTES de leerla, o la regla falla y Firestore niega todo.
-      function email() {
-        return request.auth != null && 'email' in request.auth.token && request.auth.token.email != null
-          ? request.auth.token.email.lower()
-          : '';
+      function signedIn() {
+        return request.auth != null;
       }
 
-      // El id del documento de miembro es "<uidDelDueño>__<correo>".
-      function memberPath(ownerId) {
-        return /databases/$(database)/documents/members/$(ownerId + '__' + email());
-      }
-
-      function isMember(ownerId) {
-        return email() != '' && exists(memberPath(ownerId));
-      }
-
-      // Nombre de colección -> clave de módulo en el rol.
-      function moduleKey() {
-        return collection == 'expenses' || collection == 'incomes' ? 'movimientos'
-          : collection == 'fixedCosts' ? 'costos-fijos'
-          : collection == 'debts' ? 'deudas'
-          : collection == 'budgets' ? 'presupuesto'
-          : collection == 'goals' ? 'metas'
-          : collection == 'inventory' ? 'inventario'
-          : collection == 'shopping' || collection == 'shoppingLists' ? 'compras'
-          : collection == 'rates' ? 'tasa'
-          : collection == 'roles' || collection == 'members' ? 'usuarios'
-          : collection == 'settings' ? 'ajustes'
-          : 'catalogos';
-      }
-
-      function memberLevel(ownerId) {
-        return get(/databases/$(database)/documents/roles/$(get(memberPath(ownerId)).data.roleId))
-          .data.access.get(moduleKey(), 'sin_acceso');
-      }
-
-      allow read: if isOwner(resource.data)
-        || (isMember(resource.data.ownerId) && memberLevel(resource.data.ownerId) != 'sin_acceso');
-
-      allow create: if isOwner(request.resource.data)
-        || (isMember(request.resource.data.ownerId) && memberLevel(request.resource.data.ownerId) == 'editar');
-
-      allow update: if (isOwner(resource.data) && isOwner(request.resource.data))
-        || (isMember(resource.data.ownerId) && memberLevel(resource.data.ownerId) == 'editar');
-
-      allow delete: if isOwner(resource.data)
-        || (isMember(resource.data.ownerId) && memberLevel(resource.data.ownerId) == 'editar');
+      allow read: if signedIn() && resource.data.ownerId == workspace();
+      allow create: if signedIn() && request.resource.data.ownerId == workspace();
+      allow update: if signedIn()
+        && resource.data.ownerId == workspace()
+        && request.resource.data.ownerId == workspace();
+      allow delete: if signedIn() && resource.data.ownerId == workspace();
     }
   }
 }

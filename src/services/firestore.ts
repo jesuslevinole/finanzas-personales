@@ -15,6 +15,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { WORKSPACE_ID } from '../workspace';
 import type { NewDoc, WithId } from '../types';
 
 export type CollectionName =
@@ -38,16 +39,16 @@ export type CollectionName =
 
 /**
  * Cada colección es de primer nivel (`expenses`, `debts`, …) y cada documento
- * lleva `ownerId` con el uid de su dueño. Las reglas de Firestore filtran por ese
- * campo, y las consultas siempre incluyen `where('ownerId', '==', uid)`.
+ * lleva `ownerId` con el id del espacio compartido (no del dispositivo), de modo
+ * que todos los equipos ven exactamente los mismos datos sin iniciar sesión.
  */
 const colRef = (name: CollectionName) => collection(db, name);
 
 /** Campo que marca al dueño del documento. */
 export const OWNER_FIELD = 'ownerId';
 
-/** Documentos con id propio (tasas por fecha, ajustes, miembros) se prefijan con el uid. */
-const scopedId = (uid: string, id: string): string => `${uid}__${id}`;
+/** Documentos con id propio (tasas por fecha, ajustes) se prefijan con el espacio. */
+const scopedId = (id: string): string => `${WORKSPACE_ID}__${id}`;
 
 const fromSnap = <T extends WithId>(snap: QueryDocumentSnapshot<DocumentData>): T =>
   ({ id: snap.id, ...snap.data() }) as T;
@@ -56,8 +57,8 @@ const fromSnap = <T extends WithId>(snap: QueryDocumentSnapshot<DocumentData>): 
 const clean = <T extends object>(data: T): T =>
   Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)) as T;
 
-const withOwner = <T extends object>(uid: string, data: T): T & { ownerId: string } =>
-  ({ ...clean(data), [OWNER_FIELD]: uid }) as T & { ownerId: string };
+const withOwner = <T extends object>(data: T): T & { ownerId: string } =>
+  ({ ...clean(data), [OWNER_FIELD]: WORKSPACE_ID }) as T & { ownerId: string };
 
 /**
  * Escucha una colección filtrada por dueño. El orden se resuelve en memoria a
@@ -65,14 +66,13 @@ const withOwner = <T extends object>(uid: string, data: T): T & { ownerId: strin
  * compuesto por cada colección, y los volúmenes aquí son pequeños.
  */
 export const subscribe = <T extends WithId>(
-  uid: string,
   name: CollectionName,
   onData: (rows: T[]) => void,
   onError: (error: Error) => void,
   orderField?: keyof T & string,
 ): Unsubscribe =>
   onSnapshot(
-    query(colRef(name), where(OWNER_FIELD, '==', uid)),
+    query(colRef(name), where(OWNER_FIELD, '==', WORKSPACE_ID)),
     (qs) => {
       const rows = qs.docs.map((d) => fromSnap<T>(d));
       if (orderField) {
@@ -83,14 +83,14 @@ export const subscribe = <T extends WithId>(
     onError,
   );
 
-export const create = async <T extends WithId>(uid: string, name: CollectionName, data: NewDoc<T>): Promise<string> => {
-  const ref = await addDoc(colRef(name), withOwner(uid, data));
+export const create = async <T extends WithId>(name: CollectionName, data: NewDoc<T>): Promise<string> => {
+  const ref = await addDoc(colRef(name), withOwner(data));
   return ref.id;
 };
 
 /** Crea o actualiza un documento con id conocido (fecha, 'main', correo). */
-export const upsert = async <T extends WithId>(uid: string, name: CollectionName, id: string, data: NewDoc<T>): Promise<void> => {
-  await setDoc(doc(colRef(name), scopedId(uid, id)), withOwner(uid, data), { merge: true });
+export const upsert = async <T extends WithId>(name: CollectionName, id: string, data: NewDoc<T>): Promise<void> => {
+  await setDoc(doc(colRef(name), scopedId(id)), withOwner(data), { merge: true });
 };
 
 export const patch = async <T extends WithId>(
@@ -107,7 +107,6 @@ export const remove = async (name: CollectionName, id: string): Promise<void> =>
 
 /** Escritura por lotes — se usa al importar el Excel. */
 export const createMany = async <T extends WithId>(
-  uid: string,
   name: CollectionName,
   rows: NewDoc<T>[],
   onProgress?: (done: number, total: number) => void,
@@ -116,7 +115,7 @@ export const createMany = async <T extends WithId>(
   for (let i = 0; i < rows.length; i += 400) {
     const chunk = rows.slice(i, i + 400);
     const batch = writeBatch(db);
-    chunk.forEach((row) => batch.set(doc(colRef(name)), withOwner(uid, row)));
+    chunk.forEach((row) => batch.set(doc(colRef(name)), withOwner(row)));
     await batch.commit();
     done += chunk.length;
     onProgress?.(done, rows.length);
@@ -124,9 +123,9 @@ export const createMany = async <T extends WithId>(
   return done;
 };
 
-/** Borra todos los documentos del dueño en una colección. Solo desde «Vaciar datos». */
-export const removeAll = async (uid: string, name: CollectionName): Promise<number> => {
-  const snap = await getDocs(query(colRef(name), where(OWNER_FIELD, '==', uid)));
+/** Borra todos los documentos del espacio en una colección. Solo desde «Vaciar datos». */
+export const removeAll = async (name: CollectionName): Promise<number> => {
+  const snap = await getDocs(query(colRef(name), where(OWNER_FIELD, '==', WORKSPACE_ID)));
   for (let i = 0; i < snap.docs.length; i += 400) {
     const batch = writeBatch(db);
     snap.docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
