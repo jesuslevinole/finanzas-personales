@@ -1,41 +1,9 @@
-.cat-hint { margin-bottom: var(--space-3); }
+.cat-hint { margin-top: calc(var(--space-2) * -1); }
 
-.cat-form { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
-@media (min-width: 768px) { .cat-form { grid-template-columns: minmax(180px, 1.5fr) auto auto; align-items: center; } }
-.cat-colors { display: flex; gap: 6px; flex-wrap: wrap; }
-.cat-color { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; background: var(--swatch); padding: 0; }
-.cat-color.selected { border-color: var(--color-text); }
+.cat-swatch { display: block; width: 16px; height: 16px; border-radius: 5px; background: var(--swatch); flex: none; }
 
-.cat-list { display: flex; flex-direction: column; }
-.cat-row {
-  display: grid; align-items: center; gap: var(--space-2);
-  grid-template-columns: auto 1fr auto;
-  padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border);
-}
-.cat-row:last-child { border-bottom: none; }
-.cat-row.inactive { opacity: 0.5; }
-.cat-name { font-weight: 600; font-size: var(--text-sm); }
-.cat-select { min-height: 34px; width: 100%; font-size: var(--text-xs); }
-.cat-pct { min-height: 34px; width: 100%; font-size: var(--text-xs); }
-.cat-usage { grid-column: 2; }
-.cat-actions { display: flex; gap: 2px; grid-column: 3; grid-row: 1; }
+.cat-colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.cat-color { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; background: var(--swatch); padding: 0; }
+.cat-color.selected { border-color: var(--color-text); transform: scale(1.1); }
 
-@media (min-width: 768px) {
-  .cat-row { grid-template-columns: auto minmax(140px, 1fr) auto; }
-  .cat-row:has(.cat-select) { grid-template-columns: auto minmax(140px, 1fr) 150px 72px auto auto; }
-  .cat-usage { grid-column: auto; text-align: right; min-width: 64px; }
-  .cat-actions { grid-column: auto; }
-}
-
-@media (max-width: 767px) {
-  .cat-row {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    row-gap: var(--space-2);
-    padding: var(--space-3);
-    margin-bottom: var(--space-2);
-    border: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border);
-    border-radius: var(--radius); background: var(--color-surface);
-  }
-  .cat-select, .cat-pct { grid-column: 2 / -1; width: 100%; }
-  .tabs-scroll { padding: 2px; }
-}
+.cat-detail-btn { margin-top: var(--space-4); }
