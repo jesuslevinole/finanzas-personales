@@ -10,6 +10,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
 import RateBanner from './RateBanner';
 import WriteErrorToast from './WriteErrorToast';
+import GuestBanner from './GuestBanner';
 
 interface NavItem { to: string; module: ModuleKey; icon: ReactNode; }
 interface NavGroup { label: string; items: NavItem[]; }
@@ -108,7 +109,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <h1 className="topbar-title truncate">{currentTitle ? MODULE_LABEL[currentTitle] : 'Bolívar Vivo'}</h1>
           <RateBanner />
         </header>
-        <main className="shell-content">{children}</main>
+        <main className="shell-content"><GuestBanner />{children}</main>
       </div>
 
       <nav className="bottomnav" aria-label="Navegación móvil">

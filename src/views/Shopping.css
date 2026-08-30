@@ -22,7 +22,8 @@
 
 /* ---- Detalle ---- */
 .shop-budget { display: flex; flex-direction: column; gap: var(--space-2); }
-.shop-check { width: 20px; height: 20px; accent-color: var(--color-primary); flex: none; }
+.shop-check { width: 22px; height: 22px; accent-color: var(--color-primary); flex: none; }
+@media (max-width: 767px) { .shop-check { width: 28px; height: 28px; } }
 .shop-done-text { text-decoration: line-through; color: var(--color-muted); }
 
 .shop-add { display: flex; flex-direction: column; gap: var(--space-2); }

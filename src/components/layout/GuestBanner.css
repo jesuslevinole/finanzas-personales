@@ -1,0 +1,12 @@
+.guestbanner {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3); margin-bottom: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--color-warn-soft); color: var(--color-warn);
+  border: 1px solid var(--color-warn);
+}
+.guestbanner .btn { flex: none; }
+@media (max-width: 767px) {
+  .guestbanner { flex-wrap: wrap; }
+  .guestbanner .btn { width: 100%; }
+}

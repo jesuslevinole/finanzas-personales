@@ -34,7 +34,9 @@ body.modal-open { overflow: hidden; }
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
   }
-  .modal-body .form-actions .btn { min-height: 48px; }
+  .modal-body .form-actions .btn { min-height: 52px; font-size: var(--text-md); }
+  .modal-header { min-height: 60px; }
+  .modal-header h2 { font-size: var(--text-lg); }
 }
 @keyframes modal-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 

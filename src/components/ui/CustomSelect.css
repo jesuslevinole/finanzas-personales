@@ -26,3 +26,11 @@
 .cselect-empty { padding: var(--space-3); font-size: var(--text-sm); color: var(--color-muted); text-align: center; }
 .cselect-create { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: 10px var(--space-3); border: none; border-top: 1px solid var(--color-border); background: var(--color-primary-soft); color: var(--color-primary); font-size: var(--text-sm); font-weight: 600; }
 .cselect-create:hover { background: var(--color-primary); color: #fff; }
+
+@media (max-width: 767px) {
+  .cselect-trigger { min-height: 48px; font-size: var(--text-md); }
+  .cselect-option { min-height: 48px; font-size: var(--text-md); }
+  .cselect-input { font-size: 16px; }
+  .cselect-create { min-height: 52px; }
+  .cselect-list { max-height: 50dvh; }
+}
