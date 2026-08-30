@@ -1,12 +1,17 @@
 .goals-list { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
 .goal-card {
-  display: flex; flex-direction: column; gap: var(--space-2);
+  display: flex; flex-direction: column; gap: var(--space-2); width: 100%; text-align: left;
   padding: var(--space-4); background: var(--color-surface);
   border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow);
+  transition: border-color 0.15s, transform 0.1s;
 }
+.goal-card:hover:not(:disabled) { border-color: var(--color-primary); }
+.goal-card:active:not(:disabled) { transform: scale(0.995); }
+.goal-card:disabled { cursor: default; }
+.goal-detail-actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); }
+.goal-detail-actions .btn { flex: 1; }
 .goal-card.done { border-color: var(--color-ok); background: linear-gradient(180deg, var(--color-ok-soft), var(--color-surface) 60%); }
-.goal-actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
-.goal-actions .btn-icon { margin-left: auto; }
+
 
 @media (max-width: 767px) { .goals-list { grid-template-columns: 1fr; } .goal-card { padding: var(--space-3); } }
 

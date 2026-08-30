@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Minus, PiggyBank, Plus, Target, Trash2, TrendingUp } from 'lucide-react';
+import { Minus, PiggyBank, Plus, Target, TrendingUp } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useMonth } from '../hooks/useMonth';
@@ -7,6 +7,7 @@ import StatCard from '../components/ui/StatCard';
 import ProgressBar from '../components/ui/ProgressBar';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
+import DetailSheet from '../components/ui/DetailSheet';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Goal, GoalKind } from '../types';
 import { emergencyFundTarget, monthlyContribution, ownIncomeUsd } from '../utils/finance';
@@ -30,6 +31,7 @@ export default function Goals() {
   const editable = canEdit('metas');
   const [creating, setCreating] = useState(false);
   const [contributing, setContributing] = useState<{ goal: Goal; sign: 1 | -1 } | null>(null);
+  const [detail, setDetail] = useState<Goal | null>(null);
 
   const incomeUsd = ownIncomeUsd(monthIncomes);
   const emergencyTarget = emergencyFundTarget(monthFixed, data.settings.emergencyFundMonths);
@@ -82,7 +84,8 @@ export default function Goals() {
             const monthly = monthlyContribution(goal.targetUsd, goal.savedUsd, goal.deadline);
             const done = ratio >= 1;
             return (
-              <li key={goal.id} className={`goal-card${done ? ' done' : ''}`}>
+              <li key={goal.id}>
+                <button type="button" className={`goal-card${done ? ' done' : ''}`} onClick={() => setDetail(goal)} disabled={!editable}>
                 <div className="row-between">
                   <div className="grow">
                     <span className="strong">{goal.name}</span>
@@ -96,17 +99,7 @@ export default function Goals() {
                   {monthly !== null && !done && <span className="tiny muted num">{formatUsd(monthly)} / mes para llegar</span>}
                 </div>
                 {goal.note && <p className="tiny muted">{goal.note}</p>}
-                {editable && (
-                  <div className="goal-actions">
-                    <button type="button" className="btn btn-outline btn-sm" onClick={() => setContributing({ goal, sign: 1 })}><Plus size={14} /> Aportar</button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setContributing({ goal, sign: -1 })}><Minus size={14} /> Retirar</button>
-                    <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar meta"
-                      onClick={async () => {
-                        const ok = await confirm({ title: `¿Eliminar la meta «${goal.name}»?`, confirmLabel: 'Eliminar', danger: true });
-                        if (ok) await data.del('goals', goal.id);
-                      }}><Trash2 size={15} /></button>
-                  </div>
-                )}
+                </button>
               </li>
             );
           })}
@@ -116,6 +109,29 @@ export default function Goals() {
       <Modal title="Nueva meta" open={creating} onClose={() => setCreating(false)}>
         <GoalForm nextPriority={goals.length + 1} onDone={() => setCreating(false)} />
       </Modal>
+      {detail && (
+        <DetailSheet open title={detail.name} subtitle={KIND_LABEL[detail.kind]}
+          onClose={() => setDetail(null)}
+          onDelete={async () => {
+            const ok = await confirm({ title: `¿Eliminar la meta «${detail.name}»?`, confirmLabel: 'Eliminar', danger: true });
+            if (!ok) return;
+            await data.del('goals', detail.id);
+            setDetail(null);
+          }}
+          fields={[
+            { label: 'Ahorrado', value: <span className="num text-ok">{formatUsd(detail.savedUsd)}</span> },
+            { label: 'Objetivo', value: <span className="num">{formatUsd(detail.targetUsd)}</span> },
+            { label: 'Falta', value: <span className="num">{formatUsd(Math.max(0, detail.targetUsd - detail.savedUsd))}</span> },
+            { label: 'Fecha objetivo', value: detail.deadline ? shortDate(detail.deadline) : 'Sin fecha' },
+            { label: 'Nota', value: detail.note ?? '—', wide: true },
+          ]}>
+          <div className="goal-detail-actions">
+            <button type="button" className="btn btn-primary" onClick={() => { setContributing({ goal: detail, sign: 1 }); setDetail(null); }}><Plus size={16} /> Aportar</button>
+            <button type="button" className="btn btn-outline" onClick={() => { setContributing({ goal: detail, sign: -1 }); setDetail(null); }}><Minus size={16} /> Retirar</button>
+          </div>
+        </DetailSheet>
+      )}
+
       <Modal title={contributing?.sign === -1 ? 'Retirar de la meta' : 'Aportar a la meta'} open={contributing !== null} onClose={() => setContributing(null)}>
         {contributing && <ContributionForm goal={contributing.goal} sign={contributing.sign} onDone={() => setContributing(null)} />}
       </Modal>

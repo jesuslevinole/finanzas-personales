@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Check, Circle, FolderPlus, Landmark, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Folder, FolderPlus, Landmark, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
@@ -39,7 +39,6 @@ export default function Shopping() {
 function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
   const data = useData();
   const { canEdit } = usePermissions();
-  const confirm = useConfirm();
   const editable = canEdit('compras');
   const [creating, setCreating] = useState(false);
 
@@ -52,18 +51,6 @@ function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
     const spent = sum(items.filter((i) => i.checked).map(lineUsd));
     const planned = sum(items.map(lineUsd));
     return { items, spent, planned };
-  };
-
-  const removeList = async (list: ShoppingList) => {
-    const listItems = data.shopping.filter((s) => s.listId === list.id);
-    const ok = await confirm({
-      title: `¿Eliminar «${list.name}»?`,
-      message: `Se borra la carpeta y sus ${listItems.length} productos.`,
-      confirmLabel: 'Eliminar', danger: true,
-    });
-    if (!ok) return;
-    await Promise.all(listItems.map((i) => data.del('shopping', i.id)));
-    await data.del('shoppingLists', list.id);
   };
 
   return (
@@ -85,26 +72,21 @@ function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
             const { items, spent, planned } = statsOf(list);
             const ratio = list.budgetUsd > 0 ? spent / list.budgetUsd : 0;
             return (
-              <article key={list.id} className="shop-folder">
-                <button type="button" className="shop-folder-open" onClick={() => onOpen(list.id)}>
-                  <div className="row-between">
+              <button key={list.id} type="button" className="folder" onClick={() => onOpen(list.id)}>
+                <span className="folder-icon"><Folder size={30} /></span>
+                <span className="folder-body">
+                  <span className="folder-head">
                     <span className="strong truncate">{list.name}</span>
                     <span className="tag primary">{items.filter((i) => i.checked).length}/{items.length}</span>
-                  </div>
+                  </span>
                   {list.placeId && <span className="tiny muted truncate">{getRelationName(data.places, list.placeId, '')}</span>}
-                  <div className="shop-folder-figures">
+                  <span className="folder-figures">
                     <span className="num strong">{formatUsd(spent)}</span>
                     <span className="tiny muted">de {list.budgetUsd > 0 ? formatUsd(list.budgetUsd) : `${formatUsd(planned)} previstos`}</span>
-                  </div>
+                  </span>
                   {list.budgetUsd > 0 && <ProgressBar ratio={ratio} color={ratio > 1 ? 'var(--color-danger)' : ratio > 0.85 ? 'var(--color-warn)' : 'var(--color-ok)'} />}
-                </button>
-                {editable && (
-                  <div className="shop-folder-actions">
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => data.update<ShoppingList>('shoppingLists', list.id, { status: 'cerrada', closedAt: todayIso() })}><Check size={14} /> Cerrar</button>
-                    <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar carpeta" onClick={() => void removeList(list)}><Trash2 size={15} /></button>
-                  </div>
-                )}
-              </article>
+                </span>
+              </button>
             );
           })}
         </div>
@@ -141,11 +123,14 @@ function ListsOverview({ onOpen }: { onOpen: (id: string) => void }) {
             {closedLists.map((list) => {
               const { spent, items } = statsOf(list);
               return (
-                <li key={list.id} className="shop-loose-item">
-                  <button type="button" className="shop-closed-name truncate" onClick={() => onOpen(list.id)}>{list.name}</button>
-                  <span className="tiny muted">{items.length} productos</span>
-                  <span className="num strong">{formatUsd(spent)}</span>
-                  {list.budgetUsd > 0 && <span className={`tag ${spent > list.budgetUsd ? 'danger' : 'ok'}`}>{formatPct(spent / list.budgetUsd)} del tope</span>}
+                <li key={list.id}>
+                  <button type="button" className="folder folder-closed" onClick={() => onOpen(list.id)}>
+                    <span className="folder-icon"><Folder size={24} /></span>
+                    <span className="folder-body">
+                      <span className="folder-head"><span className="strong truncate">{list.name}</span><span className="num strong">{formatUsd(spent)}</span></span>
+                      <span className="tiny muted">{items.length} productos{list.budgetUsd > 0 && ` · ${formatPct(spent / list.budgetUsd)} del tope`}</span>
+                    </span>
+                  </button>
                 </li>
               );
             })}
@@ -202,6 +187,20 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const [editingList, setEditingList] = useState(false);
   const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const confirm = useConfirm();
+
+  const removeList = async () => {
+    const ok = await confirm({
+      title: `¿Eliminar «${list.name}»?`,
+      message: 'Se borra la carpeta con todos sus productos.',
+      confirmLabel: 'Eliminar', danger: true,
+    });
+    if (!ok) return;
+    const listItems = data.shopping.filter((s) => s.listId === list.id);
+    await Promise.all(listItems.map((i) => data.del('shopping', i.id)));
+    await data.del('shoppingLists', list.id);
+    onBack();
+  };
 
   const items = useMemo(
     () => data.shopping.filter((s) => s.listId === list.id),
@@ -270,6 +269,7 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
         </div>
         {editable && (
           <div className="row wrap shop-head-actions">
+            <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar carpeta" onClick={() => void removeList()}><Trash2 size={18} /></button>
             <button type="button" className="btn btn-outline" onClick={() => setEditingList(true)}><Pencil size={16} /> Editar carpeta</button>
             <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}><Plus size={16} /> Agregar producto</button>
           </div>

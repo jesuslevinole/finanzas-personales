@@ -5,16 +5,18 @@
 .shell-sidebar {
   display: none;
   width: var(--sidebar-w);
-  flex: none;
   background: var(--color-sidebar);
   color: var(--color-sidebar-text);
   padding: var(--space-5) var(--space-3);
-  position: sticky;
-  top: 0;
-  height: 100dvh;
+  /* Fijo, no `sticky`: con `overflow-x: hidden` en el body, `sticky` deja de
+     funcionar y el menú se va con el scroll. */
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
   flex-direction: column;
   gap: var(--space-5);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -126,6 +128,7 @@
 /* ---- Escritorio ---- */
 @media (min-width: 768px) {
   .shell-sidebar { display: flex; }
+  .shell-main { margin-left: var(--sidebar-w); }
   .bottomnav { display: none; }
   .shell-content { padding: var(--space-5) var(--space-6); padding-bottom: var(--space-6); }
   .topbar { padding-inline: var(--space-6); }

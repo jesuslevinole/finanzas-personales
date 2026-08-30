@@ -24,6 +24,9 @@
   --color-warn-soft: #fff5e5;
   --color-danger: #dc2626;
   --color-danger-soft: #fdecec;
+  /* Amarillo de carpeta, como las de Windows */
+  --color-folder: #e3a008;
+  --color-folder-fill: #ffcf5c;
   --color-sidebar: #16132b;
   --color-sidebar-text: #b9b6d3;
 

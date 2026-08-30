@@ -1,13 +1,25 @@
-/* ---- Carpetas ---- */
+/* ---- Carpetas ----
+   Tarjeta completa clicable, sin botones dentro: las acciones viven en el
+   detalle de la carpeta. El ícono usa el amarillo de carpeta de Windows. */
 .shop-newlist { display: grid; gap: var(--space-3); }
 @media (min-width: 768px) { .shop-newlist { grid-template-columns: 1.5fr 1fr 1fr auto; align-items: end; } }
 
-.shop-folder { display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
-.shop-folder-open { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); border: none; background: transparent; text-align: left; }
-.shop-folder-open:hover { background: var(--color-surface-2); }
-.shop-folder-figures { display: flex; align-items: baseline; gap: var(--space-2); }
-.shop-folder-figures .num { font-family: var(--font-display); font-size: var(--text-lg); white-space: nowrap; }
-.shop-folder-actions { display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--color-border); }
+.folder {
+  display: flex; align-items: flex-start; gap: var(--space-3); width: 100%;
+  padding: var(--space-4); text-align: left;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  transition: border-color 0.15s, transform 0.1s;
+}
+.folder:hover { border-color: var(--color-folder); background: var(--color-surface-2); }
+.folder:active { transform: scale(0.995); }
+.folder-icon { flex: none; color: var(--color-folder); display: grid; place-items: center; }
+.folder-icon svg { fill: var(--color-folder-fill); stroke: var(--color-folder); }
+.folder-body { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; }
+.folder-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; }
+.folder-figures { display: flex; align-items: baseline; gap: var(--space-2); }
+.folder-figures .num { font-family: var(--font-display); font-size: var(--text-lg); white-space: nowrap; }
+.folder-closed { padding: var(--space-3); box-shadow: none; opacity: 0.85; }
 
 .shop-loose { display: flex; flex-direction: column; }
 .shop-loose-hint { margin-bottom: var(--space-2); }
