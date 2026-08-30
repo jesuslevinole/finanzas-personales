@@ -43,7 +43,8 @@ export default function Import() {
     try {
       // Carga diferida: SheetJS solo se descarga cuando de verdad se importa.
       const XLSX = await import('xlsx');
-      const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
+            // Sin `cellDates`: preferimos el serial numérico, que no depende de la zona horaria.
+      const wb = XLSX.read(await file.arrayBuffer(), { cellDates: false });
       const sheets: Record<string, RawRow[]> = {};
       wb.SheetNames.forEach((name) => {
         const matrix = XLSX.utils.sheet_to_json<Cell[]>(wb.Sheets[name], { header: 1, defval: '', raw: true });

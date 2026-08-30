@@ -17,7 +17,7 @@ import type { Expense, Income, MoneyOwner } from '../types';
 import { getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
 import { shortDate } from '../utils/dates';
-import { sequenceMap } from '../utils/sequence';
+import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './Movements.css';
 
 type Tab = 'gastos' | 'ingresos';
@@ -45,25 +45,28 @@ export default function Movements() {
   const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setMinUsd(''); };
   const activeCount = [search, categoryId, placeId, sourceId, owner, minUsd].filter(Boolean).length;
 
+  const expenseSeqAll = useMemo(() => sequenceMap(monthExpenses, (e) => e.date), [monthExpenses]);
+  const incomeSeqAll = useMemo(() => sequenceMap(monthIncomes, (i) => i.date), [monthIncomes]);
+
   const expenses = useMemo(() => {
     const q = search.trim().toLowerCase();
     const min = Number(minUsd) || 0;
-    return monthExpenses.filter((e) =>
+    return sortBySeqDesc(monthExpenses, expenseSeqAll).filter((e) =>
       (!q || `${e.product} ${getRelationName(data.places, e.placeId, '')} ${getRelationName(data.categories, e.categoryId, '')}`.toLowerCase().includes(q))
       && (!categoryId || e.categoryId === categoryId)
       && (!placeId || e.placeId === placeId)
       && (min <= 0 || e.totalUsd >= min));
-  }, [monthExpenses, search, categoryId, placeId, minUsd, data.places, data.categories]);
+  }, [monthExpenses, expenseSeqAll, search, categoryId, placeId, minUsd, data.places, data.categories]);
 
   const incomes = useMemo(() => {
     const q = search.trim().toLowerCase();
     const min = Number(minUsd) || 0;
-    return monthIncomes.filter((i) =>
+    return sortBySeqDesc(monthIncomes, incomeSeqAll).filter((i) =>
       (!q || `${getRelationName(data.incomeSources, i.sourceId, '')} ${i.note ?? ''}`.toLowerCase().includes(q))
       && (!sourceId || i.sourceId === sourceId)
       && (!owner || i.owner === owner)
       && (min <= 0 || i.amountUsd >= min));
-  }, [monthIncomes, search, sourceId, owner, minUsd, data.incomeSources]);
+  }, [monthIncomes, incomeSeqAll, search, sourceId, owner, minUsd, data.incomeSources]);
 
   /* Totales del conjunto filtrado */
   const totalUsd = tab === 'gastos' ? sum(expenses.map((e) => e.totalUsd)) : sum(incomes.map((i) => i.amountUsd));
@@ -87,11 +90,8 @@ export default function Movements() {
     setDetail(null);
   };
 
-  const expenseSeq = useMemo(() => sequenceMap(monthExpenses, (e) => e.date), [monthExpenses]);
-  const incomeSeq = useMemo(() => sequenceMap(monthIncomes, (i) => i.date), [monthIncomes]);
-
   const expenseColumns: Column<Expense>[] = [
-    { key: 'seq', header: '#', width: '54px', render: (e) => <span className="seq num">{expenseSeq.get(e.id)}</span> },
+    { key: 'seq', header: '#', width: '54px', render: (e) => <span className="seq num">{expenseSeqAll.get(e.id)}</span> },
     { key: 'date', header: 'Fecha', width: '92px', render: (e) => <span className="muted">{shortDate(e.date)}</span> },
     { key: 'product', header: 'Producto', primary: true, render: (e) => (
       <span className="truncate">{e.product}{e.quantity !== 1 && <span className="tiny muted num"> × {e.quantity}</span>}</span>
@@ -105,7 +105,7 @@ export default function Movements() {
   ];
 
   const incomeColumns: Column<Income>[] = [
-    { key: 'seq', header: '#', width: '54px', render: (i) => <span className="seq num">{incomeSeq.get(i.id)}</span> },
+    { key: 'seq', header: '#', width: '54px', render: (i) => <span className="seq num">{incomeSeqAll.get(i.id)}</span> },
     { key: 'date', header: 'Fecha', width: '92px', render: (i) => <span className="muted">{shortDate(i.date)}</span> },
     { key: 'source', header: 'Origen', primary: true, render: (i) => <span className="truncate">{getRelationName(data.incomeSources, i.sourceId, 'Sin origen')}</span> },
     { key: 'owner', header: 'Dinero', width: '110px', render: (i) => <span className={`tag ${i.owner === 'propio' ? 'ok' : ''}`}>{i.owner}</span> },

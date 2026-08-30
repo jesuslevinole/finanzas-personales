@@ -1,4 +1,4 @@
-import { daysBetween, todayIso } from './dates';
+import { addDays, daysBetween, todayIso } from './dates';
 
 /**
  * Ciclo de pago: cobras los sábados y con eso cubres hasta el viernes siguiente.
@@ -14,11 +14,7 @@ export interface PayCycle {
 
 const SATURDAY = 6;
 
-const shift = (iso: string, days: number): string => {
-  const d = new Date(`${iso}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const shift = addDays;
 
 /** Sábado de la semana a la que pertenece la fecha (si es sábado, ese mismo día). */
 export const cycleStart = (iso: string = todayIso()): string => {

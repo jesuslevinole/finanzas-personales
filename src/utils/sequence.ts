@@ -14,3 +14,7 @@ export const sequenceMap = <T extends { id: string }>(rows: T[], sortKey: (row: 
 
 /** Columna «#» lista para usar en DataTable. */
 export const seqOf = (map: Map<string, number>, id: string): number => map.get(id) ?? 0;
+
+/** Ordena las filas por su número visible, del más alto al más bajo. */
+export const sortBySeqDesc = <T extends { id: string }>(rows: T[], seq: Map<string, number>): T[] =>
+  [...rows].sort((a, b) => (seq.get(b.id) ?? 0) - (seq.get(a.id) ?? 0));

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Debt, FixedCost, ShoppingItem } from '../types';
 import { cycleOf, fixedCostDate, type PayCycle } from '../utils/cycle';
-import { todayIso } from '../utils/dates';
+import { addDays, todayIso } from '../utils/dates';
 import { useData } from './useData';
 
 export interface CycleDue {
@@ -21,17 +21,11 @@ export interface CycleDue {
  */
 const HORIZON_DAYS = 7;
 
-const shiftIso = (iso: string, days: number): string => {
-  const d = new Date(`${iso}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-};
-
 export function usePayCycle() {
   const { debts, fixedCosts, shopping, inventory } = useData();
   const today = todayIso();
   const [cycle] = useState<PayCycle>(cycleOf());
-  const horizon = shiftIso(today, HORIZON_DAYS);
+  const horizon = addDays(today, HORIZON_DAYS);
 
   const { dueThisCycle, overdue, upcoming } = useMemo(() => {
     const items: CycleDue[] = [];

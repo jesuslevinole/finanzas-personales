@@ -15,7 +15,7 @@ import type { FixedCost, NewDoc, PayStatus } from '../types';
 import { cycleOf, fixedCostDate, inCycle } from '../utils/cycle';
 import { formatUsd, sum } from '../utils/money';
 import { addMonths, shortDate, todayIso } from '../utils/dates';
-import { sequenceMap } from '../utils/sequence';
+import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './FixedCosts.css';
 
 const STATUS_LABEL: Record<PayStatus, string> = { pendiente: 'Pendiente', en_proceso: 'En proceso', pagada: 'Pagada' };
@@ -34,7 +34,8 @@ export default function FixedCosts() {
   const [editing, setEditing] = useState<FixedCost | null>(null);
   const [detail, setDetail] = useState<FixedCost | null>(null);
 
-  const all = useMemo(() => [...monthFixed].sort((a, b) => a.dueDay - b.dueDay), [monthFixed]);
+  const seq = useMemo(() => sequenceMap(data.fixedCosts, (f) => `${f.month}-${String(f.dueDay).padStart(2, '0')}`), [data.fixedCosts]);
+  const all = useMemo(() => sortBySeqDesc(monthFixed, seq), [monthFixed, seq]);
   const pending = all.filter((f) => f.status !== 'pagada');
   const paid = all.filter((f) => f.status === 'pagada');
   const rows = tab === 'pendiente' ? pending : paid;
@@ -55,8 +56,6 @@ export default function FixedCosts() {
     if (!window.confirm(`¿Copiar los ${prevCosts.length} costos del mes anterior como pendientes?`)) return;
     await Promise.all(prevCosts.map((f) => data.add<FixedCost>('fixedCosts', { description: f.description, amountUsd: f.amountUsd, month, dueDay: f.dueDay, status: 'pendiente' })));
   };
-
-  const seq = useMemo(() => sequenceMap(data.fixedCosts, (f) => `${f.month}-${String(f.dueDay).padStart(2, '0')}`), [data.fixedCosts]);
 
   const columns: Column<FixedCost>[] = [
     { key: 'seq', header: '#', width: '54px', render: (f) => <span className="seq num">{seq.get(f.id)}</span> },

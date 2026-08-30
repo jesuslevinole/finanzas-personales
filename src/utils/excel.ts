@@ -56,11 +56,29 @@ export const matrixToLooseRows = (matrix: Cell[][]): RawRow[] =>
 
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30);
 
-/** Convierte el serial de fecha de Excel (46249) o un texto a YYYY-MM-DD. */
+const pad = (n: number): string => String(n).padStart(2, '0');
+
+/** Serial de Excel (46249) -> YYYY-MM-DD, redondeando al día más cercano. */
+const fromSerial = (serial: number): string => {
+  const d = new Date(EXCEL_EPOCH + Math.round(serial) * 86_400_000);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+};
+
+/**
+ * Convierte el serial de fecha de Excel, un `Date` o un texto a YYYY-MM-DD.
+ *
+ * SheetJS a veces entrega los `Date` con la hora en 23:59:59.999 del día
+ * anterior (redondeo del serial), así que hay que reconstruir la fecha desde la
+ * hora local redondeada al día, no con `toISOString()`, o todo se corre un día.
+ */
 export const excelDate = (value: RawRow[string]): string | null => {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (value instanceof Date) {
+    const localMs = value.getTime() - value.getTimezoneOffset() * 60_000;
+    const rounded = new Date(Math.round(localMs / 86_400_000) * 86_400_000);
+    return `${rounded.getUTCFullYear()}-${pad(rounded.getUTCMonth() + 1)}-${pad(rounded.getUTCDate())}`;
+  }
   if (typeof value === 'number' && value > 20000 && value < 90000) {
-    return new Date(EXCEL_EPOCH + value * 86_400_000).toISOString().slice(0, 10);
+    return fromSerial(value);
   }
   if (typeof value === 'string') {
     const iso = value.trim().slice(0, 10);

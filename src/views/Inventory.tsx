@@ -16,7 +16,7 @@ import { colorForIndex, getRelationColor, getRelationName } from '../utils/relat
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
 import Money from '../components/ui/Money';
 import { shortDate, todayIso } from '../utils/dates';
-import { sequenceMap } from '../utils/sequence';
+import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './Inventory.css';
 
 
@@ -31,14 +31,14 @@ export default function Inventory() {
   const [onlyLow, setOnlyLow] = useState(false);
   const [detail, setDetail] = useState<InventoryItem | null>(null);
 
+  const seq = useMemo(() => sequenceMap(inventory, (i) => i.name.toLowerCase()), [inventory]);
+
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return inventory
-      .filter((i) => (!q || i.name.toLowerCase().includes(q))
-        && (!categoryFilter || i.categoryId === categoryFilter)
-        && (!onlyLow || i.quantity <= i.minQuantity))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [inventory, search, categoryFilter, onlyLow]);
+    return sortBySeqDesc(inventory, seq).filter((i) => (!q || i.name.toLowerCase().includes(q))
+      && (!categoryFilter || i.categoryId === categoryFilter)
+      && (!onlyLow || i.quantity <= i.minQuantity));
+  }, [inventory, seq, search, categoryFilter, onlyLow]);
 
   const lowCount = inventory.filter((i) => i.quantity <= i.minQuantity).length;
   const stockValueUsd = sum(items.map((i) => i.quantity * i.lastPriceUsd));
@@ -65,8 +65,6 @@ export default function Inventory() {
     const h = item.priceHistory.map((p) => p.priceUsd);
     return h.length >= 2 && h[0] > 0 ? h[h.length - 1] / h[0] - 1 : null;
   };
-
-  const seq = useMemo(() => sequenceMap(inventory, (i) => i.name.toLowerCase()), [inventory]);
 
   const columns: Column<InventoryItem>[] = [
     { key: 'seq', header: '#', width: '54px', render: (i) => <span className="seq num">{seq.get(i.id)}</span> },

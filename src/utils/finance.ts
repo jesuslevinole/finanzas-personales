@@ -339,3 +339,11 @@ export const monthlyContribution = (targetUsd: number, savedUsd: number, deadlin
   const months = Math.max(1, (end.getFullYear() - today.getFullYear()) * 12 + end.getMonth() - today.getMonth());
   return Math.max(0, (targetUsd - savedUsd) / months);
 };
+
+
+/**
+ * Saldo que deberías tener en la cuenta: todo lo que entró menos todo lo que
+ * salió, en bolívares. Es el mismo cálculo de la celda DISPONIBLE del Excel.
+ */
+export const availableBalanceBs = (incomes: Income[], expenses: Expense[]): number =>
+  sum(incomes.map((i) => i.amountBs)) - sum(expenses.map((e) => e.totalBs));

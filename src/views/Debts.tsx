@@ -15,8 +15,8 @@ import type { Creditor, Debt, MoneyOwner, NewDoc, PayStatus } from '../types';
 import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
 import { cycleOf, inCycle } from '../utils/cycle';
 import { formatUsd, sum } from '../utils/money';
-import { daysBetween, shortDate, todayIso } from '../utils/dates';
-import { sequenceMap } from '../utils/sequence';
+import { addDays, daysBetween, shortDate, todayIso } from '../utils/dates';
+import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './Debts.css';
 
 const STATUS_LABEL: Record<PayStatus, string> = { pendiente: 'Pendiente', en_proceso: 'En proceso', pagada: 'Pagada' };
@@ -39,14 +39,15 @@ export default function Debts() {
   const activeCount = [creditorId, status, search].filter(Boolean).length;
   const clearFilters = () => { setCreditorId(''); setStatus(''); setSearch(''); };
 
+  const seq = useMemo(() => sequenceMap(data.debts, (d) => d.dueDate), [data.debts]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return data.debts
+    return sortBySeqDesc(data.debts, seq)
       .filter((d) => (!creditorId || d.creditorId === creditorId)
         && (!status || d.status === status)
-        && (!q || `${d.merchant} ${d.description ?? ''} ${getRelationName(data.creditors, d.creditorId, '')}`.toLowerCase().includes(q)))
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  }, [data.debts, data.creditors, creditorId, status, search]);
+        && (!q || `${d.merchant} ${d.description ?? ''} ${getRelationName(data.creditors, d.creditorId, '')}`.toLowerCase().includes(q)));
+  }, [data.debts, seq, data.creditors, creditorId, status, search]);
 
   const openRows = filtered.filter((d) => d.status !== 'pagada');
   const paidRows = filtered.filter((d) => d.status === 'pagada');
@@ -67,8 +68,6 @@ export default function Debts() {
     void data.del('debts', d.id);
     setDetail(null);
   };
-
-  const seq = useMemo(() => sequenceMap(data.debts, (d) => d.dueDate), [data.debts]);
 
   const columns: Column<Debt>[] = [
     { key: 'seq', header: '#', width: '54px', render: (d) => <span className="seq num">{seq.get(d.id)}</span> },
@@ -221,11 +220,10 @@ function DebtForm({ debt, creditors, onCreateCreditor, onSubmit }: DebtFormProps
     e.preventDefault();
     if (!merchant || !creditorId || amt <= 0) return;
     const rows: NewDoc<Debt>[] = Array.from({ length: n }, (_, i) => {
-      const d = new Date(dueDate);
-      d.setDate(d.getDate() + i * (debt ? 0 : Number(everyDays) || 0));
+      const step = debt ? 0 : Number(everyDays) || 0;
       return {
         creditorId, merchant, description: description || undefined, amountUsd: amt, owner,
-        dueDate: d.toISOString().slice(0, 10), status: i === 0 ? status : 'pendiente',
+        dueDate: addDays(dueDate, i * step), status: i === 0 ? status : 'pendiente',
         installment: n > 1 ? `${i + 1}/${n}` : debt?.installment,
         reference: debt?.reference,
       };

@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { ArrowLeft, Check, FolderPlus, Mic, Plus, ShoppingBag, Trash2, Wallet } from 'lucide-react';
+import Modal from '../components/ui/Modal';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useVoiceInput } from '../hooks/useVoiceInput';
@@ -13,9 +14,9 @@ import type { ShoppingItem, ShoppingList, ShoppingPriority, StockUnit } from '..
 import { UNITS } from '../utils/units';
 import { parseVoiceItem } from '../utils/voiceParse';
 import { getRelationName } from '../utils/relations';
-import { formatBs, formatPct, formatUsd, round2, sum, toUsd } from '../utils/money';
+import { formatBs, formatPct, formatUsd, round2, sum, toBs, toUsd } from '../utils/money';
 import { todayIso } from '../utils/dates';
-import { sequenceMap } from '../utils/sequence';
+import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './Shopping.css';
 
 const PRIORITY_LABEL: Record<ShoppingPriority, string> = { urgente: 'Urgente', normal: 'Normal', cuando_se_pueda: 'Cuando se pueda' };
@@ -180,11 +181,15 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const { canEdit } = usePermissions();
   const editable = canEdit('compras');
   const rate = data.currentRate;
+  const [pricing, setPricing] = useState<ShoppingItem | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const items = useMemo(
     () => data.shopping.filter((s) => s.listId === list.id).sort((a, b) => Number(a.checked) - Number(b.checked) || PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority)),
     [data.shopping, list.id],
   );
+  const seq = useMemo(() => sequenceMap(items, (i) => i.createdAt + i.name), [items]);
+  const rows = useMemo(() => sortBySeqDesc(items, seq), [items, seq]);
 
   const inCart = items.filter((i) => i.checked);
   const spent = sum(inCart.map(lineUsd));
@@ -195,33 +200,29 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
 
   const toggle = (item: ShoppingItem) => data.update<ShoppingItem>('shopping', item.id, { checked: !item.checked });
 
-  const setPrice = (item: ShoppingItem, value: string, currency: 'VES' | 'USD') => {
-    const n = Number(value);
-    if (!Number.isFinite(n) || n < 0) return;
-    const usd = currency === 'USD' ? n : round2(toUsd(n, rate));
-    void data.update<ShoppingItem>('shopping', item.id, {
-      actualUsd: usd,
-      actualBs: currency === 'VES' ? n : round2(n * rate),
-      checked: true,
-    });
-  };
-
-  const seq = useMemo(() => sequenceMap(items, (i) => i.createdAt + i.name), [items]);
-
   const columns: Column<ShoppingItem>[] = [
     { key: 'seq', header: '#', width: '46px', render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
-    { key: 'check', header: '', width: '40px', render: (i) => (
-      <input type="checkbox" className="shop-check" checked={i.checked} disabled={!editable} onChange={() => toggle(i)} aria-label={`En el carrito: ${i.name}`} onClick={(e) => e.stopPropagation()} />
+    { key: 'check', header: '', width: '44px', render: (i) => (
+      <input type="checkbox" className="shop-check" checked={i.checked} disabled={!editable} onChange={() => toggle(i)}
+        aria-label={`En el carrito: ${i.name}`} onClick={(e) => e.stopPropagation()} />
     ) },
     { key: 'name', header: 'Producto', primary: true, render: (i) => (
       <span className={`truncate${i.checked ? ' shop-done-text' : ''}`}>{i.name}</span>
     ) },
-    { key: 'qty', header: 'Cantidad', width: '110px', render: (i) => <span className="num muted">{i.quantity} {i.unit}</span> },
-    { key: 'est', header: 'Estimado', align: 'end', width: '100px', hideOnMobile: true, render: (i) => <span className="muted">{formatUsd(i.estimatedUsd * i.quantity)}</span> },
-    { key: 'real', header: 'Precio real', align: 'end', width: '170px', render: (i) => (
-      editable
-        ? <PriceInput item={i} rate={rate} onSet={setPrice} />
-        : <span className="num">{i.actualUsd !== undefined ? formatUsd(i.actualUsd * i.quantity) : '—'}</span>
+    { key: 'qty', header: 'Cantidad', width: '100px', render: (i) => <span className="num muted">{i.quantity} {i.unit}</span> },
+    { key: 'est', header: 'Estimado', align: 'end', width: '140px', render: (i) => (
+      <span className="shop-two-lines">
+        <span className="muted num">{formatUsd(i.estimatedUsd * i.quantity)}</span>
+        <span className="tiny text-bs num">{formatBs(toBs(i.estimatedUsd * i.quantity, rate))}</span>
+      </span>
+    ) },
+    { key: 'real', header: 'Precio real', align: 'end', width: '150px', render: (i) => (
+      i.actualUsd !== undefined ? (
+        <span className="shop-two-lines">
+          <span className="strong text-usd num">{formatUsd(i.actualUsd * i.quantity)}</span>
+          <span className="tiny text-bs num">{formatBs(toBs(i.actualUsd * i.quantity, rate))}</span>
+        </span>
+      ) : <span className="muted tiny">Toca para cargarlo</span>
     ) },
   ];
 
@@ -235,6 +236,7 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
             <p className="page-subtitle">{list.placeId ? getRelationName(data.places, list.placeId, '') : 'Carpeta de compra'} · {list.status === 'abierta' ? 'abierta' : 'cerrada'}</p>
           </div>
         </div>
+        {editable && <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}><Plus size={16} /> Agregar producto</button>}
       </div>
 
       <div className="grid grid-3">
@@ -243,52 +245,101 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
           hint={`${inCart.length} de ${items.length} productos`} />
         <StatCard tone={remaining < 0 ? 'danger' : 'ok'} icon={<Wallet size={18} />} label={budget > 0 ? 'Te queda del tope' : 'Sin tope definido'}
           value={<span className={`num ${remaining < 0 ? 'text-danger' : ''}`}>{budget > 0 ? formatUsd(remaining) : '—'}</span>}
-          hint={budget > 0 ? `Tope: ${formatUsd(budget)} · ${formatBs(budget * rate)}` : 'Edita la carpeta para ponerle uno'} />
+          hint={budget > 0 ? `Tope: ${formatUsd(budget)} · ${formatBs(toBs(budget, rate))}` : 'Edita la carpeta para ponerle uno'} />
         <StatCard tone="warn" icon={<Plus size={18} />} label="Falta por agarrar"
           value={<span className="num">{formatUsd(pending)}</span>}
-          hint={`Proyectado: ${formatUsd(spent + pending)}`} />
+          hint={`Proyectado: ${formatUsd(spent + pending)} · ${formatBs(toBs(spent + pending, rate))}`} />
       </div>
 
       {budget > 0 && (
         <div className="card shop-budget">
-          <div className="row-between small"><span className="strong">{formatPct(ratio)} del tope</span><span className="muted num">{formatBs(spent * rate)} de {formatBs(budget * rate)}</span></div>
+          <div className="row-between small"><span className="strong">{formatPct(ratio)} del tope</span><span className="muted num">{formatBs(toBs(spent, rate))} de {formatBs(toBs(budget, rate))}</span></div>
           <ProgressBar ratio={ratio} color={ratio > 1 ? 'var(--color-danger)' : ratio > 0.85 ? 'var(--color-warn)' : 'var(--color-ok)'} />
           {ratio > 1 && <p className="tiny text-danger">Te pasaste {formatUsd(spent - budget)} del tope que te pusiste.</p>}
         </div>
       )}
 
-      {editable && <AddItemForm listId={list.id} rate={rate} />}
-
       <div className="card card-tight">
-        <DataTable rows={items} columns={columns} rowClass={(i) => (i.checked ? 'muted-row' : '')}
+        <DataTable rows={rows} columns={columns} rowClass={(i) => (i.checked ? 'muted-row' : '')}
+          onRowClick={editable ? setPricing : undefined}
           actions={editable ? (i) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => data.del('shopping', i.id)}><Trash2 size={15} /></button> : undefined}
           empty={<EmptyState title="Carpeta vacía" hint="Agrega productos escribiendo o dictando: «dos kilos de harina 850 bolívares»." />} />
       </div>
+
+      <Modal title="Agregar producto" open={adding} onClose={() => setAdding(false)}>
+        <AddItemForm listId={list.id} rate={rate} onDone={() => setAdding(false)} />
+      </Modal>
+
+      {pricing && <PriceModal item={pricing} rate={rate} onClose={() => setPricing(null)} />}
     </div>
   );
 }
 
-/** Campo de precio real, en Bs o $, que marca el producto como tomado. */
-function PriceInput({ item, rate, onSet }: { item: ShoppingItem; rate: number; onSet: (item: ShoppingItem, value: string, currency: 'VES' | 'USD') => void }) {
+/** Modal para cargar el precio real del producto al meterlo al carrito. */
+function PriceModal({ item, rate, onClose }: { item: ShoppingItem; rate: number; onClose: () => void }) {
+  const { update } = useData();
   const [currency, setCurrency] = useState<'VES' | 'USD'>('VES');
   const [value, setValue] = useState(item.actualBs !== undefined ? String(item.actualBs) : '');
+  const [saving, setSaving] = useState(false);
+
+  const n = Number(value) || 0;
+  const unitUsd = currency === 'USD' ? n : toUsd(n, rate);
+  const unitBs = currency === 'USD' ? toBs(n, rate) : n;
+  const totalUsd = round2(unitUsd * item.quantity);
+
+  const save = async () => {
+    if (n <= 0) return;
+    setSaving(true);
+    await update<ShoppingItem>('shopping', item.id, {
+      actualUsd: round2(unitUsd), actualBs: round2(unitBs), checked: true,
+    });
+    setSaving(false);
+    onClose();
+  };
 
   return (
-    <span className="shop-price" onClick={(e) => e.stopPropagation()}>
-      <input className="input num shop-price-input" type="number" min="0" step="0.01" value={value} placeholder={currency === 'VES' ? 'Bs' : '$'}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={() => { if (value) onSet(item, value, currency); }}
-        aria-label={`Precio real de ${item.name}`} />
-      <button type="button" className={`btn btn-outline shop-price-cur${currency === 'USD' ? ' usd' : ''}`}
-        onClick={() => setCurrency((c) => (c === 'VES' ? 'USD' : 'VES'))} aria-label="Cambiar moneda">{currency === 'VES' ? 'Bs' : '$'}</button>
-      {item.actualUsd !== undefined && <span className="tiny text-usd num">{formatUsd(item.actualUsd * item.quantity)}</span>}
-      {item.actualUsd === undefined && rate > 0 && value && <span className="tiny muted num">≈ {formatUsd(currency === 'VES' ? toUsd(Number(value), rate) : Number(value))}</span>}
-    </span>
+    <Modal title={item.name} open onClose={onClose}>
+      <div className="stack">
+        <dl className="kv">
+          <div><dt>Cantidad</dt><dd className="num">{item.quantity} {item.unit}</dd></div>
+          <div><dt>Precio estimado</dt><dd className="num">{formatUsd(item.estimatedUsd)} · {formatBs(toBs(item.estimatedUsd, rate))}</dd></div>
+          <div><dt>Tasa del día</dt><dd className="num">{formatBs(rate)}</dd></div>
+        </dl>
+
+        <label className="field">
+          <span className="field-label">Precio real por unidad</span>
+          <div className="shop-price-modal">
+            <input className="input num shop-price-big" type="number" inputMode="decimal" step="0.01" min="0" autoFocus
+              value={value} onChange={(e) => setValue(e.target.value)} placeholder={currency === 'VES' ? 'Bs' : '$'} />
+            <button type="button" className={`btn btn-outline shop-price-cur${currency === 'USD' ? ' usd' : ''}`}
+              onClick={() => setCurrency((c) => (c === 'VES' ? 'USD' : 'VES'))}>{currency === 'VES' ? 'Bs' : '$'}</button>
+          </div>
+        </label>
+
+        <dl className="kv shop-price-result">
+          <div><dt>Unidad equivale a</dt><dd className="num">{currency === 'VES' ? formatUsd(unitUsd) : formatBs(unitBs)}</dd></div>
+          <div><dt>Total de este renglón</dt><dd className="num text-usd">{formatUsd(totalUsd)} · {formatBs(toBs(totalUsd, rate))}</dd></div>
+          {item.estimatedUsd > 0 && (
+            <div><dt>Contra lo estimado</dt>
+              <dd className={unitUsd > item.estimatedUsd ? 'text-danger num' : 'text-ok num'}>
+                {unitUsd > item.estimatedUsd ? '+' : ''}{formatPct(item.estimatedUsd > 0 ? unitUsd / item.estimatedUsd - 1 : 0)}
+              </dd>
+            </div>
+          )}
+        </dl>
+
+        <div className="form-actions">
+          <button type="button" className="btn btn-primary" onClick={save} disabled={saving || n <= 0}>
+            <Check size={16} /> Al carrito
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
 /** Alta de producto por escrito o dictado. */
-function AddItemForm({ listId, rate }: { listId: string; rate: number }) {
+function AddItemForm({ listId, rate, onDone }: { listId: string; rate: number; onDone: () => void }) {
   const data = useData();
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -327,10 +378,11 @@ function AddItemForm({ listId, rate }: { listId: string; rate: number }) {
       inventoryItemId: match?.id, createdAt: todayIso(),
     });
     setName(''); setQuantity('1'); setEstimatedUsd(''); setHeard('');
+    onDone();
   };
 
   return (
-    <form className="card shop-add" onSubmit={submit}>
+    <form className="shop-add" onSubmit={submit}>
       <div className="shop-add-main">
         <input className="input" placeholder="Producto" value={name} list="shop-names" required
           onChange={(e) => { setName(e.target.value); fillFrom(e.target.value); }} />
@@ -348,9 +400,10 @@ function AddItemForm({ listId, rate }: { listId: string; rate: number }) {
         <select className="input" value={priority} onChange={(e) => setPriority(e.target.value as ShoppingPriority)} aria-label="Prioridad">
           {PRIORITY_ORDER.map((p) => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
         </select>
-        <button type="submit" className="btn btn-primary"><Plus size={16} /> Agregar</button>
       </div>
       {heard && <p className="tiny muted">Escuché: «{heard}»</p>}
+      {Number(estimatedUsd) > 0 && <p className="tiny muted">Equivale a {formatBs(toBs(Number(estimatedUsd) * (Number(quantity) || 1), rate))} en total.</p>}
+      <div className="form-actions"><button type="submit" className="btn btn-primary"><Plus size={16} /> Agregar</button></div>
     </form>
   );
 }

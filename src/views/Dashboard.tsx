@@ -11,14 +11,14 @@ import Donut from '../components/ui/Donut';
 import Sparkline from '../components/ui/Sparkline';
 import Money from '../components/ui/Money';
 import ProgressBar from '../components/ui/ProgressBar';
-import { cashNeeded, debtCapacity, expensesByCategory, inflationSummary, ownIncomeUsd } from '../utils/finance';
+import { availableBalanceBs, cashNeeded, debtCapacity, expensesByCategory, inflationSummary, ownIncomeUsd } from '../utils/finance';
 import { formatBs, formatPct, formatUsd, sum, toUsd } from '../utils/money';
 import { getRelationName } from '../utils/relations';
-import { daysBetween, monthOf, shortDate, todayIso } from '../utils/dates';
+import { addDays, daysBetween, monthOf, shortDate, todayIso } from '../utils/dates';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const { categories, creditors, currentRate, rates, inventory, shopping, settings, debts, fixedCosts, set } = useData();
+  const { categories, creditors, currentRate, rates, incomes, expenses, inventory, shopping, settings, debts, fixedCosts, set } = useData();
   const { canEdit } = usePermissions();
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceDraft, setBalanceDraft] = useState(String(settings.balanceBs ?? ''));
@@ -40,15 +40,20 @@ export default function Dashboard() {
   }, [monthExpenses]);
 
   const today = todayIso();
-  const horizon = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const horizon = addDays(today, 7);
   const urgentBuysUsd = sum(shopping.filter((s) => !s.checked && s.priority === 'urgente').map((s) => s.estimatedUsd * s.quantity));
   const cash = cashNeeded(debts, fixedCosts.filter((f) => f.month === month), urgentBuysUsd, today, horizon);
   const dueSoon = debts.filter((d) => d.status !== 'pagada' && daysBetween(today, d.dueDate) <= 7).slice(0, 5);
   const lowStock = inventory.filter((i) => i.quantity <= i.minQuantity);
   const urgent = shopping.filter((s) => !s.checked && s.priority === 'urgente');
   const balance = incomeUsd - expenseUsd;
-  const balanceUsd = toUsd(settings.balanceBs ?? 0, currentRate);
-  const coverage = balanceUsd - cash.totalUsd;
+  // Lo que la app calcula que debe haber en la cuenta: todo lo que entró menos lo que salió.
+  const calcBalanceBs = availableBalanceBs(incomes, expenses);
+  const calcBalanceUsd = toUsd(calcBalanceBs, currentRate);
+  const declaredBs = settings.balanceBs;
+  const declaredUsd = toUsd(declaredBs ?? 0, currentRate);
+  const gapBs = declaredBs !== undefined ? declaredBs - calcBalanceBs : null;
+  const coverage = (declaredBs !== undefined ? declaredUsd : calcBalanceUsd) - cash.totalUsd;
 
   const saveBalance = async () => {
     const value = Number(balanceDraft);
@@ -70,21 +75,23 @@ export default function Dashboard() {
       <section className={`card dash-cash ${coverage < 0 ? 'alert' : ''}`}>
         <div className="dash-cash-main">
           <span className="stat-icon dash-cash-icon"><Landmark size={18} /></span>
-          <div>
-            <span className="field-label">Deberías tener disponible ahora</span>
-            <div className="dash-cash-value"><Money amount={cash.totalUsd} currency="USD" rate={currentRate} dual size="lg" align="start" /></div>
-            <p className="tiny muted">{cash.items} compromisos entre lo vencido, lo que vence en 7 días y lo urgente por comprar.</p>
-            {settings.balanceBs !== undefined && (
-              <p className="tiny muted">Saldo declarado: <strong className="num">{formatBs(settings.balanceBs)}</strong>{settings.balanceUpdatedAt && ` · ${shortDate(settings.balanceUpdatedAt)}`}</p>
+          <div className="grow">
+            <span className="field-label">Disponible en la cuenta</span>
+            <div className="dash-cash-value"><Money amount={calcBalanceBs} currency="VES" rate={currentRate} dual size="lg" align="start" /></div>
+            <p className="tiny muted">Todo lo que entró menos todo lo que salió ({incomes.length} ingresos, {expenses.length} gastos).</p>
+            {gapBs !== null && Math.abs(gapBs) > 0.5 && (
+              <p className={`tiny ${Math.abs(gapBs) > 1 ? 'text-danger' : 'muted'}`}>
+                Tu saldo declarado difiere en {formatBs(Math.abs(gapBs))}: falta registrar algún movimiento.
+              </p>
             )}
           </div>
         </div>
         <dl className="kv dash-cash-kv">
-          <div><dt>Vencido</dt><dd className={cash.overdueUsd > 0 ? 'text-danger' : ''}>{formatUsd(cash.overdueUsd)}</dd></div>
-          <div><dt>Vence en 7 días + fijos del mes</dt><dd>{formatUsd(cash.dueSoonUsd)}</dd></div>
-          <div><dt>Compras urgentes</dt><dd>{formatUsd(cash.urgentBuysUsd)}</dd></div>
-          <div className="dash-cash-total">
-            <dt>Tienes en la cuenta</dt>
+          <div><dt>Compromisos próximos</dt><dd className={cash.totalUsd > 0 ? 'text-danger' : ''}>{formatUsd(cash.totalUsd)}</dd></div>
+          <div><dt>Vencido</dt><dd>{formatUsd(cash.overdueUsd)}</dd></div>
+          <div><dt>Vence en 7 días + fijos</dt><dd>{formatUsd(cash.dueSoonUsd)}</dd></div>
+          <div>
+            <dt>Saldo declarado</dt>
             <dd>
               {editingBalance ? (
                 <span className="dash-balance-edit">
@@ -94,12 +101,15 @@ export default function Dashboard() {
                 </span>
               ) : (
                 <button type="button" className="dash-balance-btn" onClick={() => setEditingBalance(true)} disabled={!canEdit('ajustes')}>
-                  {balanceUsd > 0 ? formatUsd(balanceUsd) : 'Registrar saldo'}
+                  {declaredBs !== undefined ? formatBs(declaredBs) : 'Registrar'}
                 </button>
               )}
             </dd>
           </div>
-          <div><dt>{coverage >= 0 ? 'Te sobra' : 'Te falta'}</dt><dd className={coverage < 0 ? 'text-danger' : 'text-ok'}>{formatUsd(Math.abs(coverage))}</dd></div>
+          <div className="dash-cash-total">
+            <dt>{coverage >= 0 ? 'Te queda libre' : 'Te falta'}</dt>
+            <dd className={coverage < 0 ? 'text-danger' : 'text-ok'}>{formatUsd(Math.abs(coverage))}</dd>
+          </div>
         </dl>
       </section>
 
