@@ -437,6 +437,8 @@ function PriceModal({ item, rate, onClose, onEdit }: { item: ShoppingItem; rate:
   const confirm = useConfirm();
   const [currency, setCurrency] = useState<'VES' | 'USD'>('VES');
   const [value, setValue] = useState(item.actualBs !== undefined ? String(item.actualBs) : '');
+  // El producto del anaquel a veces no es el que anotaste: aquí se corrige el nombre.
+  const [name, setName] = useState(item.name);
   const [saving, setSaving] = useState(false);
 
   const n = Number(value) || 0;
@@ -455,6 +457,7 @@ function PriceModal({ item, rate, onClose, onEdit }: { item: ShoppingItem; rate:
     if (n <= 0) return;
     setSaving(true);
     await update<ShoppingItem>('shopping', item.id, {
+      name: name.trim() || item.name,
       actualUsd: round2(unitUsd), actualBs: round2(unitBs), checked: true,
     });
     setSaving(false);
@@ -471,6 +474,13 @@ function PriceModal({ item, rate, onClose, onEdit }: { item: ShoppingItem; rate:
   return (
     <Modal title={item.name} open onClose={onClose} confirmOnClose={false}>
       <div className="stack">
+        <label className="field">
+          <span className="field-label">Producto</span>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)}
+            placeholder="Nombre del producto" aria-label="Nombre del producto" />
+          {name.trim() !== item.name && <span className="field-hint">Se guardará como «{name.trim() || item.name}».</span>}
+        </label>
+
         <dl className="kv">
           <div><dt>Cantidad</dt><dd className="num">{item.quantity} {item.unit}</dd></div>
           <div><dt>Precio estimado</dt><dd className="num">{formatUsd(item.estimatedUsd)} · {formatBs(toBs(item.estimatedUsd, rate))}</dd></div>
