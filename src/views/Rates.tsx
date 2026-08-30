@@ -43,7 +43,7 @@ export default function Rates() {
       return <span className={`tag ${change > 0 ? 'danger' : 'ok'}`}>{change > 0 ? '+' : ''}{formatPct(change)}</span>;
     } },
     { key: 'source', header: 'Fuente', width: '100px', hideOnMobile: true, render: (r) => <span className="tag">{r.source}</span> },
-    { key: 'rate', header: 'Bs por $', align: 'end', width: '130px', render: (r) => <span className="strong num text-bs">{formatBs(r.rate)}</span> },
+    { key: 'rate', header: 'Bs por $', align: 'end', width: '130px', amount: true, render: (r) => <span className="strong num text-bs">{formatBs(r.rate)}</span> },
   ];
 
   const submit = async (e: FormEvent) => {

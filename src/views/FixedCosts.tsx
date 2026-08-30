@@ -67,7 +67,7 @@ export default function FixedCosts() {
     { key: 'description', header: 'Concepto', primary: true, render: (f) => <span className="truncate">{f.description}</span> },
     { key: 'status', header: 'Estado', width: '130px', render: (f) => <span className={`tag ${STATUS_TAG[f.status]}`}>{STATUS_LABEL[f.status]}</span> },
     { key: 'reference', header: 'Referencia', width: '130px', hideOnMobile: true, render: (f) => <span className="muted truncate">{f.reference ?? '—'}</span> },
-    { key: 'amount', header: 'Monto', align: 'end', width: '130px', render: (f) => {
+    { key: 'amount', header: 'Monto', align: 'end', width: '130px', amount: true, render: (f) => {
       const late = f.lateAmountUsd !== undefined && f.lateAfterDay !== undefined && f.status !== 'pagada' && Number(today.slice(8, 10)) > f.lateAfterDay;
       return (
         <span className="fixed-amount">

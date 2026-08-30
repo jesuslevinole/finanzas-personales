@@ -66,8 +66,13 @@
 }
 
 @media (max-width: 767px) {
-  .shop-head-actions { width: 100%; }
-  .shop-head-actions .btn { flex: 1; }
+  .shop-head-actions { width: 100%; gap: var(--space-2); }
+  .shop-head-actions .btn { flex: 1; min-width: 0; }
+  .shop-folder { border-radius: var(--radius); }
+  .shop-budget { position: sticky; top: 60px; z-index: 12; border-radius: var(--radius); }
+  .shop-finish { position: sticky; bottom: calc(var(--bottomnav-h) + var(--space-2)); z-index: 12; box-shadow: var(--shadow-lg); }
+  .shop-modal-tools .btn { flex: 1; }
+  .shop-two-lines { align-items: flex-end; }
 }
 
 .shop-finish { min-height: 52px; font-size: var(--text-md); }

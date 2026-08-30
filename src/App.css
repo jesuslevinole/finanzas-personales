@@ -20,12 +20,13 @@
 .shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 .shell-content {
-  width: 100%;
+  width: 100%; min-width: 0;
   max-width: var(--content-max);
   margin: 0 auto;
-  padding: var(--space-4);
+  padding: var(--space-3);
   padding-bottom: calc(var(--bottomnav-h) + var(--space-6));
 }
+@media (min-width: 768px) { .shell-content { padding: var(--space-4); } }
 
 /* ---- Marca ---- */
 .brand { display: flex; align-items: center; gap: var(--space-3); color: #fff; min-width: 0; }
@@ -62,12 +63,13 @@
 /* ---- Barra superior ---- */
 .topbar {
   position: sticky; top: 0; z-index: 15;
-  display: flex; align-items: center; gap: var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  min-height: 56px;
+  min-height: 56px; min-width: 0;
   background: var(--color-surface); border-bottom: 1px solid var(--color-border);
   padding-top: calc(var(--space-2) + env(safe-area-inset-top));
 }
+.topbar > * { min-width: 0; }
 .topbar-title { font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; margin: 0; flex: none; }
 .topbar > .rate-banner { margin-left: auto; }
 
@@ -85,10 +87,11 @@
   font-size: 11px; font-weight: 600; color: var(--color-muted); padding: 0 2px; min-width: 0;
 }
 .bottomnav-link svg { width: 24px; height: 24px; }
-.bottomnav-link.active { position: relative; }
-.bottomnav-link.active::before {
-  content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 3px;
-  background: var(--color-primary); border-radius: 0 0 3px 3px;
+.bottomnav-link.active { color: var(--color-primary); }
+.bottomnav-link.active svg {
+  background: var(--color-primary-soft);
+  border-radius: 999px; padding: 4px 14px;
+  width: 46px; height: 30px;
 }
 .bottomnav-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bottomnav-link.active { color: var(--color-primary); }

@@ -27,4 +27,15 @@
   .cat-actions { grid-column: auto; }
 }
 
-@media (max-width: 767px) { .cat-row { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: var(--space-2); } .cat-select, .cat-pct { grid-column: 2 / -1; } }
+@media (max-width: 767px) {
+  .cat-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: var(--space-2);
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
+    border: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border);
+    border-radius: var(--radius); background: var(--color-surface);
+  }
+  .cat-select, .cat-pct { grid-column: 2 / -1; width: 100%; }
+  .tabs-scroll { padding: 2px; }
+}

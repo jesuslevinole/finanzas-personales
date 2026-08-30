@@ -110,7 +110,7 @@ export default function Movements() {
     ) },
     { key: 'place', header: 'Lugar', width: '150px', hideOnMobile: true, render: (e) => <span className="truncate muted">{getRelationName(data.places, e.placeId, '—')}</span> },
     { key: 'bs', header: 'Bs', align: 'end', width: '130px', hideOnMobile: true, render: (e) => <span className="text-bs">{formatBs(e.totalBs)}</span> },
-    { key: 'usd', header: 'USD', align: 'end', width: '100px', render: (e) => <span className="text-usd strong">{formatUsd(e.totalUsd)}</span> },
+    { key: 'usd', header: 'USD', align: 'end', width: '100px', amount: true, render: (e) => <span className="text-usd strong">{formatUsd(e.totalUsd)}</span> },
   ];
 
   const incomeColumns: Column<Income>[] = [
@@ -123,7 +123,7 @@ export default function Movements() {
     { key: 'owner', header: 'Dinero', width: '110px', hideOnMobile: true, render: (i) => <span className={`tag ${i.owner === 'propio' ? 'ok' : ''}`}>{i.owner}</span> },
     { key: 'note', header: 'Nota', hideOnMobile: true, render: (i) => <span className="truncate muted">{i.note ?? '—'}</span> },
     { key: 'bs', header: 'Bs', align: 'end', width: '130px', hideOnMobile: true, render: (i) => <span className="text-bs">{formatBs(i.amountBs)}</span> },
-    { key: 'usd', header: 'USD', align: 'end', width: '100px', render: (i) => <span className="text-usd strong">{formatUsd(i.amountUsd)}</span> },
+    { key: 'usd', header: 'USD', align: 'end', width: '100px', amount: true, render: (i) => <span className="text-usd strong">{formatUsd(i.amountUsd)}</span> },
   ];
 
   const detailIsExpense = detail !== null && 'product' in detail;

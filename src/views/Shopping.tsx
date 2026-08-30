@@ -242,7 +242,7 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
         <span className="tiny text-bs num">{formatBs(toBs(i.estimatedUsd * i.quantity, rate))}</span>
       </span>
     ) },
-    { key: 'real', header: 'Pagado', align: 'end', width: '140px', render: (i) => (
+    { key: 'real', header: 'Pagado', align: 'end', width: '140px', amount: true, render: (i) => (
       i.actualUsd !== undefined ? (
         <span className="shop-two-lines">
           <span className="strong text-usd num">{formatUsd(i.actualUsd * i.quantity)}</span>

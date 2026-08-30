@@ -27,10 +27,10 @@
 .dt-actions .btn { opacity: 0.55; }
 .dt-tr:hover .dt-actions .btn { opacity: 1; }
 
-/* ---- Móvil: cada fila se convierte en tarjeta etiquetada ----
-   Tres columnas: elemento de la izquierda (checkbox), contenido y acciones.
-   Cada celda ocupa su propia línea con la etiqueta a la izquierda y el valor a
-   la derecha, así nada se superpone por muchas columnas que tenga la tabla. */
+/* ---- Móvil: cada fila es una tarjeta tipo «movimiento» ----
+   Estructura: [ícono] Título ............ Monto
+                       etiqueta · valor
+   Nada se superpone porque cada zona tiene su celda propia en la grilla. */
 @media (max-width: 767px) {
   .dt-table, .dt-table tbody, .dt-tr, .dt-td { display: block; width: 100%; }
   .dt-table thead { display: none; }
@@ -38,47 +38,56 @@
   .dt-tr {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 4px var(--space-3);
-    padding: var(--space-4) 0;
-    border-bottom: 1px solid var(--color-border);
+    align-items: center;
+    column-gap: var(--space-3);
+    row-gap: 2px;
+    padding: var(--space-3);
+    margin-bottom: var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
   }
-  .dt-tr.clickable:active { background: var(--color-surface-2); }
+  .dt-tr:last-child { margin-bottom: 0; }
+  .dt-tr.clickable:active { background: var(--color-surface-2); transform: scale(0.995); }
+  .dt-tr.muted-row { opacity: 0.6; }
+  .dt-tr.danger-row { border-left: 3px solid var(--color-danger); }
+  .dt-tr.warn-row { border-left: 3px solid var(--color-warn); }
 
-  .dt-td {
-    grid-column: 2;
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: var(--space-3); padding: 0; min-width: 0;
-    font-size: var(--text-sm);
-  }
-  .dt-td > * { min-width: 0; }
-
-  /* Etiqueta de la columna delante del valor */
-  .dt-td:not(.primary):not(.leading)::before {
-    content: attr(data-label);
-    flex: none;
-    font-size: var(--text-xs); color: var(--color-muted);
-  }
-  .dt-td:not(.primary):not(.leading) { justify-content: space-between; }
-
-  /* Nombre del registro: primera línea, sin etiqueta */
+  /* Título: primera línea, en negrita y recortado */
   .dt-td.primary {
-    grid-row: 1;
+    grid-column: 2; grid-row: 1;
+    font-size: var(--text-md); font-weight: 700; line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Monto principal: a la derecha del título */
+  .dt-td.amount {
+    grid-column: 3; grid-row: 1;
+    text-align: right; white-space: nowrap;
     font-size: var(--text-md); font-weight: 700;
-    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    margin-bottom: 2px;
+    font-variant-numeric: tabular-nums;
   }
 
-  /* Checkbox o ícono: a la izquierda, en la misma línea que el nombre.
-     Ojo: NO usar `grid-row: 1 / span N` — genera N filas implícitas vacías y
-     la tarjeta crece con un hueco enorme. Solo la fila 1. */
+  /* Ícono o marca de estado: columna izquierda, centrado en la tarjeta */
   .dt-td.leading {
-    grid-column: 1; grid-row: 1;
-    align-self: center; justify-content: flex-start;
+    grid-column: 1; grid-row: 1 / span 2;
+    display: flex; align-items: center;
   }
-  .dt-td.leading::before { content: none; }
 
-  .dt-actions { grid-column: 3; grid-row: 1; align-self: center; justify-content: flex-end; }
-  .dt-actions .btn { opacity: 1; }
+  /* Resto de datos: líneas compactas debajo del título */
+  .dt-td:not(.primary):not(.leading):not(.amount) {
+    grid-column: 2 / -1;
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: var(--space-2); min-width: 0;
+    font-size: var(--text-sm); color: var(--color-text);
+  }
+  .dt-td:not(.primary):not(.leading):not(.amount)::before {
+    content: attr(data-label);
+    flex: none; font-size: var(--text-xs); color: var(--color-muted);
+  }
+  .dt-td > * { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
   .dt-td.hide-sm { display: none; }
+  .dt-actions { grid-column: 3; grid-row: 2; justify-self: end; }
+  .dt-actions .btn { opacity: 1; }
 }

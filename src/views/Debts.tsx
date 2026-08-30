@@ -92,7 +92,7 @@ export default function Debts() {
       if (days === 0) return <span className="tag warn">Hoy</span>;
       return <span className="tag">{days} d</span>;
     } },
-    { key: 'amount', header: 'Monto', align: 'end', width: '110px', render: (d) => <span className="strong num">{formatUsd(d.amountUsd)}</span> },
+    { key: 'amount', header: 'Monto', align: 'end', width: '110px', amount: true, render: (d) => <span className="strong num">{formatUsd(d.amountUsd)}</span> },
   ];
 
   return (

@@ -30,3 +30,12 @@
 .stat.warn .stat-icon { background: var(--color-warn); }
 .stat.danger .stat-icon { background: var(--color-danger); }
 .stat.ok .stat-icon { background: var(--color-ok); }
+
+@media (max-width: 767px) {
+  .stat { gap: 2px; }
+  .stat-icon { width: 30px; height: 30px; border-radius: 10px; margin-bottom: 4px; }
+  .stat-icon svg { width: 15px; height: 15px; }
+  .stat-label { font-size: 10px; letter-spacing: 0.03em; }
+  .stat-value { font-size: clamp(0.95rem, 4.6vw, 1.25rem); }
+  .stat-hint { font-size: 10px; line-height: 1.3; }
+}

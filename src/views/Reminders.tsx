@@ -44,7 +44,7 @@ export default function Reminders() {
     { key: 'date', header: 'Vence', width: '120px', render: (i) => (
       <span className={i.overdue ? 'text-danger strong' : ''}>{i.kind === 'compra' ? 'Cuando compres' : shortDate(i.date)}</span>
     ) },
-    { key: 'amount', header: 'Monto', align: 'end', width: '110px', render: (i) => <span className="strong num">{formatUsd(i.amountUsd)}</span> },
+    { key: 'amount', header: 'Monto', align: 'end', width: '110px', amount: true, render: (i) => <span className="strong num">{formatUsd(i.amountUsd)}</span> },
   ];
 
   const actions = canEdit('deudas')

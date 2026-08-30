@@ -29,7 +29,10 @@
 .rep-note { margin-top: var(--space-2); }
 
 @media (max-width: 767px) {
-  .rep-health-score { flex-direction: row; justify-content: space-between; align-items: center; }
+  .rep-health { gap: var(--space-3); }
+  .rep-health-score { flex-direction: row; justify-content: space-between; align-items: center; border-radius: var(--radius); }
+  .rep-health-parts { grid-template-columns: 1fr; }
+  .rep-advice-item { border-radius: var(--radius); }
   .bc-row { grid-template-columns: minmax(64px, 1fr) minmax(0, 2fr) auto; font-size: var(--text-xs); }
   .bc-value { min-width: 56px; }
   .rep-capacity-meter { padding: var(--space-3); }

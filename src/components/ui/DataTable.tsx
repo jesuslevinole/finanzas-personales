@@ -15,6 +15,8 @@ export interface Column<T> {
   primary?: boolean;
   /** Elemento de la izquierda (checkbox, ícono): en móvil queda fijo a la izquierda. */
   leading?: boolean;
+  /** Columna de dinero principal: en móvil se muestra a la derecha del título. */
+  amount?: boolean;
 }
 
 interface Props<T extends { id: string }> {
@@ -54,7 +56,7 @@ export default function DataTable<T extends { id: string }>({ rows, columns, onR
               onKeyDown={onRowClick ? (e) => { if (e.key === 'Enter') onRowClick(row); } : undefined}>
               {columns.map((c) => (
                 <td key={c.key}
-                  className={`dt-td${c.align === 'end' ? ' end' : ''}${c.hideOnMobile ? ' hide-sm' : ''}${c.primary ? ' primary' : ''}${c.leading ? ' leading' : ''}`}
+                  className={`dt-td${c.align === 'end' ? ' end' : ''}${c.hideOnMobile ? ' hide-sm' : ''}${c.primary ? ' primary' : ''}${c.leading ? ' leading' : ''}${c.amount ? ' amount' : ''}`}
                   data-label={c.header}>
                   {c.render(row)}
                 </td>

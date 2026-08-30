@@ -87,7 +87,7 @@ export default function Inventory() {
       const c = changeOf(i);
       return c === null ? <span className="muted tiny">1 compra</span> : <span className={`tag ${c > 0 ? 'danger' : 'ok'}`}>{c > 0 ? '+' : ''}{formatPct(c)}</span>;
     } },
-    { key: 'price', header: 'Último precio', align: 'end', width: '130px', render: (i) => <span className="strong num text-usd">{formatUsd(i.lastPriceUsd)}</span> },
+    { key: 'price', header: 'Último precio', align: 'end', width: '130px', amount: true, render: (i) => <span className="strong num text-usd">{formatUsd(i.lastPriceUsd)}</span> },
   ];
 
   return (

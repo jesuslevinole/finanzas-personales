@@ -47,11 +47,11 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
-  --radius-sm: 8px;
-  --radius: 14px;
-  --radius-lg: 20px;
-  --shadow: 0 1px 2px rgb(20 18 43 / 0.05), 0 8px 24px -12px rgb(20 18 43 / 0.12);
-  --shadow-lg: 0 24px 48px -16px rgb(20 18 43 / 0.25);
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --shadow: 0 1px 2px rgb(20 18 43 / 0.04), 0 10px 30px -18px rgb(20 18 43 / 0.22);
+  --shadow-lg: 0 24px 48px -16px rgb(20 18 43 / 0.28);
 
   /* Layout */
   --sidebar-w: 240px;
@@ -290,9 +290,20 @@ textarea.input { min-height: 80px; padding: var(--space-2) var(--space-3); resiz
 }
 
 /* ---------- Página ---------- */
-.page { display: flex; flex-direction: column; gap: var(--space-4); }
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.page { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; min-width: 0; }
 .page-subtitle { color: var(--color-muted); font-size: var(--text-sm); }
+
+/* Ícono en pastilla, como en las listas de movimientos de las apps de banco */
+.chip-icon {
+  display: grid; place-items: center; flex: none;
+  width: 40px; height: 40px; border-radius: 12px;
+  background: var(--color-primary-soft); color: var(--color-primary);
+}
+.chip-icon.usd { background: var(--color-usd-soft); color: var(--color-usd); }
+.chip-icon.bs { background: var(--color-bs-soft); color: var(--color-bs); }
+.chip-icon.warn { background: var(--color-warn-soft); color: var(--color-warn); }
+.chip-icon.danger { background: var(--color-danger-soft); color: var(--color-danger); }
 
 /* ---------- Estado vacío ---------- */
 .guard { display: flex; align-items: flex-start; gap: var(--space-3); }
@@ -313,16 +324,30 @@ textarea.input { min-height: 80px; padding: var(--space-2) var(--space-3); resiz
 /* ---------- Utilidades móviles ---------- */
 .hide-mobile { display: initial; }
 .only-mobile { display: none; }
+/* ============================================================
+   TELÉFONO — reglas de diseño uniformes para todos los dispositivos.
+   Todo lo táctil mide al menos 48px, las tarjetas comparten radio y
+   sombra, y ningún elemento puede desbordar su contenedor.
+   ============================================================ */
 @media (max-width: 767px) {
   .hide-mobile { display: none; }
   .only-mobile { display: initial; }
+
+  /* Nada se sale de su caja */
+  .card, .stat, .kpi, .page > *, .grid > * { max-width: 100%; min-width: 0; }
+  .truncate, .dt-td.primary, .record-title { max-width: 100%; }
+  pre, code, table { max-width: 100%; overflow-x: auto; }
   .form-grid { grid-template-columns: 1fr 1fr; }
   .form-actions .btn { flex: 1; }
-  .grid-3, .grid-4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--card-min)), 1fr)); }
-  .stat { padding: var(--space-3); }
+  /* Las tarjetas de cifras van siempre de dos en dos: mismo aspecto en
+     cualquier teléfono, sin importar si mide 360 o 430px. */
+  .grid-3, .grid-4, .kpis { grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .stat { padding: var(--space-3); border-radius: var(--radius); }
+  .card { border-radius: var(--radius); }
   .page-header h1 { font-size: var(--text-lg); }
   .page-header { gap: var(--space-2); }
-  .month-picker { width: 100%; justify-content: space-between; }
+  .month-picker { width: 100%; justify-content: space-between; border-radius: 999px; }
   .month-picker-label { min-width: 0; flex: 1; }
   .card-header { flex-wrap: wrap; }
   .kv > div { gap: var(--space-2); }
@@ -342,6 +367,15 @@ textarea.input { min-height: 80px; padding: var(--space-2) var(--space-3); resiz
   .tabs { width: 100%; }
   .tab { flex: 1; justify-content: center; }
   .row-between.wrap > .btn { width: 100%; }
+  .page-header { flex-direction: column; align-items: stretch; }
+  .page-header > .row { align-items: center; }
+  .page-header .btn { width: 100%; }
+  .card-header { gap: var(--space-2); }
+  .card-header .card-title { font-size: var(--text-md); }
+  .field-label { font-size: 10px; }
+  .tag { padding: 3px 10px; }
+  /* Los valores largos nunca empujan la fila */
+  .kv dd, .record-amount, .num { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 }
 
 /* Pantallas angostas (360px y menos): una sola columna en todo */

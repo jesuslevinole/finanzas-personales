@@ -92,3 +92,20 @@
 }
 .dash-fixed-hint { margin: var(--space-2) 0; }
 .text-warn { color: var(--color-warn); }
+
+@media (max-width: 767px) {
+  .hero { padding: var(--space-4); border-radius: var(--radius-lg); gap: var(--space-3); }
+  .hero-value { font-size: clamp(1.5rem, 8vw, 2.1rem); }
+  .hero-stats { grid-template-columns: 1fr 1fr; gap: var(--space-2) var(--space-3); }
+  .hero-stats dd { font-size: var(--text-sm); }
+  .kpi { padding: var(--space-3); gap: 2px; }
+  .kpi-icon { width: 28px; height: 28px; border-radius: 9px; }
+  .kpi-icon svg { width: 14px; height: 14px; }
+  .kpi-label { font-size: 10px; }
+  .kpi-value { font-size: clamp(0.95rem, 4.6vw, 1.25rem); }
+  .kpi-hint { font-size: 10px; margin-bottom: var(--space-1); }
+  .dash-advice-item { padding: var(--space-3); border-radius: var(--radius); }
+  .dash-list-item { padding: var(--space-2) 0; }
+  .dash-legend-item { font-size: var(--text-sm); }
+  .dash-legend-share { display: none; }
+}
