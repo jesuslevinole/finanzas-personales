@@ -28,3 +28,5 @@
 .users-form { display: grid; gap: var(--space-2); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--color-border); }
 @media (min-width: 768px) { .users-form { grid-auto-flow: column; grid-auto-columns: 1fr; align-items: center; } .users-form .btn { width: auto; } }
 .users-note { margin-top: var(--space-3); }
+
+@media (max-width: 767px) { .users-levels { width: 100%; grid-template-columns: 1fr 1fr 1fr; } .users-level { padding: 8px 4px; font-size: 10px; } }

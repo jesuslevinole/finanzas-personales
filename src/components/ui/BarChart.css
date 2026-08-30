@@ -20,3 +20,9 @@
 .bc-vbar { width: 60%; height: var(--bar-h); background: var(--bar-color); border-radius: 6px 6px 0 0; min-height: 2px; }
 .bc-vbar.compare { background: var(--color-border); width: 26%; }
 .bc-vlabel { font-size: var(--text-xs); color: var(--color-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 767px) {
+  .bc-vertical { min-height: 150px; gap: 4px; }
+  .bc-vvalue { font-size: 10px; }
+  .bc-vlabel { font-size: 10px; }
+}

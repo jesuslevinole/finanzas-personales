@@ -69,14 +69,16 @@
     margin-bottom: 2px;
   }
 
-  /* Checkbox o ícono: columna propia a la izquierda, centrado en la tarjeta */
+  /* Checkbox o ícono: a la izquierda, en la misma línea que el nombre.
+     Ojo: NO usar `grid-row: 1 / span N` — genera N filas implícitas vacías y
+     la tarjeta crece con un hueco enorme. Solo la fila 1. */
   .dt-td.leading {
-    grid-column: 1; grid-row: 1 / span 99;
+    grid-column: 1; grid-row: 1;
     align-self: center; justify-content: flex-start;
   }
   .dt-td.leading::before { content: none; }
 
-  .dt-actions { grid-column: 3; grid-row: 1 / span 99; align-self: center; justify-content: flex-end; }
+  .dt-actions { grid-column: 3; grid-row: 1; align-self: center; justify-content: flex-end; }
   .dt-actions .btn { opacity: 1; }
   .dt-td.hide-sm { display: none; }
 }

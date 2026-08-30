@@ -26,3 +26,5 @@
   .cat-usage { grid-column: auto; text-align: right; min-width: 64px; }
   .cat-actions { grid-column: auto; }
 }
+
+@media (max-width: 767px) { .cat-row { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: var(--space-2); } .cat-select, .cat-pct { grid-column: 2 / -1; } }

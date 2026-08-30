@@ -26,3 +26,5 @@
 .import-tips li::before { content: '·'; position: absolute; left: var(--space-2); font-weight: 800; color: var(--color-primary); }
 
 .import-wipe-text { margin: var(--space-2) 0 var(--space-3); }
+
+@media (max-width: 767px) { .import-summary { grid-template-columns: 1fr; gap: var(--space-1); } .import-summary > div { display: flex; justify-content: space-between; } .import-drop { padding: var(--space-5) var(--space-3); } }

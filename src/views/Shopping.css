@@ -54,3 +54,11 @@
     box-shadow: var(--shadow);
   }
 }
+
+@media (max-width: 767px) {
+  .shop-folder-open { padding: var(--space-3); }
+  .shop-loose-item { grid-template-columns: minmax(0, 1fr) auto; row-gap: var(--space-1); }
+  .shop-move { width: 100%; }
+  .shop-price-modal { flex-direction: row; }
+  .shop-price-big { min-height: 60px; font-size: 1.6rem; }
+}
