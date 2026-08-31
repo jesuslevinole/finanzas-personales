@@ -24,6 +24,7 @@ export type CollectionName =
   | 'places'
   | 'creditors'
   | 'incomeSources'
+  | 'products'
   | 'incomes'
   | 'expenses'
   | 'fixedCosts'

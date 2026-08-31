@@ -7,20 +7,21 @@ import EmptyState from '../components/ui/EmptyState';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import DetailSheet from '../components/ui/DetailSheet';
 import Modal from '../components/ui/Modal';
-import type { BudgetGroup, CatalogItem, Category, Creditor, IncomeSource, Place } from '../types';
+import type { BudgetGroup, CatalogItem, Category, Creditor, IncomeSource, Place, Product } from '../types';
 import type { CollectionName } from '../services/firestore';
 import { CATALOG_COLORS, colorForIndex } from '../utils/relations';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import { GROUP_LABEL } from '../utils/finance';
 import './Catalogs.css';
 
-type CatalogKey = 'categories' | 'places' | 'creditors' | 'incomeSources';
+type CatalogKey = 'categories' | 'places' | 'creditors' | 'incomeSources' | 'products';
 
 const TABS: { key: CatalogKey; label: string; hint: string }[] = [
   { key: 'categories', label: 'Rubros', hint: 'Clasifican cada gasto y alimentan el presupuesto.' },
   { key: 'places', label: 'Lugares', hint: 'Comercios y servicios donde compras.' },
   { key: 'creditors', label: 'Acreedores', hint: 'Quién te financia: Cashea, Ubii, tiendas a cuotas.' },
   { key: 'incomeSources', label: 'Orígenes de ingreso', hint: 'Clientes, alquileres, Binance…' },
+  { key: 'products', label: 'Productos', hint: 'Lo que compras: alimenta gastos, inventario y lista de compras.' },
 ];
 
 export default function Catalogs() {
@@ -41,6 +42,7 @@ export default function Catalogs() {
     if (tab === 'categories') return data.expenses.filter((e) => e.categoryId === id).length;
     if (tab === 'places') return data.expenses.filter((e) => e.placeId === id).length;
     if (tab === 'creditors') return data.debts.filter((d) => d.creditorId === id).length;
+    if (tab === 'products') return data.expenses.filter((e) => e.productId === id).length;
     return data.incomes.filter((i) => i.sourceId === id).length;
   };
 
@@ -157,8 +159,8 @@ function CatalogForm({ tab, count, item, onDone }: { tab: CatalogKey; count: num
       else await add<Category>('categories', payload);
     } else {
       const payload = { name: name.trim(), color, active: item?.active !== false };
-      if (item) await update<Place | Creditor | IncomeSource>(tab, item.id, payload);
-      else await add<Place | Creditor | IncomeSource>(tab, payload);
+      if (item) await update<Place | Creditor | IncomeSource | Product>(tab, item.id, payload);
+      else await add<Place | Creditor | IncomeSource | Product>(tab, payload);
     }
     onDone();
   };

@@ -11,6 +11,9 @@ import EmptyState from '../components/ui/EmptyState';
 import StatCard from '../components/ui/StatCard';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import DetailSheet from '../components/ui/DetailSheet';
+import FilterBar from '../components/ui/FilterBar';
+import DateRange from '../components/ui/DateRange';
+import { EMPTY_RANGE, inRange, rangeActive, type Range } from '../utils/range';
 import ProgressBar from '../components/ui/ProgressBar';
 import type { FixedCost, NewDoc, PayStatus } from '../types';
 import { cycleOf, fixedCostDate, inCycle } from '../utils/cycle';
@@ -35,9 +38,14 @@ export default function FixedCosts() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<FixedCost | null>(null);
   const [detail, setDetail] = useState<FixedCost | null>(null);
+  const [range, setRange] = useState<Range>(EMPTY_RANGE);
 
   const seq = useMemo(() => sequenceMap(data.fixedCosts, (f) => `${f.month}-${String(f.dueDay).padStart(2, '0')}`), [data.fixedCosts]);
-  const all = useMemo(() => sortBySeqDesc(monthFixed, seq), [monthFixed, seq]);
+  // Con rango activo se ignora el mes y se buscan los costos de todo el histórico.
+  const scope = rangeActive(range)
+    ? data.fixedCosts.filter((f) => inRange(fixedCostDate(f.month, f.dueDay), range))
+    : monthFixed;
+  const all = useMemo(() => sortBySeqDesc(scope, seq), [scope, seq]);
   const pending = all.filter((f) => f.status !== 'pagada');
   const paid = all.filter((f) => f.status === 'pagada');
   const rows = tab === 'pendiente' ? pending : paid;
@@ -99,6 +107,10 @@ export default function FixedCosts() {
           value={<span className="num">{formatUsd(paidUsd)}</span>}
           hint={<ProgressBar ratio={all.length ? paid.length / all.length : 0} color="var(--color-ok)" />} />
       </div>
+
+      <FilterBar activeCount={[range.from, range.to].filter(Boolean).length} onClear={() => setRange(EMPTY_RANGE)}>
+        <DateRange value={range} onChange={setRange} label="Fecha de pago entre" />
+      </FilterBar>
 
       <div className="row-between wrap">
         <div className="tabs" role="tablist">

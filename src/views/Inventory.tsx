@@ -10,9 +10,11 @@ import EmptyState from '../components/ui/EmptyState';
 import Sparkline from '../components/ui/Sparkline';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import FilterBar from '../components/ui/FilterBar';
+import DateRange from '../components/ui/DateRange';
+import { EMPTY_RANGE, inRange, rangeActive, type Range } from '../utils/range';
 import DetailSheet from '../components/ui/DetailSheet';
 import StatCard from '../components/ui/StatCard';
-import type { Category, InventoryItem, NewDoc, ShoppingItem, StockUnit } from '../types';
+import type { Category, InventoryItem, NewDoc, Product, ShoppingItem, StockUnit } from '../types';
 import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
 import Money from '../components/ui/Money';
@@ -31,6 +33,7 @@ export default function Inventory() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
+  const [range, setRange] = useState<Range>(EMPTY_RANGE);
   const [detail, setDetail] = useState<InventoryItem | null>(null);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 
@@ -40,12 +43,13 @@ export default function Inventory() {
     const q = search.trim().toLowerCase();
     return sortBySeqDesc(inventory, seq).filter((i) => (!q || i.name.toLowerCase().includes(q))
       && (!categoryFilter || i.categoryId === categoryFilter)
-      && (!onlyLow || i.quantity <= i.minQuantity));
-  }, [inventory, seq, search, categoryFilter, onlyLow]);
+      && (!onlyLow || i.quantity <= i.minQuantity)
+      && (!rangeActive(range) || (i.lastPurchaseDate !== undefined && inRange(i.lastPurchaseDate, range))));
+  }, [inventory, seq, search, categoryFilter, onlyLow, range]);
 
   const lowCount = inventory.filter((i) => i.quantity <= i.minQuantity).length;
   const stockValueUsd = sum(items.map((i) => i.quantity * i.lastPriceUsd));
-  const activeCount = [search, categoryFilter, onlyLow ? 'x' : ''].filter(Boolean).length;
+  const activeCount = [search, categoryFilter, onlyLow ? 'x' : '', range.from, range.to].filter(Boolean).length;
 
   const adjust = (item: InventoryItem, delta: number) =>
     update<InventoryItem>('inventory', item.id, { quantity: Math.max(0, item.quantity + delta) });
@@ -107,7 +111,8 @@ export default function Inventory() {
           hint="A precio de última compra" />
       </div>
 
-      <FilterBar activeCount={activeCount} onClear={() => { setSearch(''); setCategoryFilter(''); setOnlyLow(false); }}>
+      <FilterBar activeCount={activeCount} onClear={() => { setSearch(''); setCategoryFilter(''); setOnlyLow(false); setRange(EMPTY_RANGE); }}>
+        <DateRange value={range} onChange={setRange} label="Última compra entre" />
         <label className="field filterbar-wide"><span className="field-label">Buscar</span>
           <input className="input" placeholder="Nombre del producto…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>
@@ -161,14 +166,16 @@ export default function Inventory() {
       )}
 
       <Modal title="Nuevo producto" open={open} onClose={() => setOpen(false)}>
-        <InventoryForm categories={categories} currentRate={currentRate}
+        <InventoryForm categories={categories} products={data.products} currentRate={currentRate}
           onCreateCategory={(name) => data.add<Category>('categories', { name, color: colorForIndex(categories.length), active: true, group: 'necesidad' })}
+          onCreateProduct={(name) => data.add<Product>('products', { name, color: colorForIndex(data.products.length), active: true })}
           onSubmit={async (d) => { await add<InventoryItem>('inventory', d); setOpen(false); }} />
       </Modal>
       <Modal title="Editar producto" open={editingItem !== null} onClose={() => setEditingItem(null)}>
         {editingItem && (
-          <InventoryForm categories={categories} currentRate={currentRate} item={editingItem}
+          <InventoryForm categories={categories} products={data.products} currentRate={currentRate} item={editingItem}
             onCreateCategory={(name) => data.add<Category>('categories', { name, color: colorForIndex(categories.length), active: true, group: 'necesidad' })}
+            onCreateProduct={(name) => data.add<Product>('products', { name, color: colorForIndex(data.products.length), active: true })}
             onSubmit={async (d) => { await update<InventoryItem>('inventory', editingItem.id, d); setEditingItem(null); }} />
         )}
       </Modal>
@@ -178,28 +185,32 @@ export default function Inventory() {
 
 interface InventoryFormProps {
   categories: Category[];
+  products: Product[];
   currentRate: number;
   /** Si viene, el formulario edita ese producto. */
   item?: InventoryItem;
   onCreateCategory: (name: string) => Promise<string>;
+  onCreateProduct: (name: string) => Promise<string>;
   onSubmit: (d: NewDoc<InventoryItem>) => Promise<void>;
 }
 
-function InventoryForm({ categories, currentRate, item, onCreateCategory, onSubmit }: InventoryFormProps) {
-  const [name, setName] = useState(item?.name ?? '');
+function InventoryForm({ categories, products, currentRate, item, onCreateCategory, onCreateProduct, onSubmit }: InventoryFormProps) {
+  const [productId, setProductId] = useState(item?.productId ?? '');
   const [categoryId, setCategoryId] = useState(item?.categoryId ?? categories[0]?.id ?? '');
   const [quantity, setQuantity] = useState(String(item?.quantity ?? 1));
   const [unit, setUnit] = useState<StockUnit>(item?.unit ?? 'und');
   const [minQuantity, setMinQuantity] = useState(String(item?.minQuantity ?? 1));
   const [priceUsd, setPriceUsd] = useState(item ? String(item.lastPriceUsd) : '');
 
+  const name = getRelationName(products, productId, item?.name ?? '');
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name) return;
+    if (!productId) return;
     const usd = Number(priceUsd) || 0;
     const today = todayIso();
     await onSubmit({
-      name: name.trim(), categoryId, quantity: Number(quantity) || 0, unit, minQuantity: Number(minQuantity) || 0,
+      productId, name: name.trim(), categoryId, quantity: Number(quantity) || 0, unit, minQuantity: Number(minQuantity) || 0,
       lastPriceUsd: usd, lastPriceBs: usd * currentRate,
       lastPurchaseDate: item?.lastPurchaseDate ?? (usd > 0 ? today : undefined),
       lastPlaceId: item?.lastPlaceId,
@@ -210,7 +221,9 @@ function InventoryForm({ categories, currentRate, item, onCreateCategory, onSubm
 
   return (
     <form onSubmit={submit} className="stack">
-      <label className="field"><span className="field-label">Producto</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} required /></label>
+      <div className="field"><span className="field-label">Producto</span>
+        <CustomSelect items={products} value={productId} onChange={setProductId} onCreate={onCreateProduct} placeholder="Del catálogo de productos" />
+      </div>
       <div className="field"><span className="field-label">Rubro</span><CustomSelect items={categories} value={categoryId} onChange={setCategoryId} onCreate={onCreateCategory} /></div>
       <div className="form-grid">
         <label className="field"><span className="field-label">Cantidad</span><input className="input num" type="number" step="0.01" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>

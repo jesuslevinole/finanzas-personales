@@ -11,7 +11,7 @@ import StatCard from '../components/ui/StatCard';
 import Money from '../components/ui/Money';
 import CustomSelect from '../components/ui/CustomSelect';
 import DataTable, { type Column } from '../components/ui/DataTable';
-import type { Category, Expense, InventoryItem, PricePoint, ShoppingItem, ShoppingList, ShoppingPriority, StockUnit } from '../types';
+import type { Category, Expense, InventoryItem, PricePoint, Product, ShoppingItem, ShoppingList, ShoppingPriority, StockUnit } from '../types';
 import { UNITS } from '../utils/units';
 import { parseVoiceItem } from '../utils/voiceParse';
 import { getRelationName, colorForIndex } from '../utils/relations';
@@ -528,39 +528,49 @@ function PriceModal({ item, rate, onClose, onEdit }: { item: ShoppingItem; rate:
 /** Alta de producto por escrito o dictado. */
 function AddItemForm({ listId, rate, item, onDone }: { listId: string; rate: number; item?: ShoppingItem; onDone: () => void }) {
   const data = useData();
-  const [name, setName] = useState(item?.name ?? '');
+  const [productId, setProductId] = useState(item?.productId ?? '');
   const [quantity, setQuantity] = useState(String(item?.quantity ?? 1));
   const [unit, setUnit] = useState<StockUnit>(item?.unit ?? 'und');
   const [estimatedUsd, setEstimatedUsd] = useState(item ? String(item.estimatedUsd) : '');
   const [priority, setPriority] = useState<ShoppingPriority>(item?.priority ?? 'normal');
   const [heard, setHeard] = useState('');
 
-  const fillFrom = (name: string) => {
-    const match = data.inventory.find((i) => i.name.toLowerCase() === name.trim().toLowerCase());
+  const name = getRelationName(data.products, productId, item?.name ?? '');
+
+  /** Al elegir un producto, se precargan precio y unidad de la última compra. */
+  const pickProduct = (id: string) => {
+    setProductId(id);
+    const productName = getRelationName(data.products, id, '');
+    const match = data.inventory.find((i) => i.productId === id || i.name.toLowerCase() === productName.toLowerCase());
     if (match) { setEstimatedUsd(String(match.lastPriceUsd)); setUnit(match.unit); }
   };
 
-  const onVoice = (text: string) => {
+  const createProduct = (value: string) => data.add<Product>('products', { name: value, color: colorForIndex(data.products.length), active: true });
+
+  const onVoice = async (text: string) => {
     const parsed = parseVoiceItem(text);
     setHeard(text);
-    setName(parsed.name);
     setQuantity(String(parsed.quantity));
+    // Se busca el producto dictado en el catálogo; si no está, se crea.
+    const existing = data.products.find((p) => p.name.toLowerCase() === parsed.name.toLowerCase());
+    const id = existing ? existing.id : await createProduct(parsed.name);
     if (parsed.amount !== null) {
       const usd = parsed.currency === 'USD' ? parsed.amount : round2(toUsd(parsed.amount, rate));
+      setProductId(id);
       setEstimatedUsd(String(usd));
     } else {
-      fillFrom(parsed.name);
+      pickProduct(id);
     }
   };
 
-  const { listening, supported, toggle } = useVoiceInput(onVoice);
+  const { listening, supported, toggle } = useVoiceInput((text) => void onVoice(text));
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    const match = data.inventory.find((i) => i.name.toLowerCase() === name.trim().toLowerCase());
+    if (!productId) return;
+    const match = data.inventory.find((i) => i.productId === productId || i.name.toLowerCase() === name.toLowerCase());
     const payload = {
-      name: name.trim(), quantity: Number(quantity) || 1, unit,
+      productId, name, quantity: Number(quantity) || 1, unit,
       estimatedUsd: Number(estimatedUsd) || 0, priority,
     };
     if (item) {
@@ -569,7 +579,7 @@ function AddItemForm({ listId, rate, item, onDone }: { listId: string; rate: num
       await data.add<ShoppingItem>('shopping', {
         ...payload, listId, checked: false, inventoryItemId: match?.id, createdAt: todayIso(),
       });
-      setName(''); setQuantity('1'); setEstimatedUsd(''); setHeard('');
+      setProductId(''); setQuantity('1'); setEstimatedUsd(''); setHeard('');
     }
     onDone();
   };
@@ -577,15 +587,13 @@ function AddItemForm({ listId, rate, item, onDone }: { listId: string; rate: num
   return (
     <form className="shop-add" onSubmit={submit}>
       <div className="shop-add-main">
-        <input className="input" placeholder="Producto" value={name} list="shop-names" required
-          onChange={(e) => { setName(e.target.value); fillFrom(e.target.value); }} />
+        <CustomSelect items={data.products} value={productId} onChange={pickProduct} onCreate={createProduct} placeholder="Producto del catálogo" />
         {supported && (
           <button type="button" className={`btn btn-outline shop-mic${listening ? ' listening' : ''}`} onClick={toggle} aria-label="Dictar producto">
             <Mic size={16} /> {listening ? 'Escuchando…' : 'Dictar'}
           </button>
         )}
       </div>
-      <datalist id="shop-names">{data.inventory.map((i) => <option key={i.id} value={i.name} />)}</datalist>
       <div className="shop-add-row">
         <input className="input num" type="number" step="0.01" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} aria-label="Cantidad" />
         <select className="input" value={unit} onChange={(e) => setUnit(e.target.value as StockUnit)} aria-label="Unidad">{UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select>

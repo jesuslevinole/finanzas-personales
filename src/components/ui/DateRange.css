@@ -1,0 +1,3 @@
+.daterange-inputs { display: flex; align-items: center; gap: var(--space-2); }
+.daterange-inputs .input { flex: 1; min-width: 0; }
+.daterange-sep { flex: none; font-size: var(--text-xs); color: var(--color-muted); }

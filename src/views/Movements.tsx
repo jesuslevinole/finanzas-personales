@@ -10,6 +10,8 @@ import Money from '../components/ui/Money';
 import EmptyState from '../components/ui/EmptyState';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import FilterBar from '../components/ui/FilterBar';
+import DateRange from '../components/ui/DateRange';
+import { EMPTY_RANGE, inRange, rangeActive, type Range } from '../utils/range';
 import DetailSheet from '../components/ui/DetailSheet';
 import StatCard from '../components/ui/StatCard';
 import ExpenseForm from '../components/forms/ExpenseForm';
@@ -39,44 +41,49 @@ export default function Movements() {
   const [owner, setOwner] = useState<'' | MoneyOwner>('');
   const [incomeKind, setIncomeKind] = useState<'' | IncomeKind>('');
   const [minUsd, setMinUsd] = useState('');
+  const [range, setRange] = useState<Range>(EMPTY_RANGE);
 
   // Detalle y edición
   const [detail, setDetail] = useState<Expense | Income | null>(null);
   const [editing, setEditing] = useState<Expense | Income | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setIncomeKind(''); setMinUsd(''); };
-  const activeCount = [search, categoryId, placeId, sourceId, owner, incomeKind, minUsd].filter(Boolean).length;
+  const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setIncomeKind(''); setMinUsd(''); setRange(EMPTY_RANGE); };
+  const activeCount = [search, categoryId, placeId, sourceId, owner, incomeKind, minUsd, range.from, range.to].filter(Boolean).length;
 
-  const expenseSeqAll = useMemo(() => sequenceMap(monthExpenses, (e) => e.date), [monthExpenses]);
-  const incomeSeqAll = useMemo(() => sequenceMap(monthIncomes, (i) => i.date), [monthIncomes]);
+  // Con un rango de fechas activo se busca en todo el histórico, no solo en el mes.
+  const scopeExpenses = rangeActive(range) ? data.expenses.filter((e) => inRange(e.date, range)) : monthExpenses;
+  const scopeIncomes = rangeActive(range) ? data.incomes.filter((i) => inRange(i.date, range)) : monthIncomes;
+
+  const expenseSeqAll = useMemo(() => sequenceMap(scopeExpenses, (e) => e.date), [scopeExpenses]);
+  const incomeSeqAll = useMemo(() => sequenceMap(scopeIncomes, (i) => i.date), [scopeIncomes]);
 
   const expenses = useMemo(() => {
     const q = search.trim().toLowerCase();
     const min = Number(minUsd) || 0;
-    return sortBySeqDesc(monthExpenses, expenseSeqAll).filter((e) =>
+    return sortBySeqDesc(scopeExpenses, expenseSeqAll).filter((e) =>
       (!q || `${e.product} ${getRelationName(data.places, e.placeId, '')} ${getRelationName(data.categories, e.categoryId, '')}`.toLowerCase().includes(q))
       && (!categoryId || e.categoryId === categoryId)
       && (!placeId || e.placeId === placeId)
       && (min <= 0 || e.totalUsd >= min));
-  }, [monthExpenses, expenseSeqAll, search, categoryId, placeId, minUsd, data.places, data.categories]);
+  }, [scopeExpenses, expenseSeqAll, search, categoryId, placeId, minUsd, data.places, data.categories]);
 
   const incomes = useMemo(() => {
     const q = search.trim().toLowerCase();
     const min = Number(minUsd) || 0;
-    return sortBySeqDesc(monthIncomes, incomeSeqAll).filter((i) =>
+    return sortBySeqDesc(scopeIncomes, incomeSeqAll).filter((i) =>
       (!q || `${getRelationName(data.incomeSources, i.sourceId, '')} ${i.note ?? ''}`.toLowerCase().includes(q))
       && (!sourceId || i.sourceId === sourceId)
       && (!owner || i.owner === owner)
       && (!incomeKind || (i.kind ?? 'variable') === incomeKind)
       && (min <= 0 || i.amountUsd >= min));
-  }, [monthIncomes, incomeSeqAll, search, sourceId, owner, incomeKind, minUsd, data.incomeSources]);
+  }, [scopeIncomes, incomeSeqAll, search, sourceId, owner, incomeKind, minUsd, data.incomeSources]);
 
   /* Totales del conjunto filtrado */
   const totalUsd = tab === 'gastos' ? sum(expenses.map((e) => e.totalUsd)) : sum(incomes.map((i) => i.amountUsd));
   const totalBs = tab === 'gastos' ? sum(expenses.map((e) => e.totalBs)) : sum(incomes.map((i) => i.amountBs));
   const count = tab === 'gastos' ? expenses.length : incomes.length;
-  const allUsd = tab === 'gastos' ? sum(monthExpenses.map((e) => e.totalUsd)) : sum(monthIncomes.map((i) => i.amountUsd));
+  const allUsd = tab === 'gastos' ? sum(scopeExpenses.map((e) => e.totalUsd)) : sum(scopeIncomes.map((i) => i.amountUsd));
   const topGroup = useMemo(() => {
     const map = new Map<string, number>();
     if (tab === 'gastos') expenses.forEach((e) => map.set(e.categoryId, (map.get(e.categoryId) ?? 0) + e.totalUsd));
@@ -103,7 +110,7 @@ export default function Movements() {
     { key: 'seq', header: '#', width: '54px', render: (e) => <span className="seq num">{expenseSeqAll.get(e.id)}</span> },
     { key: 'date', header: 'Fecha', width: '92px', render: (e) => <span className="muted">{shortDate(e.date)}</span> },
     { key: 'product', header: 'Producto', primary: true, render: (e) => (
-      <span className="truncate">{e.product}{e.quantity !== 1 && <span className="tiny muted num"> × {e.quantity}</span>}</span>
+      <span className="truncate">{e.productId ? getRelationName(data.products, e.productId, e.product) : e.product}{e.quantity !== 1 && <span className="tiny muted num"> × {e.quantity}</span>}</span>
     ) },
     { key: 'category', header: 'Rubro', width: '150px', render: (e) => (
       <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(data.categories, e.categoryId) } as CSSProperties}>{getRelationName(data.categories, e.categoryId)}</span>
@@ -137,8 +144,8 @@ export default function Movements() {
 
       <div className="row-between wrap">
         <div className="tabs" role="tablist">
-          <button type="button" role="tab" aria-selected={tab === 'gastos'} className={`tab${tab === 'gastos' ? ' active' : ''}`} onClick={() => setTab('gastos')}>Gastos <span className="num muted">{monthExpenses.length}</span></button>
-          <button type="button" role="tab" aria-selected={tab === 'ingresos'} className={`tab${tab === 'ingresos' ? ' active' : ''}`} onClick={() => setTab('ingresos')}>Ingresos <span className="num muted">{monthIncomes.length}</span></button>
+          <button type="button" role="tab" aria-selected={tab === 'gastos'} className={`tab${tab === 'gastos' ? ' active' : ''}`} onClick={() => setTab('gastos')}>Gastos <span className="num muted">{scopeExpenses.length}</span></button>
+          <button type="button" role="tab" aria-selected={tab === 'ingresos'} className={`tab${tab === 'ingresos' ? ' active' : ''}`} onClick={() => setTab('ingresos')}>Ingresos <span className="num muted">{scopeIncomes.length}</span></button>
         </div>
         {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'}</button>}
       </div>
@@ -146,8 +153,8 @@ export default function Movements() {
       <div className="grid grid-4">
         <StatCard tone={tab === 'gastos' ? 'bs' : 'usd'} icon={tab === 'gastos' ? <ArrowDownCircle size={18} /> : <ArrowUpCircle size={18} />}
           label={activeCount > 0 ? 'Total filtrado' : 'Total del mes'}
-          value={<Money amount={totalUsd} currency="USD" rate={data.currentRate} dual size="lg" align="start" />}
-          hint={`${formatBs(totalBs)} · ${count} registros`} />
+          value={<Money amount={totalUsd} currency="USD" size="lg" align="start" />}
+          hint={`${formatBs(totalBs)} pagados · ${count} registros`} />
         <StatCard tone="primary" icon={<Receipt size={18} />} label="Promedio por registro"
           value={<span className="num">{formatUsd(count > 0 ? totalUsd / count : 0)}</span>}
           hint={activeCount > 0 ? `${formatPct(allUsd > 0 ? totalUsd / allUsd : 0)} del mes` : 'Sin filtros activos'} />
@@ -160,6 +167,7 @@ export default function Movements() {
       </div>
 
       <FilterBar activeCount={activeCount} onClear={clearFilters}>
+        <DateRange value={range} onChange={setRange} />
         <label className="field filterbar-wide"><span className="field-label">Buscar</span>
           <input className="input" placeholder={tab === 'gastos' ? 'Producto, lugar o rubro…' : 'Origen o nota…'} value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>

@@ -11,6 +11,8 @@ import StatCard from '../components/ui/StatCard';
 import CustomSelect from '../components/ui/CustomSelect';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import FilterBar from '../components/ui/FilterBar';
+import DateRange from '../components/ui/DateRange';
+import { EMPTY_RANGE, inRange, type Range } from '../utils/range';
 import DetailSheet from '../components/ui/DetailSheet';
 import type { Creditor, Debt, MoneyOwner, NewDoc, PayStatus } from '../types';
 import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
@@ -30,16 +32,17 @@ export default function Debts() {
   const today = todayIso();
   const cycle = cycleOf(today);
 
-  const [tab, setTab] = useState<'pendiente' | 'pagado'>('pendiente');
+  const [tab, setTab] = useState<'pendiente' | 'pagado' | 'acreedor'>('pendiente');
   const [creditorId, setCreditorId] = useState('');
   const [status, setStatus] = useState<'' | PayStatus>('');
   const [search, setSearch] = useState('');
+  const [range, setRange] = useState<Range>(EMPTY_RANGE);
   const [detail, setDetail] = useState<Debt | null>(null);
   const [editing, setEditing] = useState<Debt | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const activeCount = [creditorId, status, search].filter(Boolean).length;
-  const clearFilters = () => { setCreditorId(''); setStatus(''); setSearch(''); };
+  const activeCount = [creditorId, status, search, range.from, range.to].filter(Boolean).length;
+  const clearFilters = () => { setCreditorId(''); setStatus(''); setSearch(''); setRange(EMPTY_RANGE); };
 
   const seq = useMemo(() => sequenceMap(data.debts, (d) => d.dueDate), [data.debts]);
 
@@ -48,12 +51,13 @@ export default function Debts() {
     return sortBySeqDesc(data.debts, seq)
       .filter((d) => (!creditorId || d.creditorId === creditorId)
         && (!status || d.status === status)
+        && inRange(d.dueDate, range)
         && (!q || `${d.merchant} ${d.description ?? ''} ${getRelationName(data.creditors, d.creditorId, '')}`.toLowerCase().includes(q)));
-  }, [data.debts, seq, data.creditors, creditorId, status, search]);
+  }, [data.debts, seq, data.creditors, creditorId, status, search, range]);
 
   const openRows = filtered.filter((d) => d.status !== 'pagada');
   const paidRows = filtered.filter((d) => d.status === 'pagada');
-  const rows = tab === 'pendiente' ? openRows : paidRows;
+  const rows = tab === 'pagado' ? paidRows : openRows;
   const totalOpen = sum(openRows.map((d) => d.amountUsd));
   const totalAll = sum(filtered.map((d) => d.amountUsd));
   const thisCycle = sum(openRows.filter((d) => inCycle(d.dueDate, cycle)).map((d) => d.amountUsd));
@@ -71,6 +75,27 @@ export default function Debts() {
     await data.del('debts', d.id);
     setDetail(null);
   };
+
+  interface CreditorRow { id: string; name: string; color: string; total: number; count: number; overdue: number }
+
+  const creditorRows: CreditorRow[] = useMemo(() => byCreditor.map(([id, total]) => ({
+    id,
+    name: getRelationName(data.creditors, id),
+    color: getRelationColor(data.creditors, id),
+    total,
+    count: openRows.filter((d) => d.creditorId === id).length,
+    overdue: sum(openRows.filter((d) => d.creditorId === id && d.dueDate < today).map((d) => d.amountUsd)),
+  })), [byCreditor, data.creditors, openRows, today]);
+
+  const creditorColumns: Column<CreditorRow>[] = [
+    { key: 'color', header: '', width: '36px', leading: true, render: (r) => <span className="dot" style={{ '--dot-color': r.color } as CSSProperties} /> },
+    { key: 'name', header: 'Acreedor', primary: true, render: (r) => <span className="truncate">{r.name}</span> },
+    { key: 'count', header: 'Cuotas abiertas', width: '150px', render: (r) => <span className="num">{r.count}</span> },
+    { key: 'overdue', header: 'Vencido', width: '130px', render: (r) => (
+      r.overdue > 0 ? <span className="tag danger num">{formatUsd(r.overdue)}</span> : <span className="tag ok">Al día</span>
+    ) },
+    { key: 'total', header: 'Deuda abierta', align: 'end', width: '140px', amount: true, render: (r) => <span className="strong num">{formatUsd(r.total)}</span> },
+  ];
 
   const columns: Column<Debt>[] = [
     { key: 'seq', header: '#', width: '54px', render: (d) => <span className="seq num">{seq.get(d.id)}</span> },
@@ -105,6 +130,7 @@ export default function Debts() {
       <div className="tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'pendiente'} className={`tab${tab === 'pendiente' ? ' active' : ''}`} onClick={() => setTab('pendiente')}>Pendientes <span className="num muted">{openRows.length}</span></button>
         <button type="button" role="tab" aria-selected={tab === 'pagado'} className={`tab${tab === 'pagado' ? ' active' : ''}`} onClick={() => setTab('pagado')}>Pagadas <span className="num muted">{paidRows.length}</span></button>
+        <button type="button" role="tab" aria-selected={tab === 'acreedor'} className={`tab${tab === 'acreedor' ? ' active' : ''}`} onClick={() => setTab('acreedor')}>Por acreedor <span className="num muted">{byCreditor.length}</span></button>
       </div>
 
       <div className="grid grid-4">
@@ -121,6 +147,7 @@ export default function Debts() {
       </div>
 
       <FilterBar activeCount={activeCount} onClear={clearFilters}>
+        <DateRange value={range} onChange={setRange} label="Vencimiento entre" />
         <label className="field filterbar-wide"><span className="field-label">Buscar</span>
           <input className="input" placeholder="Tienda, descripción o acreedor…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>
@@ -138,26 +165,19 @@ export default function Debts() {
         </label>
       </FilterBar>
 
-      {byCreditor.length > 0 && (
-        <section className="card">
-          <div className="card-header"><h2 className="card-title">Deuda abierta por acreedor</h2></div>
-          <ul className="kv debt-creditors">
-            {byCreditor.map(([id, v]) => (
-              <li key={id}>
-                <span className="row"><span className="dot" style={{ '--dot-color': getRelationColor(data.creditors, id) } as CSSProperties} /><span className="truncate">{getRelationName(data.creditors, id)}</span></span>
-                <span className="num strong">{formatUsd(v)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
+      {tab === 'acreedor' ? (
+        <div className="card card-tight">
+          <DataTable rows={creditorRows} columns={creditorColumns} onRowClick={(r) => { setCreditorId(r.id); setTab('pendiente'); }}
+            empty={<EmptyState title="Sin deuda abierta" hint="No hay cuotas pendientes con ningún acreedor." />} />
+        </div>
+      ) : (
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
           rowClass={(d) => (d.status === 'pagada' ? 'muted-row' : d.dueDate < today ? 'danger-row' : '')}
 
           empty={<EmptyState title={tab === 'pendiente' ? 'Sin cuotas pendientes' : 'Sin cuotas pagadas'} hint={activeCount > 0 ? 'Ninguna cuota coincide con los filtros.' : tab === 'pendiente' ? 'Buena señal: no hay cuotas abiertas.' : 'Aquí quedará el histórico de lo que vayas pagando.'} />} />
       </div>
+      )}
 
       {detail && (
         <DetailSheet open title={detail.merchant} subtitle={`${getRelationName(data.creditors, detail.creditorId)} · vence ${shortDate(detail.dueDate)}`}

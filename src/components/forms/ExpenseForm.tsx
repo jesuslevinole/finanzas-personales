@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useData } from '../../hooks/useData';
 import CustomSelect from '../ui/CustomSelect';
-import type { Category, Expense, InventoryItem, Place, PricePoint } from '../../types';
+import type { Category, Expense, InventoryItem, Place, PricePoint, Product } from '../../types';
 import { rateForDate } from '../../utils/finance';
-import { colorForIndex } from '../../utils/relations';
+import { colorForIndex, getRelationName } from '../../utils/relations';
 import { round2, toUsd } from '../../utils/money';
 import { todayIso } from '../../utils/dates';
 import './forms.css';
@@ -19,7 +19,7 @@ export default function ExpenseForm({ expense, onDone }: Props) {
   const [date, setDate] = useState(expense?.date ?? todayIso());
   const [placeId, setPlaceId] = useState(expense?.placeId ?? '');
   const [categoryId, setCategoryId] = useState(expense?.categoryId ?? data.categories[0]?.id ?? '');
-  const [product, setProduct] = useState(expense?.product ?? '');
+  const [productId, setProductId] = useState(expense?.productId ?? '');
   const [priceCurrency, setPriceCurrency] = useState<'VES' | 'USD'>('VES');
   const [price, setPrice] = useState(expense ? String(expense.unitPriceBs) : '');
   const [quantity, setQuantity] = useState(String(expense?.quantity ?? 1));
@@ -39,14 +39,17 @@ export default function ExpenseForm({ expense, onDone }: Props) {
     if (!expense) setRate(String(rateForDate(data.rates, d, data.currentRate) || ''));
   };
 
+  const product = getRelationName(data.products, productId, '');
+
   const createPlace = (name: string) => data.add<Place>('places', { name, color: colorForIndex(data.places.length), active: true });
+  const createProduct = (name: string) => data.add<Product>('products', { name, color: colorForIndex(data.products.length), active: true });
   const createCategory = (name: string) => data.add<Category>('categories', { name, color: colorForIndex(data.categories.length), active: true, group: 'necesidad' });
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!product || !categoryId || rateNum <= 0 || priceNum <= 0) return;
+    if (!productId || !categoryId || rateNum <= 0 || priceNum <= 0) return;
     setSaving(true);
-    const payload = { date, placeId, categoryId, product, unitPriceBs: round2(unitPriceBs), quantity: qtyNum, totalBs, rate: rateNum, totalUsd };
+    const payload = { date, placeId, categoryId, productId, product, unitPriceBs: round2(unitPriceBs), quantity: qtyNum, totalBs, rate: rateNum, totalUsd };
     if (expense) {
       await data.update<Expense>('expenses', expense.id, payload);
     } else {
@@ -59,7 +62,8 @@ export default function ExpenseForm({ expense, onDone }: Props) {
 
   const addToStock = async () => {
     const point: PricePoint = { date, priceBs: round2(unitPriceBs), priceUsd: round2(toUsd(unitPriceBs, rateNum)), rate: rateNum };
-    const existing = data.inventory.find((i) => i.name.trim().toLowerCase() === product.trim().toLowerCase());
+    const existing = data.inventory.find((i) => i.productId === productId
+      || i.name.trim().toLowerCase() === product.trim().toLowerCase());
     if (existing) {
       await data.update<InventoryItem>('inventory', existing.id, {
         quantity: existing.quantity + qtyNum, lastPriceBs: point.priceBs, lastPriceUsd: point.priceUsd,
@@ -67,7 +71,7 @@ export default function ExpenseForm({ expense, onDone }: Props) {
       });
     } else {
       await data.add<InventoryItem>('inventory', {
-        name: product.trim(), categoryId, quantity: qtyNum, unit: 'und', minQuantity: 1,
+        productId, name: product.trim(), categoryId, quantity: qtyNum, unit: 'und', minQuantity: 1,
         lastPriceBs: point.priceBs, lastPriceUsd: point.priceUsd, lastPurchaseDate: date, lastPlaceId: placeId, priceHistory: [point],
       });
     }
@@ -79,10 +83,10 @@ export default function ExpenseForm({ expense, onDone }: Props) {
         <label className="field"><span className="field-label">Fecha</span><input className="input" type="date" value={date} onChange={(e) => onDateChange(e.target.value)} required /></label>
         <label className="field"><span className="field-label">Tasa (Bs/$)</span><input className="input num" type="number" step="0.01" min="0" value={rate} onChange={(e) => setRate(e.target.value)} required /></label>
       </div>
-      <label className="field"><span className="field-label">Producto o concepto</span>
-        <input className="input" value={product} onChange={(e) => setProduct(e.target.value)} list="inventory-names" placeholder="Harina de maíz 1 kg" required />
-      </label>
-      <datalist id="inventory-names">{data.inventory.map((i) => <option key={i.id} value={i.name} />)}</datalist>
+      <div className="field"><span className="field-label">Producto o concepto</span>
+        <CustomSelect items={data.products} value={productId} onChange={setProductId} onCreate={createProduct} placeholder="Harina de maíz 1 kg" />
+        <span className="field-hint">Si no está en la lista, escríbelo y usa «Crear».</span>
+      </div>
       <div className="form-grid">
         <div className="field"><span className="field-label">Lugar</span><CustomSelect items={data.places} value={placeId} onChange={setPlaceId} onCreate={createPlace} placeholder="Maraplus, Yummy…" /></div>
         <div className="field"><span className="field-label">Rubro</span><CustomSelect items={data.categories} value={categoryId} onChange={setCategoryId} onCreate={createCategory} placeholder="Víveres, Proteína…" /></div>

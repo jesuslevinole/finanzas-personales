@@ -3,6 +3,9 @@ import { RefreshCw } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import Sparkline from '../components/ui/Sparkline';
 import DetailSheet from '../components/ui/DetailSheet';
+import FilterBar from '../components/ui/FilterBar';
+import DateRange from '../components/ui/DateRange';
+import { EMPTY_RANGE, inRange, type Range } from '../utils/range';
 import { useConfirm } from '../hooks/useConfirm';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import EmptyState from '../components/ui/EmptyState';
@@ -24,6 +27,8 @@ export default function Rates() {
   const [fetching, setFetching] = useState(false);
   const [msg, setMsg] = useState('');
   const [detail, setDetail] = useState<ExchangeRate | null>(null);
+  const [range, setRange] = useState<Range>(EMPTY_RANGE);
+  const filteredRates = rates.filter((r) => inRange(r.date, range));
 
   const latest = rates[0];
   const current = latest?.rate ?? 0;
@@ -95,8 +100,11 @@ export default function Rates() {
       </div>
 
       <section className="card card-tight">
-        <div className="card-header"><h2 className="card-title">Historial</h2><span className="tag">{rates.length} días</span></div>
-        <DataTable rows={rates.slice(0, 90)} columns={rateColumns} onRowClick={setDetail}
+        <div className="card-header"><h2 className="card-title">Historial</h2><span className="tag">{filteredRates.length} días</span></div>
+        <FilterBar activeCount={[range.from, range.to].filter(Boolean).length} onClear={() => setRange(EMPTY_RANGE)}>
+          <DateRange value={range} onChange={setRange} />
+        </FilterBar>
+        <DataTable rows={filteredRates.slice(0, 120)} columns={rateColumns} onRowClick={setDetail}
           empty={<EmptyState title="Sin tasas" hint="Actualiza desde BCV o registra la tasa a mano." />} />
       </section>
 

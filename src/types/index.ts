@@ -34,6 +34,8 @@ export type Place = CatalogItem;
 export type Creditor = CatalogItem;
 /** Origen de ingreso (cliente, alquiler, Binance…). */
 export type IncomeSource = CatalogItem;
+/** Producto o concepto de gasto (harina, pañales, comisión…). */
+export type Product = CatalogItem;
 
 /* ---------------------------------------------------------------
    Movimientos
@@ -68,6 +70,9 @@ export interface Expense {
   date: string;
   placeId: string;
   categoryId: string;
+  /** Referencia al catálogo de productos. */
+  productId?: string;
+  /** Nombre del producto guardado en el momento del gasto. */
   product: string;
   unitPriceBs: number;
   quantity: number;
@@ -131,6 +136,8 @@ export interface PricePoint {
 
 export interface InventoryItem {
   id: string;
+  /** Referencia al catálogo de productos. */
+  productId?: string;
   name: string;
   categoryId: string;
   quantity: number;
@@ -162,6 +169,8 @@ export interface ShoppingItem {
   id: string;
   /** Carpeta a la que pertenece. Vacío = lista general. */
   listId?: string;
+  /** Referencia al catálogo de productos. */
+  productId?: string;
   name: string;
   quantity: number;
   unit: StockUnit;
