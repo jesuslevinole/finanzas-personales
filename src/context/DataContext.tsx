@@ -4,7 +4,8 @@ import type {
   Goal, InventoryItem, Member, Place, Product, Role, ShoppingItem, ShoppingList, UserSettings,
 } from '../types';
 import { create, createMany, patch, remove, removeAll, subscribe, upsert } from '../services/firestore';
-import { DEFAULT_SETTINGS } from '../utils/finance';
+import { settingsForMonth } from '../utils/finance';
+import { currentMonth } from '../utils/dates';
 import { useAuth } from '../hooks/useAuth';
 import { DataContext, type DataValue } from './dataContext';
 
@@ -61,7 +62,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [uid]);
 
   const value = useMemo<DataValue>(() => {
-    const settings: Omit<UserSettings, 'id'> = settingsDocs[0] ?? DEFAULT_SETTINGS;
+    const settingsFor = (month: string) => settingsForMonth(settingsDocs, month);
     const currentRate = rates[0]?.rate ?? 0;
     const requireSession = () => {
       if (!uid) throw new Error('Sin conexión con Firebase todavía');
@@ -78,7 +79,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ready, error, writeError,
       clearWriteError: () => setWriteError(null),
       rates, categories, places, creditors, incomeSources, products, incomes, expenses,
-      fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settings, currentRate,
+      fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, currentRate,
+      settingsDocs,
+      settingsFor,
+      settings: settingsFor(currentMonth()),
       add: (name, data) => guard(() => { requireSession(); return create(name, data); }),
       addMany: (name, rows, onProgress) => guard(() => { requireSession(); return createMany(name, rows, onProgress); }),
       set: (name, id, data) => guard(() => { requireSession(); return upsert(name, id, data); }),

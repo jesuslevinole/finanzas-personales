@@ -2,12 +2,36 @@ import type { Budget, BudgetGroup, Category, Debt, Expense, ExchangeRate, FixedC
 import { daysBetween } from './dates';
 import { sum } from './money';
 
-export const DEFAULT_SETTINGS: Omit<UserSettings, 'id'> = {
+export type Settings = Omit<UserSettings, 'id' | 'month'>;
+
+export const DEFAULT_SETTINGS: Settings = {
   maxDebtRatioPct: 25,
   emergencyFundMonths: 4,
   savingsTargetPct: 15,
   householdSize: 3,
   split: { necesidad: 55, deseo: 20, ahorro: 25 },
+};
+
+/**
+ * Reglas vigentes para un mes: las suyas si existen, si no las del mes anterior
+ * más cercano, y como último recurso los valores por defecto.
+ */
+export const settingsForMonth = (docs: UserSettings[], month: string): Settings => {
+  const applicable = docs
+    .filter((d) => (d.month ?? '') <= month)
+    .sort((a, b) => (b.month ?? '').localeCompare(a.month ?? ''))[0];
+  if (!applicable) return DEFAULT_SETTINGS;
+  return {
+    ...DEFAULT_SETTINGS,
+    maxDebtRatioPct: applicable.maxDebtRatioPct,
+    emergencyFundMonths: applicable.emergencyFundMonths,
+    savingsTargetPct: applicable.savingsTargetPct,
+    householdSize: applicable.householdSize,
+    split: applicable.split,
+    // El saldo declarado es una foto del mes: no se hereda hacia adelante.
+    balanceBs: applicable.month === month ? applicable.balanceBs : undefined,
+    balanceUpdatedAt: applicable.month === month ? applicable.balanceUpdatedAt : undefined,
+  };
 };
 
 export const GROUP_LABEL: Record<BudgetGroup, string> = {
@@ -76,7 +100,7 @@ export const debtCapacity = (
   incomeUsd: number,
   debtsThisMonth: Debt[],
   fixedCosts: FixedCost[],
-  settings: Omit<UserSettings, 'id'>,
+  settings: Settings,
 ): DebtCapacity => {
   const monthlyDebtUsd = sum(debtsThisMonth.filter((d) => d.owner === 'propio').map((d) => d.amountUsd));
   const fixedCostsUsd = sum(fixedCosts.map((f) => f.amountUsd));
@@ -108,7 +132,7 @@ export const groupTargets = (
   expenses: Expense[],
   debtsPaid: Debt[],
   categories: Category[],
-  settings: Omit<UserSettings, 'id'>,
+  settings: Settings,
 ): GroupTarget[] => {
   const actual = expensesByGroup(expenses, categories);
   actual.ahorro += sum(debtsPaid.map((d) => d.amountUsd));
@@ -272,7 +296,7 @@ export interface HealthInput {
   savedUsd: number;
   emergencyTargetUsd: number;
   wantsUsd: number;
-  settings: Omit<UserSettings, 'id'>;
+  settings: Settings;
 }
 
 /** Puntaje 0-100 de salud financiera, con el peso de cada componente. */

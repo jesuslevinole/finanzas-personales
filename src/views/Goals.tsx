@@ -27,26 +27,27 @@ export default function Goals() {
   const data = useData();
   const { canEdit } = usePermissions();
   const confirm = useConfirm();
-  const { monthIncomes, monthFixed } = useMonth();
+  const { month, monthIncomes, monthFixed } = useMonth();
   const editable = canEdit('metas');
   const [creating, setCreating] = useState(false);
   const [contributing, setContributing] = useState<{ goal: Goal; sign: 1 | -1 } | null>(null);
   const [detail, setDetail] = useState<Goal | null>(null);
 
+  const settings = data.settingsFor(month);
   const incomeUsd = ownIncomeUsd(monthIncomes);
-  const emergencyTarget = emergencyFundTarget(monthFixed, data.settings.emergencyFundMonths);
+  const emergencyTarget = emergencyFundTarget(monthFixed, settings.emergencyFundMonths);
   const goals = [...data.goals].sort((a, b) => a.priority - b.priority);
   const totalTarget = sum(goals.map((g) => g.targetUsd));
   const totalSaved = sum(goals.map((g) => g.savedUsd));
   const monthlyNeeded = sum(goals.map((g) => monthlyContribution(g.targetUsd, g.savedUsd, g.deadline) ?? 0));
-  const savingsTarget = incomeUsd * (data.settings.savingsTargetPct / 100);
+  const savingsTarget = incomeUsd * (settings.savingsTargetPct / 100);
 
 
 
   const seedEmergency = () => data.add<Goal>('goals', {
     name: 'Fondo de emergencia', kind: 'fondo_emergencia',
     targetUsd: Math.round(emergencyTarget), savedUsd: 0, priority: 1,
-    note: `${data.settings.emergencyFundMonths} meses de costos fijos`, createdAt: todayIso(),
+    note: `${settings.emergencyFundMonths} meses de costos fijos`, createdAt: todayIso(),
   });
 
   return (
@@ -65,10 +66,10 @@ export default function Goals() {
           hint="Para llegar a tiempo a las metas con fecha" />
         <StatCard tone={savingsTarget > monthlyNeeded ? 'ok' : 'warn'} icon={<TrendingUp size={18} />} label="Tu meta de ahorro mensual"
           value={<span className="num">{formatUsd(savingsTarget)}</span>}
-          hint={`${data.settings.savingsTargetPct}% del ingreso del mes`} />
+          hint={`${settings.savingsTargetPct}% del ingreso del mes`} />
         <StatCard tone="warn" icon={<PiggyBank size={18} />} label="Fondo de emergencia sugerido"
           value={<span className="num">{formatUsd(emergencyTarget)}</span>}
-          hint={`${data.settings.emergencyFundMonths} meses de costos fijos`} />
+          hint={`${settings.emergencyFundMonths} meses de costos fijos`} />
       </div>
 
       {goals.length === 0 ? (

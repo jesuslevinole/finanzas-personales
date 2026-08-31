@@ -40,9 +40,10 @@ export default function Budgets() {
   const editable = canEdit('presupuesto');
   const [editing, setEditing] = useState<BudgetRow | null>(null);
 
+  const settings = data.settingsFor(month);
   const incomeUsd = ownIncomeUsd(monthIncomes);
   const monthBudgets = useMemo(() => data.budgets.filter((b) => b.month === month), [data.budgets, month]);
-  const groups = groupTargets(incomeUsd, monthExpenses, monthDebts.filter((d) => d.status === 'pagada'), data.categories, data.settings);
+  const groups = groupTargets(incomeUsd, monthExpenses, monthDebts.filter((d) => d.status === 'pagada'), data.categories, settings);
   const targets = categoryTargets(incomeUsd, monthExpenses, monthBudgets, data.categories);
 
   const rows: BudgetRow[] = useMemo(() => data.categories.map((cat) => {
@@ -128,7 +129,7 @@ export default function Budgets() {
 
       <section className="card">
         <div className="card-header">
-          <h2 className="card-title">Reparto {data.settings.split.necesidad}/{data.settings.split.deseo}/{data.settings.split.ahorro}</h2>
+          <h2 className="card-title">Reparto {settings.split.necesidad}/{settings.split.deseo}/{settings.split.ahorro}</h2>
           <span className="tag primary">Ingreso: {formatUsd(incomeUsd)}</span>
         </div>
         <div className="grid grid-3">

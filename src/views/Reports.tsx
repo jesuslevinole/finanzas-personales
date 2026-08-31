@@ -18,9 +18,10 @@ const LEVEL_LABEL = { sano: 'Sano', alerta: 'En alerta', critico: 'Crítico' } a
 const ADVICE_ICON = { urgente: <AlertTriangle size={16} />, atencion: <Info size={16} />, ok: <CheckCircle2 size={16} /> };
 
 export default function Reports() {
-  const { categories, rates, incomes, expenses, budgets, goals, inventory, settings } = useData();
+  const { categories, rates, incomes, expenses, budgets, goals, inventory, settingsFor } = useData();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
 
+  const settings = settingsFor(month);
   const incomeUsd = ownIncomeUsd(monthIncomes);
   const expenseUsd = sum(monthExpenses.map((e) => e.totalUsd));
   const capacity = debtCapacity(incomeUsd, monthDebts, monthFixed, settings);

@@ -212,8 +212,14 @@ export interface Member {
   createdAt: string;
 }
 
+/**
+ * Reglas financieras de un mes. Cada mes puede tener las suyas; si un mes no
+ * tiene ajustes propios, hereda los del mes anterior más cercano.
+ */
 export interface UserSettings {
   id: string;
+  /** YYYY-MM al que aplican estas reglas. */
+  month: string;
   /** Porcentaje máximo del ingreso destinado a deuda (default 35). */
   maxDebtRatioPct: number;
   /** Meses de costos fijos que debe cubrir el fondo de emergencia. */

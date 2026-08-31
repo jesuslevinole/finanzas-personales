@@ -4,6 +4,7 @@ import type {
   Goal, InventoryItem, Member, NewDoc, Place, Product, Role, ShoppingItem, ShoppingList, UserSettings, WithId,
 } from '../types';
 import type { CollectionName } from '../services/firestore';
+import type { Settings } from '../utils/finance';
 
 /**
  * Un solo lugar con listeners onSnapshot para todas las colecciones.
@@ -33,7 +34,12 @@ export interface DataValue {
   shoppingLists: ShoppingList[];
   roles: Role[];
   members: Member[];
-  settings: Omit<UserSettings, 'id'>;
+  /** Reglas del mes en curso (atajo de `settingsFor`). */
+  settings: Settings;
+  /** Todos los documentos de ajustes, uno por mes con reglas propias. */
+  settingsDocs: UserSettings[];
+  /** Reglas vigentes para un mes concreto (hereda del mes anterior). */
+  settingsFor: (month: string) => Settings;
   /** Última tasa registrada (Bs por USD). 0 si no hay ninguna. */
   currentRate: number;
   add: <T extends WithId>(name: CollectionName, data: NewDoc<T>) => Promise<string>;

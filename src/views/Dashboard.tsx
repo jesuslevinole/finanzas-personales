@@ -25,9 +25,10 @@ const ADVICE_ICON = { urgente: <AlertTriangle size={15} />, atencion: <Info size
 
 export default function Dashboard() {
   const data = useData();
-  const { categories, creditors, currentRate, rates, incomes, expenses, inventory, shopping, settings, debts, fixedCosts, goals, set } = data;
+  const { categories, creditors, currentRate, rates, incomes, expenses, inventory, shopping, debts, fixedCosts, goals, set, settingsFor } = data;
   const { canEdit } = usePermissions();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
+  const settings = settingsFor(month);
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceDraft, setBalanceDraft] = useState(String(settings.balanceBs ?? ''));
 
@@ -78,7 +79,7 @@ export default function Dashboard() {
   const saveBalance = async () => {
     const value = Number(balanceDraft);
     if (!Number.isFinite(value) || value < 0) return;
-    await set<UserSettings>('settings', 'main', { ...settings, balanceBs: value, balanceUpdatedAt: today });
+    await set<UserSettings>('settings', month, { ...settings, month, balanceBs: value, balanceUpdatedAt: today });
     setEditingBalance(false);
   };
 
