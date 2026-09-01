@@ -7,3 +7,8 @@
 .cat-color.selected { border-color: var(--color-text); transform: scale(1.1); }
 
 .cat-detail-btn { margin-top: var(--space-4); }
+
+.cat-head-actions { flex: none; }
+.cat-barcode { display: flex; gap: var(--space-2); }
+.cat-barcode .input { flex: 1; min-width: 0; }
+@media (max-width: 767px) { .cat-head-actions { width: 100%; } .cat-head-actions .btn { flex: 1; } }

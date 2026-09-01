@@ -5,3 +5,7 @@
 .form-summary { display: flex; gap: var(--space-5); padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }
 .form-summary dt { font-size: var(--text-xs); color: var(--color-muted); }
 .form-summary dd { font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); }
+
+.form-scan { display: flex; gap: var(--space-2); align-items: stretch; }
+.form-scan .cselect { flex: 1; min-width: 0; }
+.form-scan-btn { flex: none; width: 52px; padding: 0; }

@@ -540,12 +540,14 @@ function AddItemForm({ listId, rate, item, onDone }: { listId: string; rate: num
   /** Al elegir un producto, se precargan precio y unidad de la última compra. */
   const pickProduct = (id: string) => {
     setProductId(id);
+    const chosen = data.products.find((p) => p.id === id);
+    if (chosen?.unit) setUnit(chosen.unit);
     const productName = getRelationName(data.products, id, '');
     const match = data.inventory.find((i) => i.productId === id || i.name.toLowerCase() === productName.toLowerCase());
     if (match) { setEstimatedUsd(String(match.lastPriceUsd)); setUnit(match.unit); }
   };
 
-  const createProduct = (value: string) => data.add<Product>('products', { name: value, color: colorForIndex(data.products.length), active: true });
+  const createProduct = (value: string) => data.add<Product>('products', { name: value, color: colorForIndex(data.products.length), active: true, unit: 'und' });
 
   const onVoice = async (text: string) => {
     const parsed = parseVoiceItem(text);

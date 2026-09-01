@@ -1,0 +1,25 @@
+.scanner-backdrop {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgb(20 18 43 / 0.72);
+  display: grid; place-items: center; padding: var(--space-4);
+}
+.scanner {
+  width: 100%; max-width: 420px;
+  background: var(--color-surface); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); overflow: hidden;
+}
+.scanner-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); }
+.scanner-head .strong { display: flex; align-items: center; gap: var(--space-2); }
+
+.scanner-view { position: relative; background: #000; }
+.scanner-video { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.scanner-frame {
+  position: absolute; inset: 22% 12%;
+  border: 3px solid rgb(255 255 255 / 0.9); border-radius: var(--radius);
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.28);
+}
+.scanner-hint { position: absolute; left: 0; right: 0; bottom: var(--space-3); text-align: center; color: #fff; }
+.scanner-error { padding: var(--space-4); color: var(--color-warn); }
+
+.scanner-manual { display: flex; gap: var(--space-2); padding: var(--space-3) var(--space-4) var(--space-4); }
+.scanner-manual .input { flex: 1; min-width: 0; }

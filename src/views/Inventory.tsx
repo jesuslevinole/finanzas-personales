@@ -204,6 +204,14 @@ function InventoryForm({ categories, products, currentRate, item, onCreateCatego
 
   const name = getRelationName(products, productId, item?.name ?? '');
 
+  /** El producto del catálogo trae su rubro y su presentación. */
+  const pickProduct = (id: string) => {
+    setProductId(id);
+    const chosen = products.find((p) => p.id === id);
+    if (chosen?.categoryId) setCategoryId(chosen.categoryId);
+    if (chosen?.unit) setUnit(chosen.unit);
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!productId) return;
@@ -222,7 +230,7 @@ function InventoryForm({ categories, products, currentRate, item, onCreateCatego
   return (
     <form onSubmit={submit} className="stack">
       <div className="field"><span className="field-label">Producto</span>
-        <CustomSelect items={products} value={productId} onChange={setProductId} onCreate={onCreateProduct} placeholder="Del catálogo de productos" />
+        <CustomSelect items={products} value={productId} onChange={pickProduct} onCreate={onCreateProduct} placeholder="Del catálogo de productos" />
       </div>
       <div className="field"><span className="field-label">Rubro</span><CustomSelect items={categories} value={categoryId} onChange={setCategoryId} onCreate={onCreateCategory} /></div>
       <div className="form-grid">

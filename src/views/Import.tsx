@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, FileSpreadsheet, Trash2, Upload } from 'lu
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useConfirm } from '../hooks/useConfirm';
-import type { Category, Creditor, Debt, ExchangeRate, Expense, FixedCost, Income, IncomeSource, NewDoc, Place, ShoppingItem } from '../types';
+import type { Category, Creditor, Debt, ExchangeRate, Expense, FixedCost, Income, IncomeSource, NewDoc, Place, Product, ShoppingItem } from '../types';
 import { matrixToLooseRows, matrixToRows, parseWorkbook, resolveKey, type Cell, type ParsedWorkbook, type RawRow } from '../utils/excel';
 import { formatUsd, sum } from '../utils/money';
 import './Import.css';
@@ -69,15 +69,21 @@ export default function Import() {
       // 1) Catálogos nuevos primero: sus ids se necesitan en los movimientos.
       setProgress('Creando catálogos…');
       const map = new Map<string, string>();
-      const createCatalog = async (drafts: typeof parsed.newCategories, collection: 'categories' | 'places' | 'creditors' | 'incomeSources') => {
+      const createCatalog = async (drafts: typeof parsed.newCategories, collection: 'categories' | 'places' | 'creditors' | 'incomeSources' | 'products') => {
         for (const draft of drafts) {
-          const id = collection === 'categories'
-            ? await data.add<Category>('categories', { name: draft.name, color: draft.color, active: true, group: 'necesidad' })
-            : await data.add<Place | Creditor | IncomeSource>(collection, { name: draft.name, color: draft.color, active: true });
+          let id: string;
+          if (collection === 'categories') {
+            id = await data.add<Category>('categories', { name: draft.name, color: draft.color, active: true, group: 'necesidad' });
+          } else if (collection === 'products') {
+            id = await data.add<Product>('products', { name: draft.name, color: draft.color, active: true, unit: 'und' });
+          } else {
+            id = await data.add<Place | Creditor | IncomeSource>(collection, { name: draft.name, color: draft.color, active: true });
+          }
           map.set(draft.name.toLowerCase(), id);
         }
       };
       await createCatalog(parsed.newCategories, 'categories');
+      await createCatalog(parsed.newProducts, 'products');
       await createCatalog(parsed.newPlaces, 'places');
       await createCatalog(parsed.newCreditors, 'creditors');
       await createCatalog(parsed.newSources, 'incomeSources');
@@ -93,7 +99,12 @@ export default function Import() {
         await data.addMany<Income>('incomes', rows, note('Ingresos'));
       }
       if (selection.expenses && parsed.expenses.length) {
-        const rows: NewDoc<Expense>[] = parsed.expenses.map((x) => ({ ...x, placeId: resolveKey(x.placeId, map), categoryId: resolveKey(x.categoryId, map) }));
+        const rows: NewDoc<Expense>[] = parsed.expenses.map((x) => ({
+          ...x,
+          placeId: resolveKey(x.placeId, map),
+          categoryId: resolveKey(x.categoryId, map),
+          productId: x.productId ? resolveKey(x.productId, map) : undefined,
+        }));
         await data.addMany<Expense>('expenses', rows, note('Gastos'));
       }
       if (selection.fixedCosts && parsed.fixedCosts.length) await data.addMany<FixedCost>('fixedCosts', parsed.fixedCosts, note('Costos fijos'));
@@ -122,7 +133,7 @@ export default function Import() {
     setWipeMessage('');
     try {
       let total = 0;
-      for (const name of ['expenses', 'incomes', 'fixedCosts', 'debts', 'budgets', 'shopping', 'inventory', 'rates', 'categories', 'places', 'creditors', 'incomeSources'] as const) {
+      for (const name of ['expenses', 'incomes', 'fixedCosts', 'debts', 'budgets', 'shopping', 'shoppingLists', 'inventory', 'rates', 'categories', 'products', 'places', 'creditors', 'incomeSources'] as const) {
         setWipeMessage(`Borrando ${name}…`);
         total += await data.delAll(name);
       }
@@ -138,7 +149,7 @@ export default function Import() {
     ? [['rates', parsed.rates.length], ['incomes', parsed.incomes.length], ['expenses', parsed.expenses.length],
        ['fixedCosts', parsed.fixedCosts.length], ['debts', parsed.debts.length], ['shopping', parsed.shopping.length]]
     : [];
-  const newCatalogs = parsed ? parsed.newCategories.length + parsed.newPlaces.length + parsed.newCreditors.length + parsed.newSources.length : 0;
+  const newCatalogs = parsed ? parsed.newCategories.length + parsed.newProducts.length + parsed.newPlaces.length + parsed.newCreditors.length + parsed.newSources.length : 0;
 
   return (
     <div className="page">

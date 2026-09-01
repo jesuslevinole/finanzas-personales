@@ -1,6 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useData } from '../../hooks/useData';
+import { Barcode } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
+import { barcodeSupported } from '../../utils/barcode';
+import BarcodeScanner from '../ui/BarcodeScanner';
 import type { Category, Expense, InventoryItem, Place, PricePoint, Product } from '../../types';
 import { rateForDate } from '../../utils/finance';
 import { colorForIndex, getRelationName } from '../../utils/relations';
@@ -26,6 +29,8 @@ export default function ExpenseForm({ expense, onDone }: Props) {
   const [rate, setRate] = useState(String(expense?.rate ?? rateForDate(data.rates, todayIso(), data.currentRate) ?? ''));
   const [toStock, setToStock] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState('');
 
   const rateNum = Number(rate) || 0;
   const priceNum = Number(price) || 0;
@@ -42,7 +47,28 @@ export default function ExpenseForm({ expense, onDone }: Props) {
   const product = getRelationName(data.products, productId, '');
 
   const createPlace = (name: string) => data.add<Place>('places', { name, color: colorForIndex(data.places.length), active: true });
-  const createProduct = (name: string) => data.add<Product>('products', { name, color: colorForIndex(data.products.length), active: true });
+  const createProduct = (name: string) => data.add<Product>('products', { name, color: colorForIndex(data.products.length), active: true, unit: 'und' });
+
+  /** Al elegir un producto se precarga su rubro por defecto. */
+  const pickProduct = (id: string) => {
+    setProductId(id);
+    const chosen = data.products.find((p) => p.id === id);
+    if (chosen?.categoryId) setCategoryId(chosen.categoryId);
+    setScanMsg('');
+  };
+
+  /** Busca el código en el catálogo; si no está, crea el producto con ese código. */
+  const onScanned = async (code: string) => {
+    setScanning(false);
+    const found = data.products.find((p) => p.barcode === code);
+    if (found) { pickProduct(found.id); setScanMsg(`Encontrado: ${found.name}`); return; }
+    const id = await data.add<Product>('products', {
+      name: `Producto ${code}`, color: colorForIndex(data.products.length), active: true,
+      unit: 'und', barcode: code, categoryId: categoryId || undefined,
+    });
+    setProductId(id);
+    setScanMsg(`Código ${code} nuevo: se creó un producto, renómbralo en Catálogos.`);
+  };
   const createCategory = (name: string) => data.add<Category>('categories', { name, color: colorForIndex(data.categories.length), active: true, group: 'necesidad' });
 
   const submit = async (e: FormEvent) => {
@@ -84,9 +110,17 @@ export default function ExpenseForm({ expense, onDone }: Props) {
         <label className="field"><span className="field-label">Tasa (Bs/$)</span><input className="input num" type="number" step="0.01" min="0" value={rate} onChange={(e) => setRate(e.target.value)} required /></label>
       </div>
       <div className="field"><span className="field-label">Producto o concepto</span>
-        <CustomSelect items={data.products} value={productId} onChange={setProductId} onCreate={createProduct} placeholder="Harina de maíz 1 kg" />
-        <span className="field-hint">Si no está en la lista, escríbelo y usa «Crear».</span>
+        <div className="form-scan">
+          <CustomSelect items={data.products} value={productId} onChange={pickProduct} onCreate={createProduct} placeholder="Harina de maíz 1 kg" />
+          {barcodeSupported() && (
+            <button type="button" className="btn btn-outline form-scan-btn" onClick={() => setScanning(true)} aria-label="Escanear código de barras">
+              <Barcode size={18} />
+            </button>
+          )}
+        </div>
+        <span className="field-hint">{scanMsg || 'Si no está en la lista, escríbelo y usa «Crear».'}</span>
       </div>
+      {scanning && <BarcodeScanner onDetected={(code) => void onScanned(code)} onClose={() => setScanning(false)} />}
       <div className="form-grid">
         <div className="field"><span className="field-label">Lugar</span><CustomSelect items={data.places} value={placeId} onChange={setPlaceId} onCreate={createPlace} placeholder="Maraplus, Yummy…" /></div>
         <div className="field"><span className="field-label">Rubro</span><CustomSelect items={data.categories} value={categoryId} onChange={setCategoryId} onCreate={createCategory} placeholder="Víveres, Proteína…" /></div>

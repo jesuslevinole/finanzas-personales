@@ -1,6 +1,6 @@
 import type {
   Category, CatalogItem, Creditor, Debt, ExchangeRate, Expense, FixedCost, Income, IncomeSource,
-  MoneyOwner, NewDoc, PayStatus, Place, ShoppingItem,
+  MoneyOwner, NewDoc, PayStatus, Place, Product, ShoppingItem,
 } from '../types';
 import { colorForIndex, findByName } from './relations';
 import { round2, toUsd } from './money';
@@ -164,6 +164,7 @@ export interface ParsedWorkbook {
   debts: NewDoc<Debt>[];
   shopping: NewDoc<ShoppingItem>[];
   newCategories: CatalogDraft[];
+  newProducts: CatalogDraft[];
   newPlaces: CatalogDraft[];
   newCreditors: CatalogDraft[];
   newSources: CatalogDraft[];
@@ -173,6 +174,7 @@ export interface ParsedWorkbook {
 
 export interface ExistingCatalogs {
   categories: Category[];
+  products: Product[];
   places: Place[];
   creditors: Creditor[];
   incomeSources: IncomeSource[];
@@ -195,6 +197,7 @@ export const parseWorkbook = (sheets: Record<string, RawRow[]>, existing: Existi
   const places = new CatalogResolver(existing.places);
   const creditors = new CatalogResolver(existing.creditors);
   const sources = new CatalogResolver(existing.incomeSources);
+  const products = new CatalogResolver(existing.products);
 
   const sheetOf = (...names: string[]): RawRow[] => {
     for (const n of names) {
@@ -245,6 +248,7 @@ export const parseWorkbook = (sheets: Record<string, RawRow[]>, existing: Existi
       date,
       placeId: places.key(str(pick(row, 'LUGAR')) || 'Sin lugar'),
       categoryId: categories.key(str(pick(row, 'CATEGORIA')) || 'Sin categoría'),
+      productId: products.key(product || 'Sin descripción'),
       product: product || 'Sin descripción',
       unitPriceBs: num(pick(row, 'PRECIO')) || round2(totalBs / quantity),
       quantity,
@@ -309,6 +313,7 @@ export const parseWorkbook = (sheets: Record<string, RawRow[]>, existing: Existi
   return {
     rates, incomes, expenses, fixedCosts, debts, shopping,
     newCategories: categories.pending,
+    newProducts: products.pending,
     newPlaces: places.pending,
     newCreditors: creditors.pending,
     newSources: sources.pending,

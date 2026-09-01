@@ -8,6 +8,9 @@ export type PayStatus = 'pendiente' | 'en_proceso' | 'pagada';
 /** Grupo presupuestario (regla 50/30/20). */
 export type BudgetGroup = 'necesidad' | 'deseo' | 'ahorro';
 
+/** Presentación de un producto. */
+export type StockUnit = 'und' | 'kg' | 'g' | 'l' | 'ml' | 'paq';
+
 /* ---------------------------------------------------------------
    Catálogos — misma forma para todos (id + nombre + color + activo),
    resueltos con utils/relations.ts y editados en la vista Catálogos.
@@ -35,7 +38,14 @@ export type Creditor = CatalogItem;
 /** Origen de ingreso (cliente, alquiler, Binance…). */
 export type IncomeSource = CatalogItem;
 /** Producto o concepto de gasto (harina, pañales, comisión…). */
-export type Product = CatalogItem;
+export interface Product extends CatalogItem {
+  /** Rubro por defecto: se precarga al elegir el producto en un gasto. */
+  categoryId?: string;
+  /** Presentación habitual: unidad, kilo, litro… */
+  unit?: StockUnit;
+  /** Código de barras (EAN/UPC) para buscarlo con la cámara. */
+  barcode?: string;
+}
 
 /* ---------------------------------------------------------------
    Movimientos
@@ -124,8 +134,6 @@ export interface Budget {
 /* ---------------------------------------------------------------
    Despensa
    --------------------------------------------------------------- */
-
-export type StockUnit = 'und' | 'kg' | 'g' | 'l' | 'ml' | 'paq';
 
 export interface PricePoint {
   date: string;
