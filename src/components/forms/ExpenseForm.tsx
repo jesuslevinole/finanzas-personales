@@ -4,7 +4,10 @@ import { Barcode } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { barcodeSupported } from '../../utils/barcode';
 import BarcodeScanner from '../ui/BarcodeScanner';
-import type { Category, Expense, InventoryItem, Place, PricePoint, Product } from '../../types';
+import type { Category, Expense, InventoryItem, Place, PricePoint, Product, ProductType, StockUnit } from '../../types';
+import { UNITS } from '../../utils/units';
+import { useCurrentPlace } from '../../hooks/useCurrentPlace';
+import Modal from '../ui/Modal';
 import { rateForDate } from '../../utils/finance';
 import { colorForIndex, getRelationName } from '../../utils/relations';
 import { round2, toUsd } from '../../utils/money';
@@ -19,8 +22,10 @@ interface Props {
 
 export default function ExpenseForm({ expense, onDone }: Props) {
   const data = useData();
+  const { placeId: currentPlaceId } = useCurrentPlace();
   const [date, setDate] = useState(expense?.date ?? todayIso());
-  const [placeId, setPlaceId] = useState(expense?.placeId ?? '');
+  // Si marcaste dónde estás, el gasto nuevo arranca con ese lugar.
+  const [placeId, setPlaceId] = useState(expense?.placeId ?? currentPlaceId);
   const [categoryId, setCategoryId] = useState(expense?.categoryId ?? data.categories[0]?.id ?? '');
   const [productId, setProductId] = useState(expense?.productId ?? '');
   const [priceCurrency, setPriceCurrency] = useState<'VES' | 'USD'>('VES');
@@ -31,6 +36,7 @@ export default function ExpenseForm({ expense, onDone }: Props) {
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState('');
+  const [newCode, setNewCode] = useState<string | null>(null);
 
   const rateNum = Number(rate) || 0;
   const priceNum = Number(price) || 0;
@@ -57,17 +63,12 @@ export default function ExpenseForm({ expense, onDone }: Props) {
     setScanMsg('');
   };
 
-  /** Busca el código en el catálogo; si no está, crea el producto con ese código. */
-  const onScanned = async (code: string) => {
+  /** Busca el código en el catálogo; si no está, ofrece darlo de alta ahí mismo. */
+  const onScanned = (code: string) => {
     setScanning(false);
     const found = data.products.find((p) => p.barcode === code);
     if (found) { pickProduct(found.id); setScanMsg(`Encontrado: ${found.name}`); return; }
-    const id = await data.add<Product>('products', {
-      name: `Producto ${code}`, color: colorForIndex(data.products.length), active: true,
-      unit: 'und', barcode: code, categoryId: categoryId || undefined,
-    });
-    setProductId(id);
-    setScanMsg(`Código ${code} nuevo: se creó un producto, renómbralo en Catálogos.`);
+    setNewCode(code);
   };
   const createCategory = (name: string) => data.add<Category>('categories', { name, color: colorForIndex(data.categories.length), active: true, group: 'necesidad' });
 
@@ -120,7 +121,13 @@ export default function ExpenseForm({ expense, onDone }: Props) {
         </div>
         <span className="field-hint">{scanMsg || 'Si no está en la lista, escríbelo y usa «Crear».'}</span>
       </div>
-      {scanning && <BarcodeScanner onDetected={(code) => void onScanned(code)} onClose={() => setScanning(false)} />}
+      {scanning && <BarcodeScanner onDetected={onScanned} onClose={() => setScanning(false)} />}
+      <Modal title="Producto nuevo" open={newCode !== null} onClose={() => setNewCode(null)}>
+        {newCode && (
+          <QuickProductForm code={newCode} defaultCategoryId={categoryId}
+            onCreated={(id) => { pickProduct(id); setNewCode(null); setScanMsg('Producto agregado al catálogo.'); }} />
+        )}
+      </Modal>
       <div className="form-grid">
         <div className="field"><span className="field-label">Lugar</span><CustomSelect items={data.places} value={placeId} onChange={setPlaceId} onCreate={createPlace} placeholder="Maraplus, Yummy…" /></div>
         <div className="field"><span className="field-label">Rubro</span><CustomSelect items={data.categories} value={categoryId} onChange={setCategoryId} onCreate={createCategory} placeholder="Víveres, Proteína…" /></div>
@@ -142,6 +149,55 @@ export default function ExpenseForm({ expense, onDone }: Props) {
         <label className="row small"><input type="checkbox" checked={toStock} onChange={(e) => setToStock(e.target.checked)} /> Sumar al inventario (guarda el precio para medir inflación)</label>
       )}
       <div className="form-actions"><button type="submit" className="btn btn-primary" disabled={saving}>{expense ? 'Guardar cambios' : 'Guardar gasto'}</button></div>
+    </form>
+  );
+}
+
+
+/** Alta rápida de un producto escaneado, sin salir del formulario de gasto. */
+function QuickProductForm({ code, defaultCategoryId, onCreated }: { code: string; defaultCategoryId: string; onCreated: (id: string) => void }) {
+  const data = useData();
+  const [name, setName] = useState('');
+  const [categoryId, setCategoryId] = useState(defaultCategoryId);
+  const [typeId, setTypeId] = useState('');
+  const [unit, setUnit] = useState<StockUnit>('und');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSaving(true);
+    const id = await data.add<Product>('products', {
+      name: name.trim(), color: colorForIndex(data.products.length), active: true,
+      categoryId: categoryId || undefined, typeId: typeId || undefined, unit, barcode: code,
+    });
+    setSaving(false);
+    onCreated(id);
+  };
+
+  return (
+    <form onSubmit={submit} className="stack">
+      <p className="small muted">Código <strong className="num">{code}</strong> no está en el catálogo. Dale nombre y queda listo para la próxima.</p>
+      <label className="field"><span className="field-label">Nombre del producto</span>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Arroz Mary 1 kg" required autoFocus />
+      </label>
+      <div className="form-grid">
+        <div className="field"><span className="field-label">Rubro</span>
+          <CustomSelect items={data.categories} value={categoryId} onChange={setCategoryId}
+            onCreate={(value) => data.add<Category>('categories', { name: value, color: colorForIndex(data.categories.length), active: true, group: 'necesidad' })} />
+        </div>
+        <div className="field"><span className="field-label">Tipo</span>
+          <CustomSelect items={data.productTypes} value={typeId} onChange={setTypeId}
+            onCreate={(value) => data.add<ProductType>('productTypes', { name: value, color: colorForIndex(data.productTypes.length), active: true })}
+            placeholder="Arroz, pasta…" />
+        </div>
+      </div>
+      <label className="field"><span className="field-label">Presentación</span>
+        <select className="input" value={unit} onChange={(e) => setUnit(e.target.value as StockUnit)}>
+          {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+        </select>
+      </label>
+      <div className="form-actions"><button type="submit" className="btn btn-primary" disabled={saving}>Agregar y usar</button></div>
     </form>
   );
 }

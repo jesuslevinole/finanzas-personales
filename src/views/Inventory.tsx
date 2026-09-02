@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { UNITS } from '../utils/units';
-import { Minus, Package, Plus, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Minus, Package, Pencil, Plus, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import Modal from '../components/ui/Modal';
 import CustomSelect from '../components/ui/CustomSelect';
@@ -132,6 +132,7 @@ export default function Inventory() {
 
       <div className="card card-tight">
         <DataTable rows={items} columns={columns} onRowClick={setDetail}
+          actions={editable ? (i) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditingItem(i)}><Pencil size={15} /></button> : undefined}
           rowClass={(i) => (i.quantity <= i.minQuantity ? 'warn-row' : '')}
 
           empty={<EmptyState title="Sin productos" hint="Agrega productos aquí o marca «sumar al inventario» al registrar un gasto." />} />

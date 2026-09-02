@@ -25,6 +25,7 @@ export type CollectionName =
   | 'creditors'
   | 'incomeSources'
   | 'products'
+  | 'productTypes'
   | 'incomes'
   | 'expenses'
   | 'fixedCosts'

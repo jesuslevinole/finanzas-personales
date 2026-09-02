@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type {
   Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
-  Goal, InventoryItem, Member, Place, Product, Role, ShoppingItem, ShoppingList, UserSettings,
+  Goal, InventoryItem, Member, Place, Product, ProductType, Role, ShoppingItem, ShoppingList, UserSettings,
 } from '../types';
 import { create, createMany, patch, remove, removeAll, subscribe, upsert } from '../services/firestore';
 import { settingsForMonth } from '../utils/finance';
@@ -19,6 +19,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [creditors, setCreditors] = useState<Creditor[]>([]);
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
@@ -45,6 +46,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       subscribe<Creditor>('creditors', setCreditors, fail),
       subscribe<IncomeSource>('incomeSources', setIncomeSources, fail),
       subscribe<Product>('products', setProducts, fail),
+      subscribe<ProductType>('productTypes', setProductTypes, fail),
       subscribe<Income>('incomes', setIncomes, fail, 'date'),
       subscribe<Expense>('expenses', setExpenses, fail, 'date'),
       subscribe<FixedCost>('fixedCosts', setFixedCosts, fail, 'month'),
@@ -78,7 +80,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return {
       ready, error, writeError,
       clearWriteError: () => setWriteError(null),
-      rates, categories, places, creditors, incomeSources, products, incomes, expenses,
+      rates, categories, places, creditors, incomeSources, products, productTypes, incomes, expenses,
       fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, currentRate,
       settingsDocs,
       settingsFor,
@@ -90,7 +92,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       del: (name, id) => guard(() => { requireSession(); return remove(name, id); }),
       delAll: (name) => guard(() => { requireSession(); return removeAll(name); }),
     };
-  }, [uid, ready, error, writeError, rates, categories, places, creditors, incomeSources, products, incomes, expenses, fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settingsDocs]);
+  }, [uid, ready, error, writeError, rates, categories, places, creditors, incomeSources, products, productTypes, incomes, expenses, fixedCosts, debts, budgets, goals, inventory, shopping, shoppingLists, roles, members, settingsDocs]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

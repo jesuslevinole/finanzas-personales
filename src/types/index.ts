@@ -37,10 +37,15 @@ export type Place = CatalogItem;
 export type Creditor = CatalogItem;
 /** Origen de ingreso (cliente, alquiler, Binance…). */
 export type IncomeSource = CatalogItem;
-/** Producto o concepto de gasto (harina, pañales, comisión…). */
+/** Familia del producto: arroz, pasta, harina, jabón… */
+export type ProductType = CatalogItem;
+
+/** Producto o concepto de gasto (harina Mary, pañales Winny…). */
 export interface Product extends CatalogItem {
   /** Rubro por defecto: se precarga al elegir el producto en un gasto. */
   categoryId?: string;
+  /** Tipo o familia a la que pertenece (arroz, pasta…). */
+  typeId?: string;
   /** Presentación habitual: unidad, kilo, litro… */
   unit?: StockUnit;
   /** Código de barras (EAN/UPC) para buscarlo con la cámara. */

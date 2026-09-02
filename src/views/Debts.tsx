@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Check, CreditCard, Plus, Wallet } from 'lucide-react';
+import { Check, CreditCard, Pencil, Plus, Wallet } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useConfirm } from '../hooks/useConfirm';
@@ -173,6 +173,7 @@ export default function Debts() {
       ) : (
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
+          actions={editable ? (d) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(d)}><Pencil size={15} /></button> : undefined}
           rowClass={(d) => (d.status === 'pagada' ? 'muted-row' : d.dueDate < today ? 'danger-row' : '')}
 
           empty={<EmptyState title={tab === 'pendiente' ? 'Sin cuotas pendientes' : 'Sin cuotas pagadas'} hint={activeCount > 0 ? 'Ninguna cuota coincide con los filtros.' : tab === 'pendiente' ? 'Buena señal: no hay cuotas abiertas.' : 'Aquí quedará el histórico de lo que vayas pagando.'} />} />

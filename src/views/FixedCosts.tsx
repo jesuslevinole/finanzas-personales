@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { CalendarClock, Check, Copy, Plus, Wallet } from 'lucide-react';
+import { CalendarClock, Check, Copy, Pencil, Plus, Wallet } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useMonth } from '../hooks/useMonth';
 import { usePermissions } from '../hooks/usePermissions';
@@ -123,6 +123,7 @@ export default function FixedCosts() {
 
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
+          actions={editable ? (f) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(f)}><Pencil size={15} /></button> : undefined}
           rowClass={(f) => (f.status === 'pagada' ? 'muted-row' : fixedCostDate(f.month, f.dueDay) < today ? 'danger-row' : '')}
 
           empty={<EmptyState title={tab === 'pendiente' ? 'Nada pendiente' : 'Nada pagado aún'} hint={tab === 'pendiente' ? 'Todos los costos fijos del mes están pagados.' : 'Marca como pagados los que ya cubriste.'} />} />

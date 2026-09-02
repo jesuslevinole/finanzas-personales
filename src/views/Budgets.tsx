@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Copy, PiggyBank, Target, TrendingDown, Wallet } from 'lucide-react';
+import { Copy, Pencil, PiggyBank, Target, TrendingDown, Wallet } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useMonth } from '../hooks/useMonth';
 import { usePermissions } from '../hooks/usePermissions';
@@ -161,6 +161,7 @@ export default function Budgets() {
           <span className="tiny muted">Toca un rubro para fijar su tope</span>
         </div>
         <DataTable rows={rows} columns={columns} onRowClick={editable ? setEditing : undefined}
+          actions={editable ? (r) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Fijar tope" onClick={() => setEditing(r)}><Pencil size={15} /></button> : undefined}
           rowClass={(r) => (r.isOwn && r.spentUsd > r.limitUsd ? 'danger-row' : '')}
           empty={<EmptyState title="Sin rubros" hint="Crea rubros en Catálogos para poder presupuestarlos." />} />
       </div>

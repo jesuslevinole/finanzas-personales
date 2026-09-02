@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, Plus, Receipt } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Receipt } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useConfirm } from '../hooks/useConfirm';
 import { useMonth } from '../hooks/useMonth';
@@ -218,9 +218,11 @@ export default function Movements() {
       <div className="card card-tight">
         {tab === 'gastos' ? (
           <DataTable rows={expenses} columns={expenseColumns} onRowClick={setDetail}
+            actions={editable ? (e) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(e)}><Pencil size={15} /></button> : undefined}
             empty={<EmptyState title="Sin gastos" hint={activeCount > 0 ? 'Ningún gasto coincide con los filtros.' : 'Registra lo que compras para saber en qué se va el dinero.'} />} />
         ) : (
           <DataTable rows={incomes} columns={incomeColumns} onRowClick={setDetail}
+            actions={editable ? (i) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(i)}><Pencil size={15} /></button> : undefined}
             empty={<EmptyState title="Sin ingresos" hint={activeCount > 0 ? 'Ningún ingreso coincide con los filtros.' : 'Registra lo que entra y marca el dinero de terceros.'} />} />
         )}
       </div>

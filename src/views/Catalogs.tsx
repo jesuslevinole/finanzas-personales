@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Barcode, EyeOff, Plus, Sparkles } from 'lucide-react';
+import { Barcode, EyeOff, Pencil, Plus, Sparkles } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useConfirm } from '../hooks/useConfirm';
@@ -7,7 +7,7 @@ import EmptyState from '../components/ui/EmptyState';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import DetailSheet from '../components/ui/DetailSheet';
 import Modal from '../components/ui/Modal';
-import type { BudgetGroup, CatalogItem, Category, Creditor, IncomeSource, Place, Product, StockUnit } from '../types';
+import type { BudgetGroup, CatalogItem, Category, Creditor, IncomeSource, Place, Product, ProductType, StockUnit } from '../types';
 import { UNITS } from '../utils/units';
 import { getRelationName } from '../utils/relations';
 import { barcodeSupported } from '../utils/barcode';
@@ -19,7 +19,7 @@ import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import { GROUP_LABEL } from '../utils/finance';
 import './Catalogs.css';
 
-type CatalogKey = 'categories' | 'places' | 'creditors' | 'incomeSources' | 'products';
+type CatalogKey = 'categories' | 'places' | 'creditors' | 'incomeSources' | 'products' | 'productTypes';
 
 const TABS: { key: CatalogKey; label: string; hint: string }[] = [
   { key: 'categories', label: 'Rubros', hint: 'Clasifican cada gasto y alimentan el presupuesto.' },
@@ -27,6 +27,7 @@ const TABS: { key: CatalogKey; label: string; hint: string }[] = [
   { key: 'creditors', label: 'Acreedores', hint: 'Quién te financia: Cashea, Ubii, tiendas a cuotas.' },
   { key: 'incomeSources', label: 'Orígenes de ingreso', hint: 'Clientes, alquileres, Binance…' },
   { key: 'products', label: 'Productos', hint: 'Lo que compras: alimenta gastos, inventario y lista de compras.' },
+  { key: 'productTypes', label: 'Tipos de producto', hint: 'Familias: arroz, pasta, harina, jabón… agrupan productos de distintas marcas.' },
 ];
 
 export default function Catalogs() {
@@ -49,6 +50,7 @@ export default function Catalogs() {
     if (tab === 'places') return data.expenses.filter((e) => e.placeId === id).length;
     if (tab === 'creditors') return data.debts.filter((d) => d.creditorId === id).length;
     if (tab === 'products') return data.expenses.filter((e) => e.productId === id).length;
+    if (tab === 'productTypes') return data.products.filter((p) => p.typeId === id).length;
     return data.incomes.filter((i) => i.sourceId === id).length;
   };
 
@@ -134,7 +136,11 @@ export default function Catalogs() {
         const id = (i as Product).categoryId;
         return id ? <span className="tag">{getRelationName(data.categories, id)}</span> : <span className="tiny muted">Sin rubro</span>;
       } },
-      { key: 'unit', header: 'Tipo', width: '90px', render: (i: CatalogItem) => <span className="muted">{(i as Product).unit ?? 'und'}</span> },
+      { key: 'type', header: 'Tipo', width: '140px', render: (i: CatalogItem) => {
+        const id = (i as Product).typeId;
+        return id ? <span className="tag">{getRelationName(data.productTypes, id)}</span> : <span className="tiny muted">Sin tipo</span>;
+      } },
+      { key: 'unit', header: 'Presentación', width: '110px', hideOnMobile: true, render: (i: CatalogItem) => <span className="muted">{(i as Product).unit ?? 'und'}</span> },
       { key: 'barcode', header: 'Código', width: '150px', hideOnMobile: true, render: (i: CatalogItem) => (
         (i as Product).barcode ? <span className="num tiny">{(i as Product).barcode}</span> : <span className="tiny muted">—</span>
       ) },
@@ -178,6 +184,9 @@ export default function Catalogs() {
 
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
+          actions={editable ? (i) => (
+            <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(i)}><Pencil size={15} /></button>
+          ) : undefined}
           rowClass={(i) => (i.active === false ? 'muted-row' : '')}
           empty={<EmptyState title="Catálogo vacío" hint={editable ? 'Agrega el primero con el botón de arriba, o impórtalos desde tu Excel.' : 'Aún no hay elementos.'} />} />
       </div>
@@ -197,7 +206,8 @@ export default function Catalogs() {
             ] : []),
             ...(tab === 'products' ? [
               { label: 'Rubro', value: (detail as Product).categoryId ? getRelationName(data.categories, (detail as Product).categoryId!) : '—' },
-              { label: 'Tipo', value: (detail as Product).unit ?? 'und' },
+              { label: 'Tipo', value: (detail as Product).typeId ? getRelationName(data.productTypes, (detail as Product).typeId!) : '—' },
+              { label: 'Presentación', value: (detail as Product).unit ?? 'und' },
               { label: 'Código de barras', value: (detail as Product).barcode ?? '—', wide: true },
             ] : []),
           ]}>
@@ -227,6 +237,7 @@ function CatalogForm({ tab, count, item, onDone }: { tab: CatalogKey; count: num
   const [group, setGroup] = useState<BudgetGroup>((item as Category | undefined)?.group ?? 'necesidad');
   const [pct, setPct] = useState((item as Category | undefined)?.suggestedPct !== undefined ? String((item as Category).suggestedPct) : '');
   const [categoryId, setCategoryId] = useState((item as Product | undefined)?.categoryId ?? '');
+  const [typeId, setTypeId] = useState((item as Product | undefined)?.typeId ?? '');
   const [unit, setUnit] = useState<StockUnit>((item as Product | undefined)?.unit ?? 'und');
   const [barcode, setBarcode] = useState((item as Product | undefined)?.barcode ?? '');
   const [scanning, setScanning] = useState(false);
@@ -241,14 +252,15 @@ function CatalogForm({ tab, count, item, onDone }: { tab: CatalogKey; count: num
     } else if (tab === 'products') {
       const payload = {
         name: name.trim(), color, active: item?.active !== false,
-        categoryId: categoryId || undefined, unit, barcode: barcode.trim() || undefined,
+        categoryId: categoryId || undefined, typeId: typeId || undefined,
+        unit, barcode: barcode.trim() || undefined,
       };
       if (item) await update<Product>('products', item.id, payload);
       else await add<Product>('products', payload);
     } else {
       const payload = { name: name.trim(), color, active: item?.active !== false };
-      if (item) await update<Place | Creditor | IncomeSource>(tab, item.id, payload);
-      else await add<Place | Creditor | IncomeSource>(tab, payload);
+      if (item) await update<Place | Creditor | IncomeSource | ProductType>(tab, item.id, payload);
+      else await add<Place | Creditor | IncomeSource | ProductType>(tab, payload);
     }
     onDone();
   };
@@ -276,7 +288,12 @@ function CatalogForm({ tab, count, item, onDone }: { tab: CatalogKey; count: num
             <div className="field"><span className="field-label">Rubro por defecto</span>
               <CustomSelect items={data.categories} value={categoryId} onChange={setCategoryId} placeholder="Se precarga en el gasto" />
             </div>
-            <label className="field"><span className="field-label">Tipo / presentación</span>
+            <div className="field"><span className="field-label">Tipo de producto</span>
+              <CustomSelect items={data.productTypes} value={typeId} onChange={setTypeId}
+                onCreate={(value) => data.add<ProductType>('productTypes', { name: value, color: colorForIndex(data.productTypes.length), active: true })}
+                placeholder="Arroz, pasta, harina…" />
+            </div>
+            <label className="field"><span className="field-label">Presentación</span>
               <select className="input" value={unit} onChange={(e) => setUnit(e.target.value as StockUnit)}>
                 {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>

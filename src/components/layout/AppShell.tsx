@@ -8,6 +8,7 @@ import type { ModuleKey } from '../../types';
 import { MODULE_LABEL } from '../../utils/access';
 import { usePermissions } from '../../hooks/usePermissions';
 import RateBanner from './RateBanner';
+import PlacePicker from './PlacePicker';
 import WriteErrorToast from './WriteErrorToast';
 
 interface NavItem { to: string; module: ModuleKey; icon: ReactNode; }
@@ -98,6 +99,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <header className="topbar">
           <button type="button" className="btn btn-ghost btn-icon only-mobile" onClick={() => setMoreOpen(true)} aria-label="Abrir menú"><Menu size={18} /></button>
           <h1 className="topbar-title truncate">{currentTitle ? MODULE_LABEL[currentTitle] : 'Bolívar Vivo'}</h1>
+          <PlacePicker />
           <RateBanner />
         </header>
         <main className="shell-content">{children}</main>

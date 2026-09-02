@@ -88,6 +88,6 @@
   .dt-td > * { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 
   .dt-td.hide-sm { display: none; }
-  .dt-actions { grid-column: 3; grid-row: 2; justify-self: end; }
+  .dt-actions { grid-column: 3; grid-row: 2; justify-self: end; align-self: center; }
   .dt-actions .btn { opacity: 1; }
 }

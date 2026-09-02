@@ -133,7 +133,7 @@ export default function Import() {
     setWipeMessage('');
     try {
       let total = 0;
-      for (const name of ['expenses', 'incomes', 'fixedCosts', 'debts', 'budgets', 'shopping', 'shoppingLists', 'inventory', 'rates', 'categories', 'products', 'places', 'creditors', 'incomeSources'] as const) {
+      for (const name of ['expenses', 'incomes', 'fixedCosts', 'debts', 'budgets', 'shopping', 'shoppingLists', 'inventory', 'rates', 'categories', 'products', 'productTypes', 'places', 'creditors', 'incomeSources'] as const) {
         setWipeMessage(`Borrando ${name}…`);
         total += await data.delAll(name);
       }

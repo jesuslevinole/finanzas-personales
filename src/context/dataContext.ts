@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 import type {
   Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
-  Goal, InventoryItem, Member, NewDoc, Place, Product, Role, ShoppingItem, ShoppingList, UserSettings, WithId,
+  Goal, InventoryItem, Member, NewDoc, Place, Product, ProductType, Role, ShoppingItem, ShoppingList, UserSettings, WithId,
 } from '../types';
 import type { CollectionName } from '../services/firestore';
 import type { Settings } from '../utils/finance';
@@ -23,6 +23,7 @@ export interface DataValue {
   creditors: Creditor[];
   incomeSources: IncomeSource[];
   products: Product[];
+  productTypes: ProductType[];
   incomes: Income[];
   expenses: Expense[];
   fixedCosts: FixedCost[];
