@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Check, Circle, Folder, FolderPlus, Landmark, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, Circle, FileDown, Folder, FolderPlus, Landmark, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
@@ -19,6 +19,7 @@ import { availableBalanceBs } from '../utils/finance';
 import { formatBs, formatPct, formatUsd, round2, sum, toBs, toUsd } from '../utils/money';
 import { todayIso } from '../utils/dates';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
+import { exportShoppingList } from '../utils/pdf';
 import './Shopping.css';
 
 const PRIORITY_LABEL: Record<ShoppingPriority, string> = { urgente: 'Urgente', normal: 'Normal', cuando_se_pueda: 'Cuando se pueda' };
@@ -26,6 +27,21 @@ const PRIORITY_ORDER: ShoppingPriority[] = ['urgente', 'normal', 'cuando_se_pued
 
 /** Precio real si ya se metió al carrito; si no, el estimado. */
 const lineUsd = (item: ShoppingItem): number => (item.actualUsd ?? item.estimatedUsd) * item.quantity;
+
+/**
+ * Último precio unitario pagado por un producto, en dólares. Mira primero el
+ * gasto más reciente y, si no hay ninguno, la ficha de inventario.
+ */
+const lastUnitPriceUsd = (data: ReturnType<typeof useData>, productId: string): number | null => {
+  const name = getRelationName(data.products, productId, '').toLowerCase();
+  const lastExpense = data.expenses
+    .filter((e) => e.productId === productId || e.product.trim().toLowerCase() === name)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (lastExpense && lastExpense.quantity > 0) return round2(lastExpense.totalUsd / lastExpense.quantity);
+
+  const item = data.inventory.find((i) => i.productId === productId || i.name.toLowerCase() === name);
+  return item && item.lastPriceUsd > 0 ? round2(item.lastPriceUsd) : null;
+};
 
 export default function Shopping() {
   const { shoppingLists } = useData();
@@ -187,7 +203,17 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const [editingList, setEditingList] = useState(false);
   const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const confirm = useConfirm();
+
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      await exportShoppingList(list, rows, rate, data.places);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const removeList = async () => {
     const ok = await confirm({
@@ -267,13 +293,18 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
             <p className="page-subtitle">{list.placeId ? getRelationName(data.places, list.placeId, '') : 'Carpeta de compra'} · {list.status === 'abierta' ? 'abierta' : 'cerrada'}</p>
           </div>
         </div>
-        {editable && (
-          <div className="row wrap shop-head-actions">
+        <div className="row wrap shop-head-actions">
+          <button type="button" className="btn btn-outline" onClick={() => void exportPdf()} disabled={exporting}>
+            <FileDown size={16} /> {exporting ? 'Generando…' : 'PDF'}
+          </button>
+          {editable && (
+            <>
             <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar carpeta" onClick={() => void removeList()}><Trash2 size={18} /></button>
             <button type="button" className="btn btn-outline" onClick={() => setEditingList(true)}><Pencil size={16} /> Editar carpeta</button>
             <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}><Plus size={16} /> Agregar producto</button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-4">
@@ -543,9 +574,8 @@ function AddItemForm({ listId, rate, item, onDone }: { listId: string; rate: num
     setProductId(id);
     const chosen = data.products.find((p) => p.id === id);
     if (chosen?.unit) setUnit(chosen.unit);
-    const productName = getRelationName(data.products, id, '');
-    const match = data.inventory.find((i) => i.productId === id || i.name.toLowerCase() === productName.toLowerCase());
-    if (match) { setEstimatedUsd(String(match.lastPriceUsd)); setUnit(match.unit); }
+    const price = lastUnitPriceUsd(data, id);
+    if (price !== null) setEstimatedUsd(String(price));
   };
 
   const createProduct = (value: string) => data.add<Product>('products', { name: value, color: colorForIndex(data.products.length), active: true, unit: 'und' });

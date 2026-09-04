@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Receipt } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, FileDown, Pencil, Plus, Receipt } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useConfirm } from '../hooks/useConfirm';
 import { useMonth } from '../hooks/useMonth';
@@ -19,7 +19,8 @@ import IncomeForm from '../components/forms/IncomeForm';
 import type { Expense, Income, IncomeKind, MoneyOwner } from '../types';
 import { getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
-import { shortDate } from '../utils/dates';
+import { monthOf, shortDate } from '../utils/dates';
+import { exportMovementsReport } from '../utils/pdf';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './Movements.css';
 
@@ -47,6 +48,7 @@ export default function Movements() {
   const [detail, setDetail] = useState<Expense | Income | null>(null);
   const [editing, setEditing] = useState<Expense | Income | null>(null);
   const [creating, setCreating] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setIncomeKind(''); setMinUsd(''); setRange(EMPTY_RANGE); };
   const activeCount = [search, categoryId, placeId, sourceId, owner, incomeKind, minUsd, range.from, range.to].filter(Boolean).length;
@@ -92,6 +94,25 @@ export default function Movements() {
     if (!top) return null;
     return { name: getRelationName(tab === 'gastos' ? data.categories : data.incomeSources, top[0]), usd: top[1] };
   }, [tab, expenses, incomes, data.categories, data.incomeSources]);
+
+  /** Reporte del conjunto que estás viendo: respeta filtros y rango de fechas. */
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      await exportMovementsReport({
+        title: activeCount > 0 ? `${expenses.length + incomes.length} movimientos filtrados` : 'Todos los movimientos',
+        month: rangeActive(range) ? monthOf(range.from || range.to) : month,
+        expenses, incomes,
+        categories: data.categories,
+        places: data.places,
+        productName: (e) => (e.productId ? getRelationName(data.products, e.productId, e.product) : e.product),
+        sourceName: (i) => getRelationName(data.incomeSources, i.sourceId, 'Sin origen'),
+        rate: data.currentRate,
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const removeRecord = async (row: Expense | Income) => {
     const isExpense = 'product' in row;
@@ -147,7 +168,12 @@ export default function Movements() {
           <button type="button" role="tab" aria-selected={tab === 'gastos'} className={`tab${tab === 'gastos' ? ' active' : ''}`} onClick={() => setTab('gastos')}>Gastos <span className="num muted">{scopeExpenses.length}</span></button>
           <button type="button" role="tab" aria-selected={tab === 'ingresos'} className={`tab${tab === 'ingresos' ? ' active' : ''}`} onClick={() => setTab('ingresos')}>Ingresos <span className="num muted">{scopeIncomes.length}</span></button>
         </div>
-        {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'}</button>}
+        <div className="row wrap mov-actions">
+          <button type="button" className="btn btn-outline" onClick={() => void exportPdf()} disabled={exporting}>
+            <FileDown size={16} /> {exporting ? 'Generando…' : 'Reporte PDF'}
+          </button>
+          {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'}</button>}
+        </div>
       </div>
 
       <div className="grid grid-4">
