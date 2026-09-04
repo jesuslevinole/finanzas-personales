@@ -13,6 +13,8 @@ import FilterBar from '../components/ui/FilterBar';
 import DateRange from '../components/ui/DateRange';
 import { EMPTY_RANGE, inRange, rangeActive, type Range } from '../utils/range';
 import DetailSheet from '../components/ui/DetailSheet';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import StatCard from '../components/ui/StatCard';
 import type { Category, InventoryItem, NewDoc, Product, ShoppingItem, StockUnit } from '../types';
 import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
@@ -28,6 +30,7 @@ export default function Inventory() {
   const { inventory, categories, places, shopping, currentRate, add, update, del } = data;
   const { canEdit } = usePermissions();
   const confirm = useConfirm();
+  const { exporting, run: runExport } = useExport();
   const editable = canEdit('inventario');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -74,6 +77,33 @@ export default function Inventory() {
     return h.length >= 2 && h[0] > 0 ? h[h.length - 1] / h[0] - 1 : null;
   };
 
+  const exportPdf = () => runExport(() => ({
+    title: 'Inventario',
+    subtitle: `${items.length} productos${activeCount > 0 ? ' (filtrados)' : ''}`,
+    fileName: 'inventario',
+    cards: [
+      { label: 'Productos', value: String(items.length), hint: `${inventory.length} en total` },
+      { label: 'Por reponer', value: String(lowCount), tone: lowCount > 0 ? 'warn' as const : 'ok' as const },
+      { label: 'Valor en despensa', value: formatUsd(stockValueUsd), hint: formatBs(stockValueUsd * currentRate) },
+      { label: 'Tasa del día', value: formatBs(currentRate), hint: 'Bs por dólar' },
+    ],
+    tables: [{
+      title: 'Existencias',
+      head: ['Producto', 'Rubro', 'Existencia', 'Mínimo', 'Última compra', 'Precio'],
+      body: items.map((i) => [
+        i.name,
+        getRelationName(categories, i.categoryId),
+        `${i.quantity} ${i.unit}`,
+        `${i.minQuantity} ${i.unit}`,
+        i.lastPurchaseDate ? shortDate(i.lastPurchaseDate) : '—',
+        formatUsd(i.lastPriceUsd),
+      ]),
+      foot: [['', '', '', '', 'Valor total', formatUsd(stockValueUsd)]],
+      alignRight: [2, 3, 5],
+    }],
+    footNote: 'La existencia se actualiza al registrar gastos con «sumar al inventario» o al finalizar una compra.',
+  }));
+
   const columns: Column<InventoryItem>[] = [
     { key: 'seq', header: '#', width: '54px', render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
     { key: 'name', header: 'Producto', primary: true, render: (i) => (
@@ -98,7 +128,10 @@ export default function Inventory() {
     <div className="page">
       <div className="page-header">
         <div><h1>Inventario</h1><p className="page-subtitle">Lo que tienes en casa, cuánto te costó y cómo ha subido de precio.</p></div>
-        {editable && <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={16} /> Nuevo producto</button>}
+        <div className="row wrap page-actions">
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
+          {editable && <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}><Plus size={16} /> Nuevo producto</button>}
+        </div>
       </div>
 
       <div className="grid grid-3">

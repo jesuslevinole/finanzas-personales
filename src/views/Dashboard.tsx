@@ -12,12 +12,14 @@ import MonthPicker from '../components/ui/MonthPicker';
 import Donut from '../components/ui/Donut';
 import Sparkline from '../components/ui/Sparkline';
 import ProgressBar from '../components/ui/ProgressBar';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import {
   availableBalanceBs, buildAdvice, cashNeeded, debtCapacity, emergencyFundTarget,
   expensesByCategory, groupTargets, incomeByKind, inflationSummary, ownIncomeUsd,
 } from '../utils/finance';
 import { formatBs, formatPct, formatUsd, sum, toUsd } from '../utils/money';
-import { addDays, daysBetween, monthOf, shortDate, todayIso } from '../utils/dates';
+import { addDays, daysBetween, monthLabel, monthOf, shortDate, todayIso } from '../utils/dates';
 import { daysToPayday } from '../utils/cycle';
 import './Dashboard.css';
 
@@ -29,6 +31,7 @@ export default function Dashboard() {
   const { canEdit } = usePermissions();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
   const settings = settingsFor(month);
+  const { exporting, run: runExport } = useExport();
   const [editingBalance, setEditingBalance] = useState(false);
   const [balanceDraft, setBalanceDraft] = useState(String(settings.balanceBs ?? ''));
 
@@ -76,6 +79,48 @@ export default function Dashboard() {
   const pendingFixed = monthFixed.filter((f) => f.status !== 'pagada');
   const toPayday = daysToPayday(today);
 
+  const exportPdf = () => runExport(() => ({
+    title: 'Resumen financiero',
+    subtitle: monthLabel(month),
+    fileName: 'resumen',
+    cards: [
+      { label: 'Disponible en la cuenta', value: formatBs(calcBalanceBs), hint: formatUsd(calcBalanceUsd) },
+      { label: 'Compromisos próximos', value: formatUsd(cash.totalUsd), hint: `${cash.items} conceptos`, tone: 'danger' as const },
+      { label: 'Ingresos del mes', value: formatUsd(incomeUsd), hint: `${formatUsd(kinds.fixedUsd)} fijos`, tone: 'ok' as const },
+      { label: 'Gastos del mes', value: formatUsd(expenseUsd), hint: incomeUsd > 0 ? formatPct(expenseUsd / incomeUsd) : undefined },
+    ],
+    bars: {
+      title: 'Gastos por rubro',
+      items: byCat.map((c) => ({ label: c.name, value: c.usd, display: formatUsd(c.usd), note: formatPct(c.share) })),
+    },
+    tables: [
+      {
+        title: 'Qué conviene hacer',
+        head: ['Prioridad', 'Recomendación'],
+        body: advice.map((a) => [a.level === 'urgente' ? 'Urgente' : a.level === 'atencion' ? 'Atención' : 'Bien', `${a.title}. ${a.detail}`]),
+      },
+      {
+        title: 'Vencen pronto',
+        accent: 'danger' as const,
+        head: ['Vence', 'Concepto', 'Acreedor', 'Monto'],
+        body: dueSoon.map((d) => [
+          shortDate(d.dueDate), d.merchant,
+          creditors.find((c) => c.id === d.creditorId)?.name ?? '—',
+          formatUsd(d.amountUsd),
+        ]),
+        alignRight: [3],
+      },
+      {
+        title: 'Costos fijos pendientes',
+        accent: 'ok' as const,
+        head: ['Día', 'Concepto', 'Monto'],
+        body: pendingFixed.map((f) => [String(f.dueDay).padStart(2, '0'), f.description, formatUsd(f.amountUsd)]),
+        alignRight: [2],
+      },
+    ],
+    footNote: inflation ? `El bolívar perdió ${formatPct(inflation.devaluationPct)} este mes frente al dólar.` : undefined,
+  }));
+
   const saveBalance = async () => {
     const value = Number(balanceDraft);
     if (!Number.isFinite(value) || value < 0) return;
@@ -87,7 +132,10 @@ export default function Dashboard() {
     <div className="page dash">
       <div className="page-header">
         <div><h1>Resumen</h1><p className="page-subtitle">Todo en dólares BCV para que la inflación no distorsione la foto.</p></div>
-        <MonthPicker month={month} onPrev={prev} onNext={next} />
+        <div className="row wrap page-actions">
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
+          <MonthPicker month={month} onPrev={prev} onNext={next} />
+        </div>
       </div>
 
       {/* Panel principal: cuánto hay, cuánto debes, cuánto queda */}

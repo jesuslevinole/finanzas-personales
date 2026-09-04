@@ -10,6 +10,8 @@ import EmptyState from '../components/ui/EmptyState';
 import StatCard from '../components/ui/StatCard';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import type { Budget } from '../types';
 import { categoryTargets, groupTargets, GROUP_LABEL, ownIncomeUsd } from '../utils/finance';
 import { addMonths, monthLabel } from '../utils/dates';
@@ -36,6 +38,7 @@ export default function Budgets() {
   const data = useData();
   const { canEdit } = usePermissions();
   const confirm = useConfirm();
+  const { exporting, run: runExport } = useExport();
   const { month, prev, next, monthIncomes, monthExpenses, monthDebts } = useMonth();
   const editable = canEdit('presupuesto');
   const [editing, setEditing] = useState<BudgetRow | null>(null);
@@ -82,6 +85,48 @@ export default function Budgets() {
     }));
   };
 
+  const exportPdf = () => runExport(() => ({
+    title: 'Presupuesto',
+    subtitle: `${monthLabel(month)} · ingreso ${formatUsd(incomeUsd)}`,
+    fileName: 'presupuesto',
+    cards: [
+      { label: 'Presupuestado', value: formatUsd(totalBudget), hint: `${withBudget} rubros con tope` },
+      { label: 'Gastado', value: formatUsd(totalSpent), hint: totalBudget > 0 ? formatPct(totalSpent / totalBudget) : undefined },
+      { label: 'Disponible', value: formatUsd(totalBudget - totalSpent), tone: totalBudget - totalSpent < 0 ? 'danger' as const : 'ok' as const },
+      { label: 'Rubros excedidos', value: String(overBudget.length), tone: overBudget.length ? 'danger' as const : 'ok' as const },
+    ],
+    bars: {
+      title: 'Gasto por rubro',
+      items: rows.filter((r) => r.spentUsd > 0).map((r) => ({
+        label: r.name, value: r.spentUsd, display: formatUsd(r.spentUsd),
+        note: r.limitUsd > 0 ? formatPct(r.ratio) : undefined,
+      })),
+    },
+    tables: [
+      {
+        title: 'Reparto del ingreso',
+        head: ['Grupo', 'Objetivo', 'Real', 'Diferencia'],
+        body: groups.map((g) => [
+          GROUP_LABEL[g.group], formatUsd(g.targetUsd), formatUsd(g.actualUsd),
+          `${g.diffUsd < 0 ? 'Excedido ' : 'Libre '}${formatUsd(Math.abs(g.diffUsd))}`,
+        ]),
+        alignRight: [1, 2, 3],
+      },
+      {
+        title: 'Por rubro',
+        head: ['Rubro', 'Grupo', 'Presupuestado', 'Gastado', 'Diferencia'],
+        body: rows.map((r) => [
+          r.name, r.group,
+          r.limitUsd > 0 ? `${formatUsd(r.limitUsd)}${r.isOwn ? '' : ' (sug.)'}` : 'Sin tope',
+          formatUsd(r.spentUsd),
+          r.limitUsd > 0 ? `${r.diffUsd < 0 ? '−' : ''}${formatUsd(Math.abs(r.diffUsd))}` : '—',
+        ]),
+        foot: [['', 'Total', formatUsd(totalBudget), formatUsd(totalSpent), formatUsd(totalBudget - totalSpent)]],
+        alignRight: [2, 3, 4],
+      },
+    ],
+  }));
+
   const columns: Column<BudgetRow>[] = [
     { key: 'color', header: '', width: '32px', leading: true, render: (r) => <span className="dot" style={{ '--dot-color': r.color } as CSSProperties} /> },
     { key: 'name', header: 'Rubro', primary: true, render: (r) => <span className="truncate">{r.name}</span> },
@@ -107,7 +152,10 @@ export default function Budgets() {
     <div className="page">
       <div className="page-header">
         <div><h1>Presupuesto</h1><p className="page-subtitle">Fija cuánto quieres gastar en cada rubro este mes y compáralo con lo que llevas.</p></div>
-        <MonthPicker month={month} onPrev={prev} onNext={next} />
+        <div className="row wrap page-actions">
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
+          <MonthPicker month={month} onPrev={prev} onNext={next} />
+        </div>
       </div>
 
       <div className="grid grid-4">

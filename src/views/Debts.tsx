@@ -14,6 +14,8 @@ import FilterBar from '../components/ui/FilterBar';
 import DateRange from '../components/ui/DateRange';
 import { EMPTY_RANGE, inRange, type Range } from '../utils/range';
 import DetailSheet from '../components/ui/DetailSheet';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import type { Creditor, Debt, MoneyOwner, NewDoc, PayStatus } from '../types';
 import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
 import { cycleOf, inCycle } from '../utils/cycle';
@@ -28,6 +30,7 @@ export default function Debts() {
   const data = useData();
   const { canEdit } = usePermissions();
   const confirm = useConfirm();
+  const { exporting, run: runExport } = useExport();
   const editable = canEdit('deudas');
   const today = todayIso();
   const cycle = cycleOf(today);
@@ -97,6 +100,35 @@ export default function Debts() {
     { key: 'total', header: 'Deuda abierta', align: 'end', width: '140px', amount: true, render: (r) => <span className="strong num">{formatUsd(r.total)}</span> },
   ];
 
+  const exportPdf = () => runExport(() => ({
+    title: 'Deudas y cuotas',
+    subtitle: `${openRows.length} cuotas abiertas · ${paidRows.length} pagadas`,
+    fileName: 'deudas',
+    cards: [
+      { label: 'Por pagar', value: formatUsd(totalOpen), hint: `${openRows.length} cuotas`, tone: 'danger' as const },
+      { label: 'Vencido', value: formatUsd(overdue), tone: overdue > 0 ? 'danger' as const : 'ok' as const },
+      { label: 'Vence esta semana', value: formatUsd(thisCycle), hint: cycle.label },
+      { label: 'Ya pagado', value: formatUsd(totalAll - totalOpen), tone: 'ok' as const },
+    ],
+    bars: {
+      title: 'Deuda abierta por acreedor',
+      items: creditorRows.map((r) => ({ label: r.name, value: r.total, display: formatUsd(r.total), note: `${r.count} cuotas` })),
+    },
+    tables: [{
+      title: 'Cuotas',
+      head: ['Vence', 'Concepto', 'Acreedor', 'Estado', 'Monto'],
+      body: filtered.map((d) => [
+        shortDate(d.dueDate),
+        `${d.merchant}${d.installment ? ` (${d.installment})` : ''}`,
+        getRelationName(data.creditors, d.creditorId),
+        d.status === 'pagada' ? 'Pagada' : d.dueDate < today ? 'Vencida' : 'Pendiente',
+        formatUsd(d.amountUsd),
+      ]),
+      foot: [['', '', '', 'Abierto', formatUsd(totalOpen)]],
+      alignRight: [4],
+    }],
+  }));
+
   const columns: Column<Debt>[] = [
     { key: 'seq', header: '#', width: '54px', render: (d) => <span className="seq num">{seq.get(d.id)}</span> },
     { key: 'due', header: 'Vence', width: '100px', render: (d) => {
@@ -124,7 +156,10 @@ export default function Debts() {
     <div className="page">
       <div className="page-header">
         <div><h1>Deudas y cuotas</h1><p className="page-subtitle">Cashea, préstamos, cuotas de tiendas. Cada cuota es una fila con su vencimiento.</p></div>
-        {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> Nueva cuota</button>}
+        <div className="row wrap page-actions">
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
+          {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> Nueva cuota</button>}
+        </div>
       </div>
 
       <div className="tabs" role="tablist">

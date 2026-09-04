@@ -7,6 +7,8 @@ import EmptyState from '../components/ui/EmptyState';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import DetailSheet from '../components/ui/DetailSheet';
 import Modal from '../components/ui/Modal';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import type { BudgetGroup, CatalogItem, Category, Creditor, IncomeSource, Place, Product, ProductType, StockUnit } from '../types';
 import { UNITS } from '../utils/units';
 import { getRelationName } from '../utils/relations';
@@ -34,6 +36,7 @@ export default function Catalogs() {
   const data = useData();
   const { canEdit } = usePermissions();
   const confirm = useConfirm();
+  const { exporting, run: runExport } = useExport();
   const [tab, setTab] = useState<CatalogKey>('categories');
   const [creating, setCreating] = useState(false);
   const [detail, setDetail] = useState<CatalogItem | null>(null);
@@ -125,6 +128,27 @@ export default function Catalogs() {
     }
   };
 
+  const exportPdf = () => runExport(() => ({
+    title: `Catálogo: ${current?.label ?? ''}`,
+    subtitle: `${rows.length} elementos`,
+    fileName: `catalogo-${tab}`,
+    tables: [{
+      head: tab === 'products'
+        ? ['#', 'Nombre', 'Rubro', 'Tipo', 'Código', 'Estado', 'Usos']
+        : ['#', 'Nombre', 'Estado', 'Usos'],
+      body: rows.map((i) => (tab === 'products'
+        ? [
+            String(seq.get(i.id)), i.name,
+            (i as Product).categoryId ? getRelationName(data.categories, (i as Product).categoryId!) : '—',
+            (i as Product).typeId ? getRelationName(data.productTypes, (i as Product).typeId!) : '—',
+            (i as Product).barcode ?? '—',
+            i.active === false ? 'Inactivo' : 'Activo', String(usage(i.id)),
+          ]
+        : [String(seq.get(i.id)), i.name, i.active === false ? 'Inactivo' : 'Activo', String(usage(i.id))])),
+      alignRight: tab === 'products' ? [6] : [3],
+    }],
+  }));
+
   const columns: Column<CatalogItem>[] = [
     { key: 'seq', header: '#', width: '54px', hideOnMobile: true, render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
     { key: 'color', header: '', width: '36px', leading: true, render: (i) => (
@@ -165,6 +189,7 @@ export default function Catalogs() {
       <div className="page-header">
         <div><h1>Catálogos</h1><p className="page-subtitle">Las listas que alimentan los formularios. Un cambio aquí se refleja en toda la app.</p></div>
         <div className="row wrap cat-head-actions">
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
           {editable && tab === 'products' && <button type="button" className="btn btn-outline" onClick={() => void buildFromExpenses()} disabled={building}>
             <Sparkles size={16} /> {building ? 'Generando…' : 'Generar desde mis gastos'}
           </button>}

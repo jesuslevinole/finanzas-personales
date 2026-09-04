@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Check, Circle, FileDown, Folder, FolderPlus, Landmark, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Folder, FolderPlus, Landmark, Mic, Pencil, Plus, ShoppingBag, Trash2, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
@@ -19,7 +19,8 @@ import { availableBalanceBs } from '../utils/finance';
 import { formatBs, formatPct, formatUsd, round2, sum, toBs, toUsd } from '../utils/money';
 import { todayIso } from '../utils/dates';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
-import { exportShoppingList } from '../utils/pdf';
+import { useExport } from '../hooks/useExport';
+import ExportButton from '../components/ui/ExportButton';
 import './Shopping.css';
 
 const PRIORITY_LABEL: Record<ShoppingPriority, string> = { urgente: 'Urgente', normal: 'Normal', cuando_se_pueda: 'Cuando se pueda' };
@@ -203,17 +204,8 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const [editingList, setEditingList] = useState(false);
   const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const confirm = useConfirm();
-
-  const exportPdf = async () => {
-    setExporting(true);
-    try {
-      await exportShoppingList(list, rows, rate, data.places);
-    } finally {
-      setExporting(false);
-    }
-  };
+  const { exporting, run: runExport } = useExport();
 
   const removeList = async () => {
     const ok = await confirm({
@@ -249,6 +241,35 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
   const availableBs = availableBalanceBs(data.incomes, data.expenses);
   const availableUsd = toUsd(availableBs, rate);
   const leftAfterCart = availableUsd - spent;
+
+  const exportPdf = () => runExport(() => ({
+    title: list.name,
+    subtitle: [list.placeId ? getRelationName(data.places, list.placeId, '') : '', list.status === 'abierta' ? 'Carpeta abierta' : 'Compra cerrada'].filter(Boolean).join(' · '),
+    fileName: `lista-${list.name.toLowerCase().replace(/\s+/g, '-')}`,
+    cards: [
+      { label: 'Presupuestado', value: formatUsd(planned), hint: formatBs(toBs(planned, rate)) },
+      { label: 'Pagado', value: formatUsd(spent), hint: `${inCart.length} de ${items.length} productos` },
+      { label: 'Presupuesto vs. pagado', value: `${diff > 0 ? '+' : ''}${formatUsd(diff)}`, tone: diff > 0 ? 'danger' as const : 'ok' as const },
+      { label: budget > 0 ? 'Tope' : 'Sin tope', value: budget > 0 ? formatUsd(budget) : '—', hint: budget > 0 ? `Queda ${formatUsd(remaining)}` : undefined },
+    ],
+    tables: [{
+      title: 'Productos',
+      head: ['#', 'Producto', 'Cant.', 'Presupuestado', 'Pagado', 'Diferencia'],
+      body: rows.map((item, i) => {
+        const est = item.estimatedUsd * item.quantity;
+        const real = item.actualUsd !== undefined ? item.actualUsd * item.quantity : null;
+        return [
+          String(i + 1), item.name, `${item.quantity} ${item.unit}`,
+          formatUsd(est),
+          real !== null ? formatUsd(real) : 'Pendiente',
+          real !== null ? `${real - est > 0 ? '+' : ''}${formatUsd(real - est)}` : '—',
+        ];
+      }),
+      foot: [['', 'Total', '', formatUsd(planned), formatUsd(spent), `${diff > 0 ? '+' : ''}${formatUsd(diff)}`]],
+      alignRight: [3, 4, 5],
+    }],
+    footNote: `Tasa usada: ${formatBs(rate)} por dólar.`,
+  }));
 
   const columns: Column<ShoppingItem>[] = [
     { key: 'seq', header: '#', width: '46px', hideOnMobile: true, render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
@@ -294,9 +315,7 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
           </div>
         </div>
         <div className="row wrap shop-head-actions">
-          <button type="button" className="btn btn-outline" onClick={() => void exportPdf()} disabled={exporting}>
-            <FileDown size={16} /> {exporting ? 'Generando…' : 'PDF'}
-          </button>
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
           {editable && (
             <>
             <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar carpeta" onClick={() => void removeList()}><Trash2 size={18} /></button>

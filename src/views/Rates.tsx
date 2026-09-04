@@ -4,6 +4,8 @@ import { useData } from '../hooks/useData';
 import Sparkline from '../components/ui/Sparkline';
 import DetailSheet from '../components/ui/DetailSheet';
 import FilterBar from '../components/ui/FilterBar';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import DateRange from '../components/ui/DateRange';
 import { EMPTY_RANGE, inRange, type Range } from '../utils/range';
 import { useConfirm } from '../hooks/useConfirm';
@@ -20,6 +22,7 @@ import './Rates.css';
 export default function Rates() {
   const { rates, set, del } = useData();
   const confirm = useConfirm();
+  const { exporting, run: runExport } = useExport();
   const [date, setDate] = useState(todayIso());
   const [rate, setRate] = useState('');
   const [bsAmount, setBsAmount] = useState('');
@@ -36,6 +39,29 @@ export default function Rates() {
   const summary = inflationSummary(last30);
 
   const seq = sequenceMap(rates, (r) => r.date);
+
+  const exportPdf = () => runExport(() => ({
+    title: 'Tasa BCV',
+    subtitle: `${filteredRates.length} días registrados`,
+    fileName: 'tasa-bcv',
+    cards: [
+      { label: 'Tasa vigente', value: current ? formatBs(current) : '—', hint: latest ? shortDate(latest.date) : undefined },
+      { label: 'Devaluación del período', value: summary ? formatPct(summary.devaluationPct) : '—', tone: 'danger' as const },
+      { label: 'Ritmo diario', value: summary ? formatPct(summary.dailyPct) : '—' },
+      { label: '1.000 Bs valen', value: current ? formatUsd(1000 / current) : '—' },
+    ],
+    tables: [{
+      title: 'Historial',
+      head: ['Fecha', 'Bs por dólar', 'Variación', 'Fuente'],
+      body: filteredRates.map((r, i) => {
+        const prevRate = filteredRates[i + 1];
+        const change = prevRate ? r.rate / prevRate.rate - 1 : null;
+        return [shortDate(r.date), formatBs(r.rate), change !== null ? `${change > 0 ? '+' : ''}${formatPct(change)}` : '—', r.source];
+      }),
+      alignRight: [1, 2],
+    }],
+    footNote: summary ? `En ${summary.days} días, 1.000 Bs pasaron de ${formatUsd(1000 / summary.firstRate)} a ${formatUsd(1000 / summary.lastRate)}.` : undefined,
+  }));
 
   const rateColumns: Column<ExchangeRate>[] = [
     { key: 'seq', header: '#', width: '54px', render: (r) => <span className="seq num">{seq.get(r.id)}</span> },
@@ -71,7 +97,10 @@ export default function Rates() {
     <div className="page">
       <div className="page-header">
         <div><h1>Tasa BCV</h1><p className="page-subtitle">La tasa se guarda por día y se usa para convertir cada movimiento a dólares.</p></div>
-        <button type="button" className="btn btn-outline" onClick={refresh} disabled={fetching}><RefreshCw size={16} /> Actualizar desde BCV</button>
+        <div className="row wrap page-actions">
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
+          <button type="button" className="btn btn-outline" onClick={refresh} disabled={fetching}><RefreshCw size={16} /> Actualizar desde BCV</button>
+        </div>
       </div>
       {msg && <p className="small muted">{msg}</p>}
 

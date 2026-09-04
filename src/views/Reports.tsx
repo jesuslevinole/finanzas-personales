@@ -6,6 +6,8 @@ import MonthPicker from '../components/ui/MonthPicker';
 import ProgressBar from '../components/ui/ProgressBar';
 import BarChart, { type Bar } from '../components/ui/BarChart';
 import StatCard from '../components/ui/StatCard';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import {
   buildAdvice, categoryTargets, debtCapacity, emergencyFundTarget, expensesByCategory,
   groupTargets, GROUP_LABEL, healthScore, inflationSummary, ownIncomeUsd, productInflation,
@@ -20,6 +22,7 @@ const ADVICE_ICON = { urgente: <AlertTriangle size={16} />, atencion: <Info size
 export default function Reports() {
   const { categories, rates, incomes, expenses, budgets, goals, inventory, settingsFor } = useData();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
+  const { exporting, run: runExport } = useExport();
 
   const settings = settingsFor(month);
   const incomeUsd = ownIncomeUsd(monthIncomes);
@@ -76,11 +79,68 @@ export default function Reports() {
   const fixedRatio = incomeUsd > 0 ? capacity.fixedCostsUsd / incomeUsd : 0;
   const freeAfterFixedAndDebt = incomeUsd - capacity.fixedCostsUsd - capacity.monthlyDebtUsd;
 
+  const exportPdf = () => runExport(() => ({
+    title: 'Reporte financiero',
+    subtitle: `${monthLabel(month)} · salud ${health.score}/100`,
+    fileName: 'reporte-financiero',
+    cards: [
+      { label: 'Ingreso propio', value: formatUsd(incomeUsd), tone: 'ok' as const },
+      { label: 'Gastos', value: formatUsd(expenseUsd) },
+      { label: 'Ahorro del mes', value: formatUsd(savings), hint: formatPct(savingsRate), tone: savings >= 0 ? 'ok' as const : 'danger' as const },
+      { label: 'Deuda / ingreso', value: formatPct(capacity.ratio), hint: `Tope ${settings.maxDebtRatioPct}%`, tone: capacity.level === 'sano' ? 'ok' as const : capacity.level === 'alerta' ? 'warn' as const : 'danger' as const },
+    ],
+    bars: {
+      title: 'A dónde se va el dinero',
+      items: byCat.map((c) => ({ label: c.name, value: c.usd, display: formatUsd(c.usd), note: formatPct(c.share) })),
+    },
+    tables: [
+      {
+        title: 'Diagnóstico',
+        head: ['Componente', 'Puntaje'],
+        body: health.parts.map((p) => [p.label, `${p.value} de ${p.max}`]),
+        foot: [['Salud financiera', `${health.score} de 100`]],
+        alignRight: [1],
+      },
+      {
+        title: 'Qué conviene hacer',
+        accent: 'danger' as const,
+        head: ['Prioridad', 'Recomendación'],
+        body: advice.map((a) => [a.level === 'urgente' ? 'Urgente' : a.level === 'atencion' ? 'Atención' : 'Bien', `${a.title}. ${a.detail}`]),
+      },
+      {
+        title: 'Capacidad de endeudamiento',
+        head: ['Concepto', 'Monto'],
+        body: [
+          ['Ingreso propio del mes', formatUsd(capacity.incomeUsd)],
+          ['Costos fijos', formatUsd(capacity.fixedCostsUsd)],
+          ['Cuotas de deuda', formatUsd(capacity.monthlyDebtUsd)],
+          [`Tope que te fijaste (${settings.maxDebtRatioPct}%)`, formatUsd(capacity.maxDebtUsd)],
+          ['Podrías comprometer', formatUsd(capacity.availableUsd)],
+          ['Libre tras fijos y cuotas', formatUsd(freeAfterFixedAndDebt)],
+        ],
+        alignRight: [1],
+      },
+      {
+        title: 'Reparto del ingreso',
+        accent: 'ok' as const,
+        head: ['Grupo', 'Objetivo', 'Real', 'Diferencia'],
+        body: groups.map((g) => [GROUP_LABEL[g.group], formatUsd(g.targetUsd), formatUsd(g.actualUsd), formatUsd(g.diffUsd)]),
+        alignRight: [1, 2, 3],
+      },
+    ],
+    footNote: inflation
+      ? `El bolívar se devaluó ${formatPct(inflation.devaluationPct)} en tres meses (${formatPct(inflation.dailyPct)} diario). Cada 1.000 Bs guardados perdieron ${formatUsd(inflation.lossPer1000Bs)}.`
+      : undefined,
+  }));
+
   return (
     <div className="page">
       <div className="page-header">
         <div><h1>Reportes</h1><p className="page-subtitle">Qué dicen tus números y qué conviene hacer con ellos este mes.</p></div>
-        <MonthPicker month={month} onPrev={prev} onNext={next} />
+        <div className="row wrap page-actions">
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} label="Reporte PDF" />
+          <MonthPicker month={month} onPrev={prev} onNext={next} />
+        </div>
       </div>
 
       {/* 1. Diagnóstico */}

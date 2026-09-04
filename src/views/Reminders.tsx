@@ -7,6 +7,8 @@ import StatCard from '../components/ui/StatCard';
 import EmptyState from '../components/ui/EmptyState';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import Money from '../components/ui/Money';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import type { Debt, FixedCost, ShoppingItem } from '../types';
 import { daysToPayday } from '../utils/cycle';
 import { formatUsd, sum } from '../utils/money';
@@ -24,6 +26,7 @@ export default function Reminders() {
   const { canEdit } = usePermissions();
   const { horizon, overdue, dueThisCycle, upcoming, lowStock } = usePayCycle();
   const today = todayIso();
+  const { exporting, run: runExport } = useExport();
   const toPayday = daysToPayday(today);
 
   const cycleTotal = sum(dueThisCycle.map((i) => i.amountUsd));
@@ -35,6 +38,42 @@ export default function Reminders() {
     else if (item.kind === 'costo_fijo') void update<FixedCost>('fixedCosts', (item.source as FixedCost).id, { status: 'pagada', paidDate: today });
     else void update<ShoppingItem>('shopping', (item.source as ShoppingItem).id, { checked: true });
   };
+
+  const exportPdf = () => runExport(() => ({
+    title: 'Recordatorios',
+    subtitle: `Vencido y próximos 7 días · hasta ${shortDate(horizon)}`,
+    fileName: 'recordatorios',
+    cards: [
+      { label: 'Vencido', value: formatUsd(overdueTotal), hint: `${overdue.length} pendientes`, tone: overdue.length ? 'danger' as const : 'ok' as const },
+      { label: 'Vence en 7 días', value: formatUsd(cycleTotal), hint: `${dueThisCycle.length} conceptos` },
+      { label: 'Después', value: formatUsd(upcomingTotal), hint: `${upcoming.length} conceptos` },
+      { label: 'Necesitas tener', value: formatUsd(overdueTotal + cycleTotal), hint: toPayday === 0 ? 'Cobras hoy' : `Cobras en ${toPayday} días` },
+    ],
+    tables: [
+      {
+        title: 'Vencido',
+        accent: 'danger' as const,
+        head: ['Vence', 'Concepto', 'Detalle', 'Monto'],
+        body: overdue.map((i) => [shortDate(i.date), i.title, i.subtitle, formatUsd(i.amountUsd)]),
+        foot: [['', '', 'Total', formatUsd(overdueTotal)]],
+        alignRight: [3],
+      },
+      {
+        title: 'Próximos 7 días',
+        head: ['Vence', 'Concepto', 'Detalle', 'Monto'],
+        body: dueThisCycle.map((i) => [i.kind === 'compra' ? 'Al comprar' : shortDate(i.date), i.title, i.subtitle, formatUsd(i.amountUsd)]),
+        foot: [['', '', 'Total', formatUsd(cycleTotal)]],
+        alignRight: [3],
+      },
+      {
+        title: 'Por reponer en casa',
+        accent: 'ok' as const,
+        head: ['Producto', 'Existencia', 'Mínimo', 'Último precio'],
+        body: lowStock.map((i) => [i.name, `${i.quantity} ${i.unit}`, `${i.minQuantity} ${i.unit}`, formatUsd(i.lastPriceUsd)]),
+        alignRight: [1, 2, 3],
+      },
+    ],
+  }));
 
   const columns: Column<CycleDue>[] = [
     { key: 'seq', header: '#', width: '46px', hideOnMobile: true, render: (i) => <span className="seq num">{[...overdue, ...dueThisCycle, ...upcoming].findIndex((x) => x.id === i.id) + 1}</span> },
@@ -58,7 +97,10 @@ export default function Reminders() {
           <h1>Recordatorios</h1>
           <p className="page-subtitle">Solo lo vencido y lo que vence en los próximos 7 días. Cobras los sábados: esto es lo que ese cobro debe cubrir.</p>
         </div>
-        <span className="tag primary rem-window">Hasta {shortDate(horizon)}</span>
+        <div className="row wrap page-actions">
+          <span className="tag primary rem-window">Hasta {shortDate(horizon)}</span>
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
+        </div>
       </div>
 
       <div className="grid grid-4">

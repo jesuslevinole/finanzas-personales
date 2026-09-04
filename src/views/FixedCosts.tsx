@@ -11,6 +11,8 @@ import EmptyState from '../components/ui/EmptyState';
 import StatCard from '../components/ui/StatCard';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import DetailSheet from '../components/ui/DetailSheet';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import FilterBar from '../components/ui/FilterBar';
 import DateRange from '../components/ui/DateRange';
 import { EMPTY_RANGE, inRange, rangeActive, type Range } from '../utils/range';
@@ -18,7 +20,7 @@ import ProgressBar from '../components/ui/ProgressBar';
 import type { FixedCost, NewDoc, PayStatus } from '../types';
 import { cycleOf, fixedCostDate, inCycle } from '../utils/cycle';
 import { formatUsd, sum } from '../utils/money';
-import { addMonths, shortDate, todayIso } from '../utils/dates';
+import { addMonths, monthLabel, shortDate, todayIso } from '../utils/dates';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './FixedCosts.css';
 
@@ -29,6 +31,7 @@ export default function FixedCosts() {
   const data = useData();
   const { canEdit } = usePermissions();
   const confirm = useConfirm();
+  const { exporting, run: runExport } = useExport();
   const { month, prev, next, monthFixed } = useMonth();
   const editable = canEdit('costos-fijos');
   const today = todayIso();
@@ -68,6 +71,31 @@ export default function FixedCosts() {
     if (!ok) return;
     await Promise.all(prevCosts.map((f) => data.add<FixedCost>('fixedCosts', { description: f.description, amountUsd: f.amountUsd, month, dueDay: f.dueDay, status: 'pendiente' })));
   };
+
+  const exportPdf = () => runExport(() => ({
+    title: 'Costos fijos',
+    subtitle: monthLabel(month),
+    fileName: 'costos-fijos',
+    cards: [
+      { label: 'Total del mes', value: formatUsd(total), hint: `${all.length} conceptos` },
+      { label: 'Pendiente', value: formatUsd(pendingUsd), hint: `${pending.length} sin pagar`, tone: pendingUsd > 0 ? 'warn' as const : 'ok' as const },
+      { label: 'Ya pagado', value: formatUsd(paidUsd), tone: 'ok' as const },
+      { label: 'Cae esta semana', value: formatUsd(thisCycle), hint: cycle.label },
+    ],
+    tables: [{
+      title: 'Conceptos',
+      head: ['Día', 'Concepto', 'Estado', 'Referencia', 'Monto'],
+      body: all.map((f) => [
+        String(f.dueDay).padStart(2, '0'),
+        f.description,
+        STATUS_LABEL[f.status],
+        f.reference ?? '—',
+        formatUsd(f.amountUsd),
+      ]),
+      foot: [['', '', '', 'Total', formatUsd(total)]],
+      alignRight: [4],
+    }],
+  }));
 
   const columns: Column<FixedCost>[] = [
     { key: 'seq', header: '#', width: '54px', render: (f) => <span className="seq num">{seq.get(f.id)}</span> },
@@ -117,6 +145,7 @@ export default function FixedCosts() {
           <button type="button" role="tab" aria-selected={tab === 'pendiente'} className={`tab${tab === 'pendiente' ? ' active' : ''}`} onClick={() => setTab('pendiente')}>Pendientes <span className="num muted">{pending.length}</span></button>
           <button type="button" role="tab" aria-selected={tab === 'pagado'} className={`tab${tab === 'pagado' ? ' active' : ''}`} onClick={() => setTab('pagado')}>Pagados <span className="num muted">{paid.length}</span></button>
         </div>
+        <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
         {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> Nuevo costo</button>}
         {editable && all.length === 0 && prevCosts.length > 0 && <button type="button" className="btn btn-outline" onClick={copyFromPrev}><Copy size={16} /> Copiar del mes anterior</button>}
       </div>

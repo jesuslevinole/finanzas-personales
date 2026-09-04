@@ -8,6 +8,8 @@ import ProgressBar from '../components/ui/ProgressBar';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
 import DetailSheet from '../components/ui/DetailSheet';
+import ExportButton from '../components/ui/ExportButton';
+import { useExport } from '../hooks/useExport';
 import { useConfirm } from '../hooks/useConfirm';
 import type { Goal, GoalKind } from '../types';
 import { emergencyFundTarget, monthlyContribution, ownIncomeUsd } from '../utils/finance';
@@ -27,6 +29,7 @@ export default function Goals() {
   const data = useData();
   const { canEdit } = usePermissions();
   const confirm = useConfirm();
+  const { exporting, run: runExport } = useExport();
   const { month, monthIncomes, monthFixed } = useMonth();
   const editable = canEdit('metas');
   const [creating, setCreating] = useState(false);
@@ -50,11 +53,44 @@ export default function Goals() {
     note: `${settings.emergencyFundMonths} meses de costos fijos`, createdAt: todayIso(),
   });
 
+  const exportPdf = () => runExport(() => ({
+    title: 'Metas de ahorro',
+    subtitle: `${goals.length} metas · ahorrado ${formatUsd(totalSaved)}`,
+    fileName: 'metas',
+    cards: [
+      { label: 'Ahorrado', value: formatUsd(totalSaved), hint: totalTarget > 0 ? formatPct(totalSaved / totalTarget) : undefined, tone: 'ok' as const },
+      { label: 'Objetivo total', value: formatUsd(totalTarget) },
+      { label: 'Aporte mensual necesario', value: formatUsd(monthlyNeeded) },
+      { label: 'Fondo de emergencia', value: formatUsd(emergencyTarget), hint: `${settings.emergencyFundMonths} meses de fijos` },
+    ],
+    bars: {
+      title: 'Avance por meta',
+      items: goals.map((g) => ({
+        label: g.name, value: g.savedUsd, display: formatUsd(g.savedUsd),
+        note: g.targetUsd > 0 ? formatPct(g.savedUsd / g.targetUsd) : undefined,
+      })),
+    },
+    tables: [{
+      title: 'Detalle',
+      head: ['Meta', 'Tipo', 'Ahorrado', 'Objetivo', 'Falta', 'Fecha'],
+      body: goals.map((g) => [
+        g.name, KIND_LABEL[g.kind], formatUsd(g.savedUsd), formatUsd(g.targetUsd),
+        formatUsd(Math.max(0, g.targetUsd - g.savedUsd)),
+        g.deadline ? shortDate(g.deadline) : 'Sin fecha',
+      ]),
+      foot: [['', 'Total', formatUsd(totalSaved), formatUsd(totalTarget), formatUsd(Math.max(0, totalTarget - totalSaved)), '']],
+      alignRight: [2, 3, 4],
+    }],
+  }));
+
   return (
     <div className="page">
       <div className="page-header">
         <div><h1>Metas</h1><p className="page-subtitle">Lo que estás construyendo con el dinero que no gastas. En dólares, siempre.</p></div>
-        {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> Nueva meta</button>}
+        <div className="row wrap page-actions">
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
+          {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> Nueva meta</button>}
+        </div>
       </div>
 
       <div className="grid grid-4">

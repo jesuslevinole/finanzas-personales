@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, FileDown, Pencil, Plus, Receipt } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Receipt } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useConfirm } from '../hooks/useConfirm';
 import { useMonth } from '../hooks/useMonth';
@@ -19,8 +19,9 @@ import IncomeForm from '../components/forms/IncomeForm';
 import type { Expense, Income, IncomeKind, MoneyOwner } from '../types';
 import { getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
-import { monthOf, shortDate } from '../utils/dates';
-import { exportMovementsReport } from '../utils/pdf';
+import { monthLabel, shortDate } from '../utils/dates';
+import { useExport } from '../hooks/useExport';
+import ExportButton from '../components/ui/ExportButton';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './Movements.css';
 
@@ -48,7 +49,7 @@ export default function Movements() {
   const [detail, setDetail] = useState<Expense | Income | null>(null);
   const [editing, setEditing] = useState<Expense | Income | null>(null);
   const [creating, setCreating] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const { exporting, run: runExport } = useExport();
 
   const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setIncomeKind(''); setMinUsd(''); setRange(EMPTY_RANGE); };
   const activeCount = [search, categoryId, placeId, sourceId, owner, incomeKind, minUsd, range.from, range.to].filter(Boolean).length;
@@ -96,23 +97,65 @@ export default function Movements() {
   }, [tab, expenses, incomes, data.categories, data.incomeSources]);
 
   /** Reporte del conjunto que estás viendo: respeta filtros y rango de fechas. */
-  const exportPdf = async () => {
-    setExporting(true);
-    try {
-      await exportMovementsReport({
-        title: activeCount > 0 ? `${expenses.length + incomes.length} movimientos filtrados` : 'Todos los movimientos',
-        month: rangeActive(range) ? monthOf(range.from || range.to) : month,
-        expenses, incomes,
-        categories: data.categories,
-        places: data.places,
-        productName: (e) => (e.productId ? getRelationName(data.products, e.productId, e.product) : e.product),
-        sourceName: (i) => getRelationName(data.incomeSources, i.sourceId, 'Sin origen'),
-        rate: data.currentRate,
-      });
-    } finally {
-      setExporting(false);
-    }
-  };
+  const exportPdf = () => runExport(() => {
+    const expenseUsd = sum(expenses.map((e) => e.totalUsd));
+    const incomeUsd = sum(incomes.filter((i) => i.owner === 'propio').map((i) => i.amountUsd));
+    const byCategory = new Map<string, number>();
+    expenses.forEach((e) => byCategory.set(e.categoryId, (byCategory.get(e.categoryId) ?? 0) + e.totalUsd));
+
+    return {
+      title: 'Movimientos',
+      subtitle: `${rangeActive(range) ? `${range.from || 'inicio'} a ${range.to || 'hoy'}` : monthLabel(month)}${activeCount > 0 ? ' · con filtros' : ''}`,
+      fileName: 'movimientos',
+      cards: [
+        { label: 'Ingresos propios', value: formatUsd(incomeUsd), hint: `${incomes.length} registros`, tone: 'ok' as const },
+        { label: 'Gastos', value: formatUsd(expenseUsd), hint: `${expenses.length} registros` },
+        { label: 'Balance', value: formatUsd(incomeUsd - expenseUsd), hint: incomeUsd > 0 ? formatPct((incomeUsd - expenseUsd) / incomeUsd) : undefined, tone: incomeUsd - expenseUsd >= 0 ? 'ok' as const : 'danger' as const },
+        { label: 'Tasa del día', value: formatBs(data.currentRate), hint: 'Bs por dólar' },
+      ],
+      bars: {
+        title: 'A dónde se fue el dinero',
+        items: [...byCategory.entries()].sort((a, b) => b[1] - a[1]).map(([id, usd]) => ({
+          label: getRelationName(data.categories, id),
+          value: usd,
+          display: formatUsd(usd),
+          note: expenseUsd > 0 ? formatPct(usd / expenseUsd) : undefined,
+        })),
+      },
+      tables: [
+        {
+          title: 'Gastos',
+          head: ['Fecha', 'Producto', 'Rubro', 'Lugar', 'Bs', 'USD'],
+          body: expenses.map((e) => [
+            shortDate(e.date),
+            e.productId ? getRelationName(data.products, e.productId, e.product) : e.product,
+            getRelationName(data.categories, e.categoryId),
+            getRelationName(data.places, e.placeId, '—'),
+            formatBs(e.totalBs),
+            formatUsd(e.totalUsd),
+          ]),
+          foot: [['', '', '', 'Total', '', formatUsd(expenseUsd)]],
+          alignRight: [4, 5],
+        },
+        {
+          title: 'Ingresos',
+          accent: 'ok' as const,
+          head: ['Fecha', 'Origen', 'Tipo', 'Dinero', 'Bs', 'USD'],
+          body: incomes.map((i) => [
+            shortDate(i.date),
+            getRelationName(data.incomeSources, i.sourceId, 'Sin origen'),
+            (i.kind ?? 'variable') === 'fijo' ? 'Fijo' : 'Variable',
+            i.owner,
+            formatBs(i.amountBs),
+            formatUsd(i.amountUsd),
+          ]),
+          foot: [['', '', '', 'Total propio', '', formatUsd(incomeUsd)]],
+          alignRight: [4, 5],
+        },
+      ],
+      footNote: `Cada movimiento se registró con la tasa de su día. Tasa actual: ${formatBs(data.currentRate)}.`,
+    };
+  });
 
   const removeRecord = async (row: Expense | Income) => {
     const isExpense = 'product' in row;
@@ -169,9 +212,7 @@ export default function Movements() {
           <button type="button" role="tab" aria-selected={tab === 'ingresos'} className={`tab${tab === 'ingresos' ? ' active' : ''}`} onClick={() => setTab('ingresos')}>Ingresos <span className="num muted">{scopeIncomes.length}</span></button>
         </div>
         <div className="row wrap mov-actions">
-          <button type="button" className="btn btn-outline" onClick={() => void exportPdf()} disabled={exporting}>
-            <FileDown size={16} /> {exporting ? 'Generando…' : 'Reporte PDF'}
-          </button>
+          <ExportButton onClick={() => void exportPdf()} exporting={exporting} label="Reporte PDF" />
           {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'}</button>}
         </div>
       </div>
