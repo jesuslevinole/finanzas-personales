@@ -42,5 +42,13 @@ body.modal-open { overflow: hidden; }
 
 @media (min-width: 768px) {
   .modal-backdrop { align-items: center; padding: var(--space-5); }
-  .modal { max-width: 640px; border-radius: var(--radius-lg); }
+  .modal {
+    max-width: 720px;
+    /* Alto mínimo: un modal de dos campos no debe verse como un recorte. */
+    min-height: 280px;
+    border-radius: var(--radius-lg);
+  }
+  .modal-header { padding: var(--space-4) var(--space-5); }
+  .modal-body { padding: var(--space-5); }
+  .modal-header h2 { font-size: var(--text-lg); }
 }
