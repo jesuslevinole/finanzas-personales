@@ -19,6 +19,7 @@ const Inventory = lazy(() => import('./views/Inventory'));
 const Shopping = lazy(() => import('./views/Shopping'));
 const Rates = lazy(() => import('./views/Rates'));
 const Goals = lazy(() => import('./views/Goals'));
+const Wallet = lazy(() => import('./views/Wallet'));
 const Catalogs = lazy(() => import('./views/Catalogs'));
 const Import = lazy(() => import('./views/Import'));
 const Users = lazy(() => import('./views/Users'));
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="/inventario" element={<Guard module="inventario"><Inventory /></Guard>} />
         <Route path="/compras" element={<Guard module="compras"><Shopping /></Guard>} />
         <Route path="/tasa" element={<Guard module="tasa"><Rates /></Guard>} />
+        <Route path="/divisas" element={<Guard module="divisas"><Wallet /></Guard>} />
         <Route path="/metas" element={<Guard module="metas"><Goals /></Guard>} />
         <Route path="/catalogos" element={<Guard module="catalogos"><Catalogs /></Guard>} />
         <Route path="/importar" element={<Guard module="importar"><Import /></Guard>} />

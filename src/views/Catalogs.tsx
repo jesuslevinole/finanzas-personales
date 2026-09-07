@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Barcode, EyeOff, Pencil, Plus, Sparkles } from 'lucide-react';
+import { Barcode, EyeOff, Merge, Pencil, Plus, Sparkles } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useConfirm } from '../hooks/useConfirm';
@@ -18,6 +18,7 @@ import CustomSelect from '../components/ui/CustomSelect';
 import type { CollectionName } from '../services/firestore';
 import { CATALOG_COLORS, colorForIndex } from '../utils/relations';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
+import { countReferences, mergeCatalogItems, type MergeableCatalog } from '../utils/mergeCatalog';
 import { GROUP_LABEL } from '../utils/finance';
 import './Catalogs.css';
 
@@ -42,6 +43,7 @@ export default function Catalogs() {
   const [detail, setDetail] = useState<CatalogItem | null>(null);
   const [editing, setEditing] = useState<CatalogItem | null>(null);
   const [building, setBuilding] = useState(false);
+  const [merging, setMerging] = useState<CatalogItem | null>(null);
   const editable = canEdit('catalogos');
 
   const items: CatalogItem[] = data[tab];
@@ -237,15 +239,25 @@ export default function Catalogs() {
             ] : []),
           ]}>
           {editable && (
-            <button type="button" className="btn btn-outline btn-block cat-detail-btn" onClick={() => void toggleActive(detail)}>
-              <EyeOff size={16} /> {detail.active === false ? 'Reactivar' : 'Desactivar'}
-            </button>
+            <div className="cat-detail-actions">
+              <button type="button" className="btn btn-outline" onClick={() => void toggleActive(detail)}>
+                <EyeOff size={16} /> {detail.active === false ? 'Reactivar' : 'Desactivar'}
+              </button>
+              <button type="button" className="btn btn-outline" onClick={() => { setMerging(detail); setDetail(null); }}>
+                <Merge size={16} /> Fusionar con otro
+              </button>
+            </div>
           )}
         </DetailSheet>
       )}
 
       <Modal title={`Nuevo ${current?.label.toLowerCase()}`} open={creating} onClose={() => setCreating(false)}>
         <CatalogForm tab={tab} count={items.length} onDone={() => setCreating(false)} />
+      </Modal>
+      <Modal title="Fusionar registros" open={merging !== null} onClose={() => setMerging(null)}>
+        {merging && (
+          <MergeForm catalog={tab} source={merging} items={items} onDone={() => setMerging(null)} />
+        )}
       </Modal>
       <Modal title="Editar" open={editing !== null} onClose={() => setEditing(null)}>
         {editing && <CatalogForm tab={tab} count={items.length} item={editing} onDone={() => setEditing(null)} />}
@@ -344,6 +356,61 @@ function CatalogForm({ tab, count, item, onDone }: { tab: CatalogKey; count: num
         </div>
       </div>
       <div className="form-actions"><button type="submit" className="btn btn-primary">{item ? 'Guardar cambios' : 'Agregar'}</button></div>
+    </form>
+  );
+}
+
+
+/**
+ * Fusiona un elemento duplicado en otro: todos los registros que usaban el
+ * origen pasan al destino y el origen desaparece.
+ */
+function MergeForm({ catalog, source, items, onDone }: { catalog: MergeableCatalog; source: CatalogItem; items: CatalogItem[]; onDone: () => void }) {
+  const data = useData();
+  const confirm = useConfirm();
+  const [targetId, setTargetId] = useState('');
+  const [working, setWorking] = useState(false);
+  const [progress, setProgress] = useState('');
+
+  const options = items.filter((i) => i.id !== source.id);
+  const affected = countReferences(data, catalog, source.id);
+  const target = items.find((i) => i.id === targetId);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!target) return;
+    const ok = await confirm({
+      title: `Fusionar «${source.name}» en «${target.name}»`,
+      message: `${affected} registro(s) pasarán a «${target.name}» y «${source.name}» se eliminará. No se puede deshacer.`,
+      confirmLabel: 'Fusionar', danger: true,
+    });
+    if (!ok) return;
+    setWorking(true);
+    try {
+      await mergeCatalogItems(data, catalog, source.id, target.id, (done, total) => setProgress(`Actualizando ${done} de ${total}…`));
+      onDone();
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="stack">
+      <dl className="kv">
+        <div><dt>Se elimina</dt><dd>{source.name}</dd></div>
+        <div><dt>Registros que se mueven</dt><dd className="num">{affected}</dd></div>
+      </dl>
+      <div className="field">
+        <span className="field-label">Se queda con</span>
+        <CustomSelect items={options} value={targetId} onChange={setTargetId} placeholder="Elige el registro que prevalece" />
+      </div>
+      {target && <p className="field-hint">Los {affected} registros de «{source.name}» quedarán asignados a «{target.name}».</p>}
+      {progress && <p className="small muted">{progress}</p>}
+      <div className="form-actions">
+        <button type="submit" className="btn btn-danger" disabled={!targetId || working}>
+          {working ? 'Fusionando…' : 'Fusionar'}
+        </button>
+      </div>
     </form>
   );
 }

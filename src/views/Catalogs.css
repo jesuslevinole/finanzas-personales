@@ -12,3 +12,7 @@
 .cat-barcode { display: flex; gap: var(--space-2); }
 .cat-barcode .input { flex: 1; min-width: 0; }
 @media (max-width: 767px) { .cat-head-actions { width: 100%; } .cat-head-actions .btn { flex: 1; } }
+
+.cat-detail-actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); }
+.cat-detail-actions .btn { flex: 1; }
+@media (max-width: 767px) { .cat-detail-actions { flex-direction: column; } }

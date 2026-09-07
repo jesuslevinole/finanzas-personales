@@ -12,6 +12,7 @@ export const MODULE_LABEL: Record<ModuleKey, string> = {
   compras: 'Lista de compras',
   tasa: 'Tasa BCV',
   metas: 'Metas',
+  divisas: 'Divisas',
   catalogos: 'Catálogos',
   importar: 'Importar Excel',
   usuarios: 'Roles',
@@ -50,7 +51,7 @@ export const DEFAULT_ROLES: Omit<Role, 'id'>[] = [
     access: {
       resumen: 'ver', recordatorios: 'ver', movimientos: 'editar', 'costos-fijos': 'editar', deudas: 'editar',
       presupuesto: 'ver', reportes: 'ver', inventario: 'editar', compras: 'editar',
-      tasa: 'ver', metas: 'ver', catalogos: 'ver', importar: 'sin_acceso', usuarios: 'sin_acceso', ajustes: 'sin_acceso',
+      tasa: 'ver', metas: 'ver', divisas: 'editar', catalogos: 'ver', importar: 'sin_acceso', usuarios: 'sin_acceso', ajustes: 'sin_acceso',
     },
   },
   {
@@ -59,7 +60,7 @@ export const DEFAULT_ROLES: Omit<Role, 'id'>[] = [
     access: {
       resumen: 'ver', recordatorios: 'ver', movimientos: 'ver', 'costos-fijos': 'ver', deudas: 'ver',
       presupuesto: 'ver', reportes: 'ver', inventario: 'ver', compras: 'ver',
-      tasa: 'ver', metas: 'ver', catalogos: 'sin_acceso', importar: 'sin_acceso', usuarios: 'sin_acceso', ajustes: 'sin_acceso',
+      tasa: 'ver', metas: 'ver', divisas: 'ver', catalogos: 'sin_acceso', importar: 'sin_acceso', usuarios: 'sin_acceso', ajustes: 'sin_acceso',
     },
   },
 ];

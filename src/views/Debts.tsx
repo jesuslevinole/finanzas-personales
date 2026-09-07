@@ -9,6 +9,7 @@ import EmptyState from '../components/ui/EmptyState';
 import ProgressBar from '../components/ui/ProgressBar';
 import StatCard from '../components/ui/StatCard';
 import CustomSelect from '../components/ui/CustomSelect';
+import PayForm from '../components/forms/PayForm';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import FilterBar from '../components/ui/FilterBar';
 import DateRange from '../components/ui/DateRange';
@@ -43,6 +44,7 @@ export default function Debts() {
   const [detail, setDetail] = useState<Debt | null>(null);
   const [editing, setEditing] = useState<Debt | null>(null);
   const [creating, setCreating] = useState(false);
+  const [paying, setPaying] = useState<Debt | null>(null);
 
   const activeCount = [creditorId, status, search, range.from, range.to].filter(Boolean).length;
   const clearFilters = () => { setCreditorId(''); setStatus(''); setSearch(''); setRange(EMPTY_RANGE); };
@@ -99,6 +101,13 @@ export default function Debts() {
     ) },
     { key: 'total', header: 'Deuda abierta', align: 'end', width: '140px', amount: true, render: (r) => <span className="strong num">{formatUsd(r.total)}</span> },
   ];
+
+  /** Qué movimiento saldó la cuota, para poder rastrear el pago. */
+  const paymentLabel = (d: Debt): string => {
+    if (!d.paidExpenseId) return d.status === 'pagada' ? 'Sin movimiento enlazado' : '—';
+    const expense = data.expenses.find((e) => e.id === d.paidExpenseId);
+    return expense ? `${expense.product} · ${shortDate(expense.date)} · ${formatUsd(expense.totalUsd)}` : 'El movimiento fue eliminado';
+  };
 
   const exportPdf = () => runExport(() => ({
     title: 'Deudas y cuotas',
@@ -227,15 +236,27 @@ export default function Debts() {
             { label: 'Cuota', value: detail.installment ?? 'Única' },
             { label: 'Dinero', value: detail.owner },
             { label: 'Referencia', value: detail.reference ?? '—' },
+            { label: 'Pagada el', value: detail.paidDate ? shortDate(detail.paidDate) : '—' },
+            { label: 'Movimiento del pago', value: paymentLabel(detail) },
             { label: 'Descripción', value: detail.description ?? '—', wide: true },
           ]}>
           {editable && detail.status !== 'pagada' && (
-            <button type="button" className="btn btn-outline btn-block" onClick={() => { void data.update<Debt>('debts', detail.id, { status: 'pagada' }); setDetail(null); }}>
-              <Check size={16} /> Marcar como pagada
+            <button type="button" className="btn btn-outline btn-block" onClick={() => { setPaying(detail); setDetail(null); }}>
+              <Check size={16} /> Registrar pago
             </button>
           )}
         </DetailSheet>
       )}
+
+      <Modal title="Registrar pago" open={paying !== null} onClose={() => setPaying(null)}>
+        {paying && (
+          <PayForm concept={`${paying.merchant}${paying.installment ? ` ${paying.installment}` : ''}`} amountUsd={paying.amountUsd}
+            onPaid={async (expenseId, paidDate) => {
+              await data.update<Debt>('debts', paying.id, { status: 'pagada', paidExpenseId: expenseId, paidDate });
+              setPaying(null);
+            }} />
+        )}
+      </Modal>
 
       <Modal title="Nueva cuota" open={creating} onClose={() => setCreating(false)}>
         <DebtForm creditors={data.creditors}

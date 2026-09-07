@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowDownCircle, ArrowUpCircle, CalendarClock, CheckCircle2, CreditCard,
+  AlertTriangle, ArrowDownCircle, ArrowUpCircle, CalendarClock, CheckCircle2, Coins, CreditCard,
   Info, Landmark, Lightbulb, Package, PiggyBank, TrendingUp, Wallet,
 } from 'lucide-react';
 import { useData } from '../hooks/useData';
@@ -27,7 +27,7 @@ const ADVICE_ICON = { urgente: <AlertTriangle size={15} />, atencion: <Info size
 
 export default function Dashboard() {
   const data = useData();
-  const { categories, creditors, currentRate, rates, incomes, expenses, inventory, shopping, debts, fixedCosts, goals, set, settingsFor } = data;
+  const { categories, creditors, currentRate, rates, incomes, expenses, inventory, shopping, debts, fixedCosts, goals, walletMoves, set, settingsFor } = data;
   const { canEdit } = usePermissions();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
   const settings = settingsFor(month);
@@ -55,6 +55,8 @@ export default function Dashboard() {
   const coverage = calcBalanceUsd - cash.totalUsd;
 
   const emergency = emergencyFundTarget(monthFixed, settings.emergencyFundMonths);
+  // Colchón en dólares: entradas menos salidas de la billetera.
+  const walletUsd = sum(walletMoves.map((m) => (m.kind === 'entrada' ? m.amountUsd : -m.amountUsd)));
   const savedUsd = sum(goals.map((g) => g.savedUsd));
   const advice = buildAdvice(
     {
@@ -87,7 +89,7 @@ export default function Dashboard() {
       { label: 'Disponible en la cuenta', value: formatBs(calcBalanceBs), hint: formatUsd(calcBalanceUsd) },
       { label: 'Compromisos próximos', value: formatUsd(cash.totalUsd), hint: `${cash.items} conceptos`, tone: 'danger' as const },
       { label: 'Ingresos del mes', value: formatUsd(incomeUsd), hint: `${formatUsd(kinds.fixedUsd)} fijos`, tone: 'ok' as const },
-      { label: 'Gastos del mes', value: formatUsd(expenseUsd), hint: incomeUsd > 0 ? formatPct(expenseUsd / incomeUsd) : undefined },
+      { label: 'Guardado en divisas', value: formatUsd(walletUsd), hint: formatBs(walletUsd * currentRate), tone: 'ok' as const },
     ],
     bars: {
       title: 'Gastos por rubro',
@@ -308,6 +310,7 @@ export default function Dashboard() {
           <dl className="kv">
             <div><dt><Package size={13} /> Por reponer</dt><dd className={lowStock.length ? 'text-warn' : ''}>{lowStock.length}</dd></div>
             <div><dt>Compras urgentes</dt><dd className={urgentBuysUsd > 0 ? 'text-danger' : ''}>{formatUsd(urgentBuysUsd)}</dd></div>
+            <div><dt><Coins size={13} /> Guardado en divisas</dt><dd className="text-usd">{formatUsd(walletUsd)}</dd></div>
             <div><dt><TrendingUp size={13} /> Ahorrado en metas</dt><dd className="text-ok">{formatUsd(savedUsd)}</dd></div>
             <div><dt>Fondo de emergencia</dt><dd>{formatUsd(emergency)}</dd></div>
           </dl>

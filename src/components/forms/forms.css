@@ -9,3 +9,5 @@
 .form-scan { display: flex; gap: var(--space-2); align-items: stretch; }
 .form-scan .cselect { flex: 1; min-width: 0; }
 .form-scan-btn { flex: none; width: 52px; padding: 0; }
+
+.form-summary-kv { padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }

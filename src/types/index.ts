@@ -50,6 +50,9 @@ export interface Product extends CatalogItem {
   unit?: StockUnit;
   /** Código de barras (EAN/UPC) para buscarlo con la cámara. */
   barcode?: string;
+  /** Último precio unitario conocido en dólares: precarga listas y gastos. */
+  lastPriceUsd?: number;
+  lastPriceDate?: string;
 }
 
 /* ---------------------------------------------------------------
@@ -107,6 +110,8 @@ export interface FixedCost {
   dueDay: number;
   status: PayStatus;
   paidDate?: string;
+  /** Movimiento de gasto con el que se saldó. */
+  paidExpenseId?: string;
   reference?: string;
   /** Recargo por pagar tarde (condominio: $25 hasta el día 10, $30 después). */
   lateAmountUsd?: number;
@@ -127,6 +132,9 @@ export interface Debt {
   owner: MoneyOwner;
   installment?: string;
   reference?: string;
+  /** Movimiento de gasto con el que se saldó la cuota. */
+  paidExpenseId?: string;
+  paidDate?: string;
 }
 
 export interface Budget {
@@ -205,7 +213,7 @@ export interface ShoppingItem {
 export type ModuleKey =
   | 'resumen' | 'recordatorios' | 'movimientos' | 'costos-fijos' | 'deudas' | 'presupuesto'
   | 'reportes' | 'inventario' | 'compras' | 'tasa' | 'catalogos'
-  | 'importar' | 'usuarios' | 'metas' | 'ajustes';
+  | 'importar' | 'usuarios' | 'metas' | 'divisas' | 'ajustes';
 
 export type AccessLevel = 'sin_acceso' | 'ver' | 'editar';
 
@@ -229,6 +237,32 @@ export interface Member {
  * Reglas financieras de un mes. Cada mes puede tener las suyas; si un mes no
  * tiene ajustes propios, hereda los del mes anterior más cercano.
  */
+/* ---------------------------------------------------------------
+   Divisas — entradas y salidas de la billetera en dólares (Binance)
+   --------------------------------------------------------------- */
+
+export type WalletMoveKind = 'entrada' | 'salida';
+
+/**
+ * Movimiento de la billetera en divisas: entra cuando guardas dólares y sale
+ * cuando los cambias a bolívares (por ejemplo, para pagar el alquiler).
+ */
+export interface WalletMove {
+  id: string;
+  date: string;
+  kind: WalletMoveKind;
+  /** Monto en dólares que entra o sale. */
+  amountUsd: number;
+  /** Tasa a la que se cambió (Binance suele ir por encima del BCV). */
+  rate: number;
+  /** Bolívares recibidos o entregados. */
+  amountBs: number;
+  concept: string;
+  /** Gasto o costo fijo que se pagó con esta salida. */
+  linkedExpenseId?: string;
+  note?: string;
+}
+
 export interface UserSettings {
   id: string;
   /** YYYY-MM al que aplican estas reglas. */

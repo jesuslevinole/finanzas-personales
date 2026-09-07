@@ -1,6 +1,9 @@
 import { AlertTriangle, CalendarClock, Check, CreditCard, Package, ShoppingCart } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { useData } from '../hooks/useData';
+import Modal from '../components/ui/Modal';
+import PayForm from '../components/forms/PayForm';
 import { usePayCycle, type CycleDue } from '../hooks/usePayCycle';
 import { usePermissions } from '../hooks/usePermissions';
 import StatCard from '../components/ui/StatCard';
@@ -27,6 +30,7 @@ export default function Reminders() {
   const { horizon, overdue, dueThisCycle, upcoming, lowStock } = usePayCycle();
   const today = todayIso();
   const { exporting, run: runExport } = useExport();
+  const [paying, setPaying] = useState<CycleDue | null>(null);
   const toPayday = daysToPayday(today);
 
   const cycleTotal = sum(dueThisCycle.map((i) => i.amountUsd));
@@ -34,9 +38,9 @@ export default function Reminders() {
   const upcomingTotal = sum(upcoming.map((i) => i.amountUsd));
 
   const markDone = (item: CycleDue) => {
-    if (item.kind === 'deuda') void update<Debt>('debts', (item.source as Debt).id, { status: 'pagada' });
-    else if (item.kind === 'costo_fijo') void update<FixedCost>('fixedCosts', (item.source as FixedCost).id, { status: 'pagada', paidDate: today });
-    else void update<ShoppingItem>('shopping', (item.source as ShoppingItem).id, { checked: true });
+    if (item.kind === 'compra') { void update<ShoppingItem>('shopping', (item.source as ShoppingItem).id, { checked: true }); return; }
+    // Deudas y costos fijos pasan por el formulario de pago para dejar rastro.
+    setPaying(item);
   };
 
   const exportPdf = () => runExport(() => ({
@@ -156,6 +160,17 @@ export default function Reminders() {
           )}
         </section>
       </div>
+
+      <Modal title="Registrar pago" open={paying !== null} onClose={() => setPaying(null)}>
+        {paying && (
+          <PayForm concept={paying.title} amountUsd={paying.amountUsd}
+            onPaid={async (expenseId, paidDate) => {
+              if (paying.kind === 'deuda') await update<Debt>('debts', (paying.source as Debt).id, { status: 'pagada', paidExpenseId: expenseId, paidDate });
+              else await update<FixedCost>('fixedCosts', (paying.source as FixedCost).id, { status: 'pagada', paidExpenseId: expenseId, paidDate });
+              setPaying(null);
+            }} />
+        )}
+      </Modal>
     </div>
   );
 }

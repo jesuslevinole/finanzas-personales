@@ -32,6 +32,7 @@ export type CollectionName =
   | 'debts'
   | 'budgets'
   | 'goals'
+  | 'walletMoves'
   | 'inventory'
   | 'shopping'
   | 'shoppingLists'

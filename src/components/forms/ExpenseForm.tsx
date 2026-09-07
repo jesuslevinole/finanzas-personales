@@ -83,6 +83,12 @@ export default function ExpenseForm({ expense, onDone }: Props) {
       await data.add<Expense>('expenses', payload);
       if (toStock) await addToStock();
     }
+    // El catálogo recuerda el último precio unitario en dólares.
+    if (productId && qtyNum > 0) {
+      await data.update<Product>('products', productId, {
+        lastPriceUsd: round2(totalUsd / qtyNum), lastPriceDate: date,
+      });
+    }
     setSaving(false);
     onDone();
   };

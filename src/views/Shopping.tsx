@@ -41,7 +41,17 @@ const lastUnitPriceUsd = (data: ReturnType<typeof useData>, productId: string): 
   if (lastExpense && lastExpense.quantity > 0) return round2(lastExpense.totalUsd / lastExpense.quantity);
 
   const item = data.inventory.find((i) => i.productId === productId || i.name.toLowerCase() === name);
-  return item && item.lastPriceUsd > 0 ? round2(item.lastPriceUsd) : null;
+  if (item && item.lastPriceUsd > 0) return round2(item.lastPriceUsd);
+
+  // Precio que se escribió la primera vez, guardado en el propio catálogo.
+  const product = data.products.find((p) => p.id === productId);
+  return product?.lastPriceUsd && product.lastPriceUsd > 0 ? round2(product.lastPriceUsd) : null;
+};
+
+/** Guarda en el catálogo el último precio conocido del producto. */
+const rememberPrice = async (data: ReturnType<typeof useData>, productId: string | undefined, unitUsd: number, date: string) => {
+  if (!productId || unitUsd <= 0) return;
+  await data.update<Product>('products', productId, { lastPriceUsd: round2(unitUsd), lastPriceDate: date });
 };
 
 export default function Shopping() {
@@ -484,7 +494,8 @@ function FinishForm({ list, items, rate, onDone }: { list: ShoppingList; items: 
 
 /** Modal para cargar el precio real del producto al meterlo al carrito. */
 function PriceModal({ item, rate, onClose, onEdit }: { item: ShoppingItem; rate: number; onClose: () => void; onEdit: () => void }) {
-  const { update, del } = useData();
+  const data = useData();
+  const { update, del } = data;
   const confirm = useConfirm();
   const [currency, setCurrency] = useState<'VES' | 'USD'>('VES');
   const [value, setValue] = useState(item.actualBs !== undefined ? String(item.actualBs) : '');
@@ -511,6 +522,7 @@ function PriceModal({ item, rate, onClose, onEdit }: { item: ShoppingItem; rate:
       name: name.trim() || item.name,
       actualUsd: round2(unitUsd), actualBs: round2(unitBs), checked: true,
     });
+    await rememberPrice(data, item.productId, unitUsd, todayIso());
     setSaving(false);
     onClose();
   };
@@ -627,10 +639,13 @@ function AddItemForm({ listId, rate, item, onDone }: { listId: string; rate: num
     };
     if (item) {
       await data.update<ShoppingItem>('shopping', item.id, payload);
+      await rememberPrice(data, productId, Number(estimatedUsd) || 0, todayIso());
     } else {
       await data.add<ShoppingItem>('shopping', {
         ...payload, listId, checked: false, inventoryItemId: match?.id, createdAt: todayIso(),
       });
+      // El precio que escribes la primera vez queda como referencia del producto.
+      await rememberPrice(data, productId, Number(estimatedUsd) || 0, todayIso());
       setProductId(''); setQuantity('1'); setEstimatedUsd(''); setHeard('');
     }
     onDone();

@@ -12,6 +12,7 @@ import StatCard from '../components/ui/StatCard';
 import DataTable, { type Column } from '../components/ui/DataTable';
 import DetailSheet from '../components/ui/DetailSheet';
 import ExportButton from '../components/ui/ExportButton';
+import PayForm from '../components/forms/PayForm';
 import { useExport } from '../hooks/useExport';
 import FilterBar from '../components/ui/FilterBar';
 import DateRange from '../components/ui/DateRange';
@@ -39,6 +40,7 @@ export default function FixedCosts() {
 
   const [tab, setTab] = useState<'pendiente' | 'pagado'>('pendiente');
   const [creating, setCreating] = useState(false);
+  const [paying, setPaying] = useState<FixedCost | null>(null);
   const [editing, setEditing] = useState<FixedCost | null>(null);
   const [detail, setDetail] = useState<FixedCost | null>(null);
   const [range, setRange] = useState<Range>(EMPTY_RANGE);
@@ -59,7 +61,7 @@ export default function FixedCosts() {
   const prevMonth = addMonths(month, -1);
   const prevCosts = data.fixedCosts.filter((f) => f.month === prevMonth);
 
-  const markPaid = (f: FixedCost) => data.update<FixedCost>('fixedCosts', f.id, { status: 'pagada', paidDate: today });
+
   const removeCost = async (f: FixedCost) => {
     const ok = await confirm({ title: `¿Eliminar «${f.description}»?`, message: 'Se borra de forma permanente.', confirmLabel: 'Eliminar', danger: true });
     if (!ok) return;
@@ -70,6 +72,13 @@ export default function FixedCosts() {
     const ok = await confirm({ title: 'Copiar del mes anterior', message: `Se crearán ${prevCosts.length} costos fijos como pendientes en este mes.`, confirmLabel: 'Copiar' });
     if (!ok) return;
     await Promise.all(prevCosts.map((f) => data.add<FixedCost>('fixedCosts', { description: f.description, amountUsd: f.amountUsd, month, dueDay: f.dueDay, status: 'pendiente' })));
+  };
+
+  /** Movimiento con el que se saldó el costo fijo. */
+  const paymentLabel = (f: FixedCost): string => {
+    if (!f.paidExpenseId) return f.status === 'pagada' ? 'Sin movimiento enlazado' : '—';
+    const expense = data.expenses.find((e) => e.id === f.paidExpenseId);
+    return expense ? `${expense.product} · ${shortDate(expense.date)} · ${formatUsd(expense.totalUsd)}` : 'El movimiento fue eliminado';
   };
 
   const exportPdf = () => runExport(() => ({
@@ -170,15 +179,26 @@ export default function FixedCosts() {
             { label: 'Pagado el', value: detail.paidDate ? shortDate(detail.paidDate) : '—' },
             { label: 'Referencia', value: detail.reference ?? '—' },
             { label: 'Recargo por atraso', value: detail.lateAmountUsd !== undefined ? `${formatUsd(detail.lateAmountUsd)} tras el día ${detail.lateAfterDay}` : '—' },
+            { label: 'Movimiento del pago', value: paymentLabel(detail) },
             { label: 'Nota', value: detail.note ?? '—', wide: true },
           ]}>
           {editable && detail.status !== 'pagada' && (
-            <button type="button" className="btn btn-outline btn-block" onClick={() => { void markPaid(detail); setDetail(null); }}>
-              <Check size={16} /> Marcar como pagada
+            <button type="button" className="btn btn-outline btn-block" onClick={() => { setPaying(detail); setDetail(null); }}>
+              <Check size={16} /> Registrar pago
             </button>
           )}
         </DetailSheet>
       )}
+
+      <Modal title="Registrar pago" open={paying !== null} onClose={() => setPaying(null)}>
+        {paying && (
+          <PayForm concept={paying.description} amountUsd={paying.amountUsd}
+            onPaid={async (expenseId, paidDate) => {
+              await data.update<FixedCost>('fixedCosts', paying.id, { status: 'pagada', paidExpenseId: expenseId, paidDate });
+              setPaying(null);
+            }} />
+        )}
+      </Modal>
 
       <Modal title="Nuevo costo fijo" open={creating} onClose={() => setCreating(false)}>
         <FixedCostForm month={month} onSubmit={async (d) => { await data.add<FixedCost>('fixedCosts', d); setCreating(false); }} />

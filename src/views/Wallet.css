@@ -1,0 +1,16 @@
+.wallet-kind { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; }
+.wallet-kind.entrada { background: var(--color-ok-soft); color: var(--color-ok); }
+.wallet-kind.salida { background: var(--color-bs-soft); color: var(--color-bs); }
+
+.wallet-kind-picker { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.wallet-kind-option {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: var(--space-3); border-radius: var(--radius);
+  border: 1px solid var(--color-border); background: var(--color-surface);
+  font-weight: 600; font-size: var(--text-sm); color: var(--color-muted);
+}
+.wallet-kind-option .tiny { font-weight: 400; }
+.wallet-kind-option.selected.entrada { border-color: transparent; background: var(--color-ok-soft); color: var(--color-ok); }
+.wallet-kind-option.selected.salida { border-color: transparent; background: var(--color-bs-soft); color: var(--color-bs); }
+
+.wallet-summary { padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }
