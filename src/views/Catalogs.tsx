@@ -43,7 +43,8 @@ export default function Catalogs() {
   const [detail, setDetail] = useState<CatalogItem | null>(null);
   const [editing, setEditing] = useState<CatalogItem | null>(null);
   const [building, setBuilding] = useState(false);
-  const [merging, setMerging] = useState<CatalogItem | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [mergingMany, setMergingMany] = useState(false);
   const editable = canEdit('catalogos');
 
   const items: CatalogItem[] = data[tab];
@@ -151,7 +152,21 @@ export default function Catalogs() {
     }],
   }));
 
+  const toggleSelected = (id: string) =>
+    setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+
+  const allVisibleSelected = rows.length > 0 && rows.every((r) => selected.includes(r.id));
+  const toggleAll = () => setSelected(allVisibleSelected ? [] : rows.map((r) => r.id));
+
   const columns: Column<CatalogItem>[] = [
+    ...(editable ? [{
+      key: 'select', header: '', width: '40px', leading: true,
+      render: (i: CatalogItem) => (
+        <input type="checkbox" className="cat-check" checked={selected.includes(i.id)}
+          onChange={() => toggleSelected(i.id)} onClick={(e) => e.stopPropagation()}
+          aria-label={`Seleccionar ${i.name}`} />
+      ),
+    }] : []),
     { key: 'seq', header: '#', width: '54px', hideOnMobile: true, render: (i) => <span className="seq num">{seq.get(i.id)}</span> },
     { key: 'color', header: '', width: '36px', leading: true, render: (i) => (
       <span className="cat-swatch" style={{ '--swatch': i.color } as CSSProperties} aria-hidden="true" />
@@ -209,6 +224,21 @@ export default function Catalogs() {
 
       <p className="small muted cat-hint">{current?.hint}</p>
 
+      {editable && (
+        <div className="cat-selectbar">
+          <label className="row small">
+            <input type="checkbox" className="cat-check" checked={allVisibleSelected} onChange={toggleAll} aria-label="Seleccionar todos" />
+            {selected.length > 0 ? `${selected.length} seleccionados` : 'Seleccionar para fusionar'}
+          </label>
+          <span className="row wrap">
+            {selected.length > 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected([])}>Limpiar</button>}
+            <button type="button" className="btn btn-outline btn-sm" disabled={selected.length < 2} onClick={() => setMergingMany(true)}>
+              <Merge size={15} /> Fusionar {selected.length >= 2 ? `(${selected.length})` : ''}
+            </button>
+          </span>
+        </div>
+      )}
+
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
           actions={editable ? (i) => (
@@ -243,9 +273,6 @@ export default function Catalogs() {
               <button type="button" className="btn btn-outline" onClick={() => void toggleActive(detail)}>
                 <EyeOff size={16} /> {detail.active === false ? 'Reactivar' : 'Desactivar'}
               </button>
-              <button type="button" className="btn btn-outline" onClick={() => { setMerging(detail); setDetail(null); }}>
-                <Merge size={16} /> Fusionar con otro
-              </button>
             </div>
           )}
         </DetailSheet>
@@ -254,10 +281,9 @@ export default function Catalogs() {
       <Modal title={`Nuevo ${current?.label.toLowerCase()}`} open={creating} onClose={() => setCreating(false)}>
         <CatalogForm tab={tab} count={items.length} onDone={() => setCreating(false)} />
       </Modal>
-      <Modal title="Fusionar registros" open={merging !== null} onClose={() => setMerging(null)}>
-        {merging && (
-          <MergeForm catalog={tab} source={merging} items={items} onDone={() => setMerging(null)} />
-        )}
+      <Modal title={`Fusionar ${selected.length} registros`} open={mergingMany} onClose={() => setMergingMany(false)}>
+        <MergeForm catalog={tab} sources={items.filter((i) => selected.includes(i.id))}
+          onDone={() => { setMergingMany(false); setSelected([]); }} />
       </Modal>
       <Modal title="Editar" open={editing !== null} onClose={() => setEditing(null)}>
         {editing && <CatalogForm tab={tab} count={items.length} item={editing} onDone={() => setEditing(null)} />}
@@ -362,32 +388,35 @@ function CatalogForm({ tab, count, item, onDone }: { tab: CatalogKey; count: num
 
 
 /**
- * Fusiona un elemento duplicado en otro: todos los registros que usaban el
- * origen pasan al destino y el origen desaparece.
+ * Fusiona varios registros en uno: todos los que uses como origen ceden sus
+ * referencias al que elijas conservar, y luego desaparecen.
  */
-function MergeForm({ catalog, source, items, onDone }: { catalog: MergeableCatalog; source: CatalogItem; items: CatalogItem[]; onDone: () => void }) {
+function MergeForm({ catalog, sources, onDone }: { catalog: MergeableCatalog; sources: CatalogItem[]; onDone: () => void }) {
   const data = useData();
   const confirm = useConfirm();
-  const [targetId, setTargetId] = useState('');
+  const [targetId, setTargetId] = useState(sources[0]?.id ?? '');
   const [working, setWorking] = useState(false);
   const [progress, setProgress] = useState('');
 
-  const options = items.filter((i) => i.id !== source.id);
-  const affected = countReferences(data, catalog, source.id);
-  const target = items.find((i) => i.id === targetId);
+  const target = sources.find((i) => i.id === targetId);
+  const toRemove = sources.filter((i) => i.id !== targetId);
+  const affected = toRemove.reduce((total, item) => total + countReferences(data, catalog, item.id), 0);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!target) return;
+    if (!target || toRemove.length === 0) return;
     const ok = await confirm({
-      title: `Fusionar «${source.name}» en «${target.name}»`,
-      message: `${affected} registro(s) pasarán a «${target.name}» y «${source.name}» se eliminará. No se puede deshacer.`,
+      title: `Fusionar en «${target.name}»`,
+      message: `${affected} registro(s) pasarán a «${target.name}» y se eliminarán ${toRemove.length} elemento(s). No se puede deshacer.`,
       confirmLabel: 'Fusionar', danger: true,
     });
     if (!ok) return;
     setWorking(true);
     try {
-      await mergeCatalogItems(data, catalog, source.id, target.id, (done, total) => setProgress(`Actualizando ${done} de ${total}…`));
+      for (const [index, item] of toRemove.entries()) {
+        setProgress(`Fusionando ${index + 1} de ${toRemove.length}: ${item.name}`);
+        await mergeCatalogItems(data, catalog, item.id, target.id);
+      }
       onDone();
     } finally {
       setWorking(false);
@@ -396,19 +425,32 @@ function MergeForm({ catalog, source, items, onDone }: { catalog: MergeableCatal
 
   return (
     <form onSubmit={submit} className="stack">
-      <dl className="kv">
-        <div><dt>Se elimina</dt><dd>{source.name}</dd></div>
-        <div><dt>Registros que se mueven</dt><dd className="num">{affected}</dd></div>
-      </dl>
-      <div className="field">
-        <span className="field-label">Se queda con</span>
-        <CustomSelect items={options} value={targetId} onChange={setTargetId} placeholder="Elige el registro que prevalece" />
-      </div>
-      {target && <p className="field-hint">Los {affected} registros de «{source.name}» quedarán asignados a «{target.name}».</p>}
+      <p className="small muted">Elige cuál se queda. Los demás ceden sus registros y se eliminan.</p>
+
+      <ul className="merge-list" role="radiogroup" aria-label="Registro que prevalece">
+        {sources.map((item) => (
+          <li key={item.id}>
+            <button type="button" role="radio" aria-checked={item.id === targetId}
+              className={`merge-option${item.id === targetId ? ' selected' : ''}`} onClick={() => setTargetId(item.id)}>
+              <span className="dot" style={{ '--dot-color': item.color } as CSSProperties} />
+              <span className="grow truncate">{item.name}</span>
+              <span className="tiny muted num">{countReferences(data, catalog, item.id)} usos</span>
+              {item.id === targetId && <span className="tag primary">Se queda</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {target && (
+        <p className="field-hint">
+          {affected} registro(s) de {toRemove.length} elemento(s) quedarán asignados a «{target.name}».
+        </p>
+      )}
       {progress && <p className="small muted">{progress}</p>}
+
       <div className="form-actions">
-        <button type="submit" className="btn btn-danger" disabled={!targetId || working}>
-          {working ? 'Fusionando…' : 'Fusionar'}
+        <button type="submit" className="btn btn-danger" disabled={!target || toRemove.length === 0 || working}>
+          {working ? 'Fusionando…' : `Fusionar ${toRemove.length} en 1`}
         </button>
       </div>
     </form>

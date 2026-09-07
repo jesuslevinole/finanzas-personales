@@ -16,3 +16,29 @@
 .cat-detail-actions { display: flex; gap: var(--space-2); margin-top: var(--space-4); }
 .cat-detail-actions .btn { flex: 1; }
 @media (max-width: 767px) { .cat-detail-actions { flex-direction: column; } }
+
+/* Selección múltiple para fusionar */
+.cat-check { width: 20px; height: 20px; accent-color: var(--color-primary); flex: none; }
+.cat-selectbar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border); border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.cat-selectbar label { cursor: pointer; }
+
+.merge-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.merge-option {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%;
+  padding: var(--space-3); border-radius: var(--radius);
+  border: 1px solid var(--color-border); background: var(--color-surface);
+  font-size: var(--text-sm); text-align: left;
+}
+.merge-option.selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.merge-option:hover { border-color: var(--color-primary); }
+
+@media (max-width: 767px) {
+  .cat-selectbar { flex-wrap: wrap; }
+  .cat-selectbar .btn { flex: 1; }
+  .cat-check { width: 24px; height: 24px; }
+}
