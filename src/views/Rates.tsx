@@ -14,7 +14,7 @@ import EmptyState from '../components/ui/EmptyState';
 import { fetchBcvRate } from '../services/rates';
 import type { ExchangeRate } from '../types';
 import { inflationSummary } from '../utils/finance';
-import { formatBs, formatPct, formatUsd } from '../utils/money';
+import { formatBs, formatPct, formatUsd, round2 } from '../utils/money';
 import { shortDate, todayIso } from '../utils/dates';
 import { sequenceMap } from '../utils/sequence';
 import './Rates.css';
@@ -81,7 +81,7 @@ export default function Rates() {
     e.preventDefault();
     const r = Number(rate);
     if (r <= 0) return;
-    await set<ExchangeRate>('rates', date, { date, rate: r, source: 'manual' });
+    await set<ExchangeRate>('rates', date, { date, rate: round2(r), source: 'manual' });
     setRate('');
   };
 
@@ -122,7 +122,7 @@ export default function Rates() {
           <h2 className="card-title">Registrar tasa manual</h2>
           <form onSubmit={submit} className="form-grid rates-form">
             <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required aria-label="Fecha" />
-            <input className="input num" type="number" step="0.0001" min="0" placeholder="Bs por $" value={rate} onChange={(e) => setRate(e.target.value)} required aria-label="Tasa" />
+            <input className="input num" type="number" step="0.01" min="0" placeholder="Bs por $" value={rate} onChange={(e) => setRate(e.target.value)} required aria-label="Tasa" />
             <button type="submit" className="btn btn-primary">Guardar</button>
           </form>
         </section>

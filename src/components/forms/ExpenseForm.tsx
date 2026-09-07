@@ -31,7 +31,7 @@ export default function ExpenseForm({ expense, onDone }: Props) {
   const [priceCurrency, setPriceCurrency] = useState<'VES' | 'USD'>('VES');
   const [price, setPrice] = useState(expense ? String(expense.unitPriceBs) : '');
   const [quantity, setQuantity] = useState(String(expense?.quantity ?? 1));
-  const [rate, setRate] = useState(String(expense?.rate ?? rateForDate(data.rates, todayIso(), data.currentRate) ?? ''));
+  const [rate, setRate] = useState(String(expense?.rate ?? rateForDate(data.rates, todayIso(), data.currentRate)));
   const [toStock, setToStock] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -47,7 +47,7 @@ export default function ExpenseForm({ expense, onDone }: Props) {
 
   const onDateChange = (d: string) => {
     setDate(d);
-    if (!expense) setRate(String(rateForDate(data.rates, d, data.currentRate) || ''));
+    if (!expense) setRate(String(rateForDate(data.rates, d, data.currentRate)));
   };
 
   const product = getRelationName(data.products, productId, '');

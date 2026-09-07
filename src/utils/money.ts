@@ -1,5 +1,5 @@
-const bsFmt = new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VES', minimumFractionDigits: 2 });
-const usdFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+const bsFmt = new Intl.NumberFormat('es-VE', { style: 'currency', currency: 'VES', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const usdFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pctFmt = new Intl.NumberFormat('es-VE', { style: 'percent', maximumFractionDigits: 1 });
 
 export const formatBs = (n: number): string => bsFmt.format(n).replace('VES', 'Bs.');

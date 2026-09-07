@@ -1,4 +1,5 @@
 import { todayIso } from '../utils/dates';
+import { round2 } from '../utils/money';
 
 interface DolarApiResponse {
   promedio: number;
@@ -15,7 +16,8 @@ export const fetchBcvRate = async (): Promise<{ date: string; rate: number } | n
     if (!res.ok) return null;
     const json: unknown = await res.json();
     if (!isDolarApiResponse(json)) return null;
-    return { date: todayIso(), rate: json.promedio };
+    // La tasa se guarda con dos decimales: es como la publica el BCV.
+    return { date: todayIso(), rate: round2(json.promedio) };
   } catch {
     return null;
   }

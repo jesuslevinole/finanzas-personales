@@ -1,6 +1,6 @@
 import type { Budget, BudgetGroup, Category, Debt, Expense, ExchangeRate, FixedCost, Income, InventoryItem, UserSettings } from '../types';
 import { daysBetween } from './dates';
-import { sum } from './money';
+import { round2, sum } from './money';
 
 export type Settings = Omit<UserSettings, 'id' | 'month'>;
 
@@ -232,7 +232,7 @@ export const emergencyFundTarget = (fixedCosts: FixedCost[], months: number): nu
 /** Tasa vigente para una fecha: la última registrada en o antes de ese día. */
 export const rateForDate = (rates: ExchangeRate[], date: string, fallback: number): number => {
   const sorted = [...rates].filter((r) => r.date <= date).sort((a, b) => b.date.localeCompare(a.date));
-  return sorted[0]?.rate ?? fallback;
+  return round2(sorted[0]?.rate ?? fallback);
 };
 
 

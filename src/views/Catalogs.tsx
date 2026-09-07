@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Barcode, EyeOff, Merge, Pencil, Plus, Sparkles } from 'lucide-react';
+import { Barcode, EyeOff, Merge, Pencil, Plus, Search, Sparkles, X } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useConfirm } from '../hooks/useConfirm';
@@ -45,11 +45,21 @@ export default function Catalogs() {
   const [building, setBuilding] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [mergingMany, setMergingMany] = useState(false);
+  const [search, setSearch] = useState('');
   const editable = canEdit('catalogos');
 
   const items: CatalogItem[] = data[tab];
   const seq = useMemo(() => sequenceMap(items, (i) => i.name.toLowerCase()), [items]);
-  const rows = useMemo(() => sortBySeqDesc(items, seq), [items, seq]);
+
+  /** El buscador mira el nombre y, en productos, también su código de barras. */
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sortBySeqDesc(items, seq).filter((i) => {
+      if (!q) return true;
+      const barcode = (i as Product).barcode ?? '';
+      return i.name.toLowerCase().includes(q) || barcode.includes(q);
+    });
+  }, [items, seq, search]);
 
   const usage = (id: string): number => {
     if (tab === 'categories') return data.expenses.filter((e) => e.categoryId === id).length;
@@ -133,7 +143,7 @@ export default function Catalogs() {
 
   const exportPdf = () => runExport(() => ({
     title: `Catálogo: ${current?.label ?? ''}`,
-    subtitle: `${rows.length} elementos`,
+    subtitle: `${rows.length} elementos${search ? ` · búsqueda «${search}»` : ''}`,
     fileName: `catalogo-${tab}`,
     tables: [{
       head: tab === 'products'
@@ -224,6 +234,18 @@ export default function Catalogs() {
 
       <p className="small muted cat-hint">{current?.hint}</p>
 
+      <div className="cat-search">
+        <Search size={16} />
+        <input className="cat-search-input" value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder={`Buscar en ${current?.label.toLowerCase() ?? 'el catálogo'}…`} aria-label="Buscar" />
+        {search && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSearch('')}>
+            <X size={14} /> Limpiar
+          </button>
+        )}
+        <span className="tiny muted cat-search-count">{rows.length} de {items.length}</span>
+      </div>
+
       {editable && (
         <div className="cat-selectbar">
           <label className="row small">
@@ -245,7 +267,8 @@ export default function Catalogs() {
             <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(i)}><Pencil size={15} /></button>
           ) : undefined}
           rowClass={(i) => (i.active === false ? 'muted-row' : '')}
-          empty={<EmptyState title="Catálogo vacío" hint={editable ? 'Agrega el primero con el botón de arriba, o impórtalos desde tu Excel.' : 'Aún no hay elementos.'} />} />
+          empty={<EmptyState title={search ? 'Sin resultados' : 'Catálogo vacío'}
+            hint={search ? `Nada coincide con «${search}».` : editable ? 'Agrega el primero con el botón de arriba, o impórtalos desde tu Excel.' : 'Aún no hay elementos.'} />} />
       </div>
 
       {detail && (

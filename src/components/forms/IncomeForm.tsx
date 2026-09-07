@@ -18,7 +18,7 @@ export default function IncomeForm({ income, onDone }: Props) {
   const [date, setDate] = useState(income?.date ?? todayIso());
   const [sourceId, setSourceId] = useState(income?.sourceId ?? '');
   const [amountBs, setAmountBs] = useState(income ? String(income.amountBs) : '');
-  const [rate, setRate] = useState(String(income?.rate ?? rateForDate(data.rates, todayIso(), data.currentRate) ?? ''));
+  const [rate, setRate] = useState(String(income?.rate ?? rateForDate(data.rates, todayIso(), data.currentRate)));
   const [owner, setOwner] = useState<MoneyOwner>(income?.owner ?? 'propio');
   const [kind, setKind] = useState<IncomeKind>(income?.kind ?? 'variable');
   const [note, setNote] = useState(income?.note ?? '');
@@ -45,7 +45,7 @@ export default function IncomeForm({ income, onDone }: Props) {
       <div className="form-grid">
         <label className="field"><span className="field-label">Fecha</span>
           <input className="input" type="date" value={date} required
-            onChange={(e) => { setDate(e.target.value); if (!income) setRate(String(rateForDate(data.rates, e.target.value, data.currentRate) || '')); }} />
+            onChange={(e) => { setDate(e.target.value); if (!income) setRate(String(rateForDate(data.rates, e.target.value, data.currentRate))); }} />
         </label>
         <label className="field"><span className="field-label">Tasa (Bs/$)</span><input className="input num" type="number" step="0.01" min="0" value={rate} onChange={(e) => setRate(e.target.value)} required /></label>
       </div>
