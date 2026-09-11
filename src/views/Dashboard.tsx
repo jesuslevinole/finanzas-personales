@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle, ArrowDownCircle, ArrowUpCircle, CalendarClock, CheckCircle2, Coins, CreditCard,
+  AlertTriangle, ArrowDownCircle, ArrowUpCircle, CalendarClock, CheckCircle2, Coins, CreditCard, HandCoins,
   Info, Landmark, Lightbulb, Package, PiggyBank, TrendingUp, Wallet,
 } from 'lucide-react';
 import { useData } from '../hooks/useData';
@@ -27,7 +27,7 @@ const ADVICE_ICON = { urgente: <AlertTriangle size={15} />, atencion: <Info size
 
 export default function Dashboard() {
   const data = useData();
-  const { categories, creditors, currentRate, rates, incomes, expenses, inventory, shopping, debts, fixedCosts, goals, walletMoves, set, settingsFor } = data;
+  const { categories, creditors, currentRate, rates, incomes, expenses, inventory, shopping, debts, fixedCosts, goals, walletMoves, loans, set, settingsFor } = data;
   const { canEdit } = usePermissions();
   const { month, prev, next, monthIncomes, monthExpenses, monthFixed, monthDebts } = useMonth();
   const settings = settingsFor(month);
@@ -57,6 +57,8 @@ export default function Dashboard() {
   const emergency = emergencyFundTarget(monthFixed, settings.emergencyFundMonths);
   // Colchón en dólares: entradas menos salidas de la billetera.
   const walletUsd = sum(walletMoves.map((m) => (m.kind === 'entrada' ? m.amountUsd : -m.amountUsd)));
+  // Dinero tuyo que está en manos de otros.
+  const lentUsd = sum(loans.filter((l) => l.status !== 'cobrado').map((l) => Math.max(0, l.amountUsd - l.repaidUsd)));
   const savedUsd = sum(goals.map((g) => g.savedUsd));
   const advice = buildAdvice(
     {
@@ -311,6 +313,7 @@ export default function Dashboard() {
             <div><dt><Package size={13} /> Por reponer</dt><dd className={lowStock.length ? 'text-warn' : ''}>{lowStock.length}</dd></div>
             <div><dt>Compras urgentes</dt><dd className={urgentBuysUsd > 0 ? 'text-danger' : ''}>{formatUsd(urgentBuysUsd)}</dd></div>
             <div><dt><Coins size={13} /> Guardado en divisas</dt><dd className="text-usd">{formatUsd(walletUsd)}</dd></div>
+            <div><dt><HandCoins size={13} /> Prestado por cobrar</dt><dd className={lentUsd > 0 ? 'text-warn' : ''}>{formatUsd(lentUsd)}</dd></div>
             <div><dt><TrendingUp size={13} /> Ahorrado en metas</dt><dd className="text-ok">{formatUsd(savedUsd)}</dd></div>
             <div><dt>Fondo de emergencia</dt><dd>{formatUsd(emergency)}</dd></div>
           </dl>

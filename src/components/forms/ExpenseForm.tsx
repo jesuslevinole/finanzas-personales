@@ -4,7 +4,7 @@ import { Barcode } from 'lucide-react';
 import CustomSelect from '../ui/CustomSelect';
 import { barcodeSupported } from '../../utils/barcode';
 import BarcodeScanner from '../ui/BarcodeScanner';
-import type { Category, Expense, InventoryItem, Place, PricePoint, Product, ProductType, StockUnit } from '../../types';
+import type { Bank, Category, Expense, InventoryItem, MoneyOwner, Place, PricePoint, Product, ProductType, StockUnit } from '../../types';
 import { UNITS } from '../../utils/units';
 import { useCurrentPlace } from '../../hooks/useCurrentPlace';
 import Modal from '../ui/Modal';
@@ -32,6 +32,8 @@ export default function ExpenseForm({ expense, onDone }: Props) {
   const [price, setPrice] = useState(expense ? String(expense.unitPriceBs) : '');
   const [quantity, setQuantity] = useState(String(expense?.quantity ?? 1));
   const [rate, setRate] = useState(String(expense?.rate ?? rateForDate(data.rates, todayIso(), data.currentRate)));
+  const [bankId, setBankId] = useState(expense?.bankId ?? '');
+  const [owner, setOwner] = useState<MoneyOwner>(expense?.owner ?? 'propio');
   const [toStock, setToStock] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -76,7 +78,7 @@ export default function ExpenseForm({ expense, onDone }: Props) {
     e.preventDefault();
     if (!productId || !categoryId || rateNum <= 0 || priceNum <= 0) return;
     setSaving(true);
-    const payload = { date, placeId, categoryId, productId, product, unitPriceBs: round2(unitPriceBs), quantity: qtyNum, totalBs, rate: rateNum, totalUsd };
+    const payload = { date, placeId, categoryId, productId, product, bankId: bankId || undefined, owner, unitPriceBs: round2(unitPriceBs), quantity: qtyNum, totalBs, rate: rateNum, totalUsd };
     if (expense) {
       await data.update<Expense>('expenses', expense.id, payload);
     } else {
@@ -141,12 +143,27 @@ export default function ExpenseForm({ expense, onDone }: Props) {
       <div className="form-grid">
         <label className="field"><span className="field-label">Precio unitario</span>
           <div className="form-price">
-            <input className="input num" type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required />
+            <input className="input num" type="number" inputMode="decimal" step="any" min="0" value={price} onChange={(e) => setPrice(e.target.value)} required />
             <button type="button" className={`btn btn-outline form-cur${priceCurrency === 'USD' ? ' usd' : ''}`} onClick={() => setPriceCurrency((c) => (c === 'VES' ? 'USD' : 'VES'))}>{priceCurrency === 'VES' ? 'Bs' : '$'}</button>
           </div>
         </label>
-        <label className="field"><span className="field-label">Cantidad</span><input className="input num" type="number" step="0.01" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} required /></label>
+        <label className="field"><span className="field-label">Cantidad</span><input className="input num" type="number" inputMode="decimal" step="any" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} required /></label>
       </div>
+      <div className="form-grid">
+        <div className="field"><span className="field-label">Banco o medio</span>
+          <CustomSelect items={data.banks} value={bankId} onChange={setBankId}
+            onCreate={(name) => data.add<Bank>('banks', { name, color: colorForIndex(data.banks.length), active: true })}
+            placeholder="Banesco, efectivo, Zelle…" />
+        </div>
+        <label className="field"><span className="field-label">Dinero</span>
+          <select className="input" value={owner} onChange={(e) => setOwner(e.target.value as MoneyOwner)}>
+            <option value="propio">Propio</option>
+            <option value="tercero">De un tercero</option>
+          </select>
+          <span className="field-hint">Los gastos de terceros no cuentan en tus reportes.</span>
+        </label>
+      </div>
+
       <dl className="form-summary">
         <div><dt>Total Bs</dt><dd className="num text-bs">{totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</dd></div>
         <div><dt>Total $</dt><dd className="num text-usd">{totalUsd.toFixed(2)}</dd></div>

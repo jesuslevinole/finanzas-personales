@@ -14,3 +14,10 @@
 .wallet-kind-option.selected.salida { border-color: transparent; background: var(--color-bs-soft); color: var(--color-bs); }
 
 .wallet-summary { padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }
+
+.wallet-accounts { display: flex; flex-direction: column; margin-top: var(--space-2); }
+.wallet-account {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--space-3);
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); font-size: var(--text-sm);
+}
+.wallet-account:last-child { border-bottom: none; }

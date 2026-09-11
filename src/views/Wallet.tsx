@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { ArrowDownLeft, ArrowUpRight, Coins, Pencil, Plus, TrendingUp } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
@@ -13,7 +13,9 @@ import Modal from '../components/ui/Modal';
 import ExportButton from '../components/ui/ExportButton';
 import EmptyState from '../components/ui/EmptyState';
 import Money from '../components/ui/Money';
-import type { WalletMove, WalletMoveKind } from '../types';
+import type { SavingsAccount, WalletMove, WalletMoveKind } from '../types';
+import CustomSelect from '../components/ui/CustomSelect';
+import { colorForIndex, getRelationColor, getRelationName } from '../utils/relations';
 import { EMPTY_RANGE, inRange, type Range } from '../utils/range';
 import { rateForDate } from '../utils/finance';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
@@ -32,6 +34,7 @@ export default function Wallet() {
 
   const [range, setRange] = useState<Range>(EMPTY_RANGE);
   const [kind, setKind] = useState<'' | WalletMoveKind>('');
+  const [accountId, setAccountId] = useState('');
   const [creating, setCreating] = useState(false);
   const [editingMove, setEditingMove] = useState<WalletMove | null>(null);
   const [detail, setDetail] = useState<WalletMove | null>(null);
@@ -39,9 +42,23 @@ export default function Wallet() {
   const all = data.walletMoves;
   const seq = useMemo(() => sequenceMap(all, (m) => m.date), [all]);
   const rows = useMemo(
-    () => sortBySeqDesc(all, seq).filter((m) => inRange(m.date, range) && (!kind || m.kind === kind)),
-    [all, seq, range, kind],
+    () => sortBySeqDesc(all, seq).filter((m) => inRange(m.date, range)
+      && (!kind || m.kind === kind)
+      && (!accountId || m.accountId === accountId)),
+    [all, seq, range, kind, accountId],
   );
+
+  /** Saldo de cada plataforma: lo que entró menos lo que salió. */
+  const byAccount = useMemo(() => {
+    const map = new Map<string, number>();
+    all.forEach((m) => {
+      const key = m.accountId ?? '';
+      map.set(key, (map.get(key) ?? 0) + (m.kind === 'entrada' ? m.amountUsd : -m.amountUsd));
+    });
+    return [...map.entries()]
+      .map(([id, usd]) => ({ id, name: id ? getRelationName(data.accounts, id) : 'Sin plataforma', usd: round2(usd) }))
+      .sort((a, b) => b.usd - a.usd);
+  }, [all, data.accounts]);
 
   /* El saldo se calcula sobre TODO el histórico, no sobre el filtro. */
   const inUsd = sum(all.filter((m) => m.kind === 'entrada').map((m) => m.amountUsd));
@@ -53,7 +70,7 @@ export default function Wallet() {
   /** Cuánto mejor vendiste que la tasa BCV de hoy. */
   const spread = data.currentRate > 0 && avgSellRate > 0 ? avgSellRate / data.currentRate - 1 : 0;
 
-  const activeCount = [range.from, range.to, kind].filter(Boolean).length;
+  const activeCount = [range.from, range.to, kind, accountId].filter(Boolean).length;
 
   const removeMove = async (move: WalletMove) => {
     const ok = await confirm({
@@ -73,6 +90,11 @@ export default function Wallet() {
     ) },
     { key: 'concept', header: 'Concepto', primary: true, render: (m) => <span className="truncate">{m.concept}</span> },
     { key: 'date', header: 'Fecha', width: '110px', render: (m) => <span className="muted">{shortDate(m.date)}</span> },
+    { key: 'account', header: 'Plataforma', width: '140px', render: (m) => (
+      m.accountId
+        ? <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(data.accounts, m.accountId) } as CSSProperties}>{getRelationName(data.accounts, m.accountId)}</span>
+        : <span className="tiny muted">—</span>
+    ) },
     { key: 'rate', header: 'Tasa', width: '120px', hideOnMobile: true, render: (m) => <span className="num muted">{formatBs(m.rate)}</span> },
     { key: 'bs', header: 'Bolívares', width: '140px', hideOnMobile: true, render: (m) => <span className="num text-bs">{formatBs(m.amountBs)}</span> },
     { key: 'usd', header: 'USD', align: 'end', width: '110px', amount: true, render: (m) => (
@@ -83,25 +105,31 @@ export default function Wallet() {
   ];
 
   const exportPdf = () => runExport(() => ({
-    title: 'Divisas',
+    title: 'Ahorro en divisas',
     subtitle: `Saldo ${formatUsd(balanceUsd)} · ${all.length} movimientos`,
-    fileName: 'divisas',
+    fileName: 'ahorro',
     cards: [
       { label: 'Saldo en dólares', value: formatUsd(balanceUsd), hint: formatBs(toBs(balanceUsd, data.currentRate)), tone: 'ok' as const },
       { label: 'Entradas', value: formatUsd(inUsd) },
       { label: 'Salidas', value: formatUsd(outUsd), hint: formatBs(soldBs) },
       { label: 'Tasa promedio de venta', value: avgSellRate > 0 ? formatBs(avgSellRate) : '—', hint: spread !== 0 ? `${formatPct(spread)} sobre BCV` : undefined },
     ],
+    bars: {
+      title: 'Saldo por plataforma',
+      items: byAccount.map((a) => ({ label: a.name, value: Math.max(0, a.usd), display: formatUsd(a.usd) })),
+    },
     tables: [{
       title: 'Movimientos',
-      head: ['Fecha', 'Tipo', 'Concepto', 'Tasa', 'Bolívares', 'USD'],
+      head: ['Fecha', 'Tipo', 'Plataforma', 'Concepto', 'Tasa', 'Bolívares', 'USD'],
       body: rows.map((m) => [
-        shortDate(m.date), KIND_LABEL[m.kind], m.concept,
+        shortDate(m.date), KIND_LABEL[m.kind],
+        m.accountId ? getRelationName(data.accounts, m.accountId) : '—',
+        m.concept,
         formatBs(m.rate), formatBs(m.amountBs),
         `${m.kind === 'entrada' ? '+' : '-'}${formatUsd(m.amountUsd)}`,
       ]),
-      foot: [['', '', '', '', 'Saldo', formatUsd(balanceUsd)]],
-      alignRight: [3, 4, 5],
+      foot: [['', '', '', '', '', 'Saldo', formatUsd(balanceUsd)]],
+      alignRight: [4, 5, 6],
     }],
     footNote: 'Las entradas son dólares que guardas; las salidas, dólares que cambias a bolívares para pagar.',
   }));
@@ -110,8 +138,8 @@ export default function Wallet() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Divisas</h1>
-          <p className="page-subtitle">Lo que guardas en dólares y lo que cambias a bolívares para pagar. Tu colchón contra la inflación.</p>
+          <h1>Ahorro</h1>
+          <p className="page-subtitle">Lo que guardas en dólares —Binance, Kontigo, Zelle, efectivo— y lo que cambias a bolívares para pagar.</p>
         </div>
         <div className="row wrap page-actions">
           <ExportButton onClick={() => void exportPdf()} exporting={exporting} />
@@ -132,8 +160,29 @@ export default function Wallet() {
           hint={avgSellRate > 0 ? `${formatPct(spread)} respecto al BCV de hoy` : 'Sin salidas registradas'} />
       </div>
 
+      {byAccount.length > 0 && (
+        <section className="card">
+          <div className="card-header"><h2 className="card-title">Saldo por plataforma</h2><span className="tag usd">{formatUsd(balanceUsd)} total</span></div>
+          <ul className="wallet-accounts">
+            {byAccount.map((a) => (
+              <li key={a.id || 'none'} className="wallet-account">
+                <span className="row grow"><span className="dot" style={{ '--dot-color': a.id ? getRelationColor(data.accounts, a.id) : 'var(--color-muted)' } as CSSProperties} /><span className="truncate">{a.name}</span></span>
+                <span className="num strong text-usd">{formatUsd(a.usd)}</span>
+                <span className="tiny muted num">{formatBs(toBs(a.usd, data.currentRate))}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <FilterBar activeCount={activeCount} onClear={() => { setRange(EMPTY_RANGE); setKind(''); }}>
         <DateRange value={range} onChange={setRange} />
+        <label className="field"><span className="field-label">Plataforma</span>
+          <select className="input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            <option value="">Todas</option>
+            {data.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        </label>
         <label className="field"><span className="field-label">Tipo</span>
           <select className="input" value={kind} onChange={(e) => setKind(e.target.value as '' | WalletMoveKind)}>
             <option value="">Todos</option>
@@ -162,6 +211,7 @@ export default function Wallet() {
             { label: 'Tasa aplicada', value: <span className="num">{formatBs(detail.rate)}</span> },
             { label: 'Bolívares', value: <span className="num text-bs">{formatBs(detail.amountBs)}</span> },
             { label: 'Contra BCV de hoy', value: data.currentRate > 0 ? formatPct(detail.rate / data.currentRate - 1) : '—' },
+            { label: 'Plataforma', value: detail.accountId ? getRelationName(data.accounts, detail.accountId) : '—' },
             { label: 'Gasto enlazado', value: detail.linkedExpenseId
               ? data.expenses.find((e) => e.id === detail.linkedExpenseId)?.product ?? 'El movimiento fue eliminado'
               : '—', wide: true },
@@ -185,6 +235,7 @@ function WalletForm({ move, onDone }: { move?: WalletMove; onDone: () => void })
   const [date, setDate] = useState(move?.date ?? todayIso());
   const [amountUsd, setAmountUsd] = useState(move ? String(move.amountUsd) : '');
   const [rate, setRate] = useState(String(move?.rate ?? rateForDate(data.rates, todayIso(), data.currentRate)));
+  const [accountId, setAccountId] = useState(move?.accountId ?? '');
   const [concept, setConcept] = useState(move?.concept ?? '');
   const [note, setNote] = useState(move?.note ?? '');
   const [saving, setSaving] = useState(false);
@@ -198,7 +249,7 @@ function WalletForm({ move, onDone }: { move?: WalletMove; onDone: () => void })
     e.preventDefault();
     if (usd <= 0 || !concept.trim()) return;
     setSaving(true);
-    const payload = { date, kind, amountUsd: usd, rate: rateNum, amountBs: bs, concept: concept.trim(), note: note.trim() || undefined };
+    const payload = { date, kind, amountUsd: usd, rate: rateNum, amountBs: bs, accountId: accountId || undefined, concept: concept.trim(), note: note.trim() || undefined };
     if (move) await data.update<WalletMove>('walletMoves', move.id, payload);
     else await data.add<WalletMove>('walletMoves', payload);
     setSaving(false);
@@ -218,6 +269,11 @@ function WalletForm({ move, onDone }: { move?: WalletMove; onDone: () => void })
         </button>
       </div>
 
+      <div className="field"><span className="field-label">Plataforma</span>
+        <CustomSelect items={data.accounts} value={accountId} onChange={setAccountId}
+          onCreate={(name) => data.add<SavingsAccount>('accounts', { name, color: colorForIndex(data.accounts.length), active: true })}
+          placeholder="Binance, Kontigo, Zelle, efectivo…" />
+      </div>
       <label className="field"><span className="field-label">Concepto</span>
         <input className="input" value={concept} onChange={(e) => setConcept(e.target.value)}
           placeholder={kind === 'entrada' ? 'Ahorro del cobro, pago de cliente…' : 'Alquiler de septiembre, gastos del mes…'} required />

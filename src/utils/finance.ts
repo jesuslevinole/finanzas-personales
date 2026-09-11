@@ -53,6 +53,10 @@ export const incomeByKind = (incomes: Income[]): { fixedUsd: number; variableUsd
   return { fixedUsd, variableUsd, stability: total > 0 ? fixedUsd / total : 0 };
 };
 
+/** Gastos propios: excluye lo que pagaste por cuenta de otra persona. */
+export const ownExpenses = (expenses: Expense[]): Expense[] =>
+  expenses.filter((e) => (e.owner ?? 'propio') === 'propio');
+
 export const expensesByCategory = (expenses: Expense[], categories: Category[]) => {
   const total = sum(expenses.map((e) => e.totalUsd));
   const map = new Map<string, number>();

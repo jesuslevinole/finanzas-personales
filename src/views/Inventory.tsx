@@ -268,10 +268,10 @@ function InventoryForm({ categories, products, currentRate, item, onCreateCatego
       </div>
       <div className="field"><span className="field-label">Rubro</span><CustomSelect items={categories} value={categoryId} onChange={setCategoryId} onCreate={onCreateCategory} /></div>
       <div className="form-grid">
-        <label className="field"><span className="field-label">Cantidad</span><input className="input num" type="number" step="0.01" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>
+        <label className="field"><span className="field-label">Cantidad</span><input className="input num" type="number" inputMode="decimal" step="any" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>
         <label className="field"><span className="field-label">Unidad</span><select className="input" value={unit} onChange={(e) => setUnit(e.target.value as StockUnit)}>{UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
-        <label className="field"><span className="field-label">Mínimo</span><input className="input num" type="number" step="0.01" min="0" value={minQuantity} onChange={(e) => setMinQuantity(e.target.value)} /></label>
-        <label className="field"><span className="field-label">Precio unitario ($)</span><input className="input num" type="number" step="0.01" min="0" value={priceUsd} onChange={(e) => setPriceUsd(e.target.value)} /></label>
+        <label className="field"><span className="field-label">Mínimo</span><input className="input num" type="number" inputMode="decimal" step="any" min="0" value={minQuantity} onChange={(e) => setMinQuantity(e.target.value)} /></label>
+        <label className="field"><span className="field-label">Precio unitario ($)</span><input className="input num" type="number" inputMode="decimal" step="any" min="0" value={priceUsd} onChange={(e) => setPriceUsd(e.target.value)} /></label>
       </div>
       <div className="form-actions"><button type="submit" className="btn btn-primary">{item ? 'Guardar cambios' : 'Guardar'}</button></div>
     </form>

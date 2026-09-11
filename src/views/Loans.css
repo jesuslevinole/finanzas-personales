@@ -1,0 +1,4 @@
+.loans-people { margin-top: var(--space-2); }
+.loans-detail-btn { margin-top: var(--space-4); }
+.loans-summary { padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }
+.loans-amount { min-height: 52px; font-size: 1.25rem; font-weight: 700; text-align: right; }

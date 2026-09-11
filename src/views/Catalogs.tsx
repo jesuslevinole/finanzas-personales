@@ -9,7 +9,7 @@ import DetailSheet from '../components/ui/DetailSheet';
 import Modal from '../components/ui/Modal';
 import ExportButton from '../components/ui/ExportButton';
 import { useExport } from '../hooks/useExport';
-import type { BudgetGroup, CatalogItem, Category, Creditor, IncomeSource, Place, Product, ProductType, StockUnit } from '../types';
+import type { Bank, BudgetGroup, CatalogItem, Category, Creditor, IncomeSource, Person, Place, Product, ProductType, SavingsAccount, StockUnit } from '../types';
 import { UNITS } from '../utils/units';
 import { getRelationName } from '../utils/relations';
 import { barcodeSupported } from '../utils/barcode';
@@ -22,7 +22,7 @@ import { countReferences, mergeCatalogItems, type MergeableCatalog } from '../ut
 import { GROUP_LABEL } from '../utils/finance';
 import './Catalogs.css';
 
-type CatalogKey = 'categories' | 'places' | 'creditors' | 'incomeSources' | 'products' | 'productTypes';
+type CatalogKey = 'categories' | 'places' | 'creditors' | 'incomeSources' | 'products' | 'productTypes' | 'banks' | 'people' | 'accounts';
 
 const TABS: { key: CatalogKey; label: string; hint: string }[] = [
   { key: 'categories', label: 'Rubros', hint: 'Clasifican cada gasto y alimentan el presupuesto.' },
@@ -31,6 +31,9 @@ const TABS: { key: CatalogKey; label: string; hint: string }[] = [
   { key: 'incomeSources', label: 'Orígenes de ingreso', hint: 'Clientes, alquileres, Binance…' },
   { key: 'products', label: 'Productos', hint: 'Lo que compras: alimenta gastos, inventario y lista de compras.' },
   { key: 'productTypes', label: 'Tipos de producto', hint: 'Familias: arroz, pasta, harina, jabón… agrupan productos de distintas marcas.' },
+  { key: 'banks', label: 'Bancos', hint: 'Con qué banco o medio pagas y cobras: Banesco, Mercantil, efectivo, Zelle…' },
+  { key: 'people', label: 'Personas', hint: 'A quién le prestas dinero.' },
+  { key: 'accounts', label: 'Plataformas de ahorro', hint: 'Dónde guardas los dólares: Binance, Kontigo, Zelle, efectivo…' },
 ];
 
 export default function Catalogs() {
@@ -67,6 +70,9 @@ export default function Catalogs() {
     if (tab === 'creditors') return data.debts.filter((d) => d.creditorId === id).length;
     if (tab === 'products') return data.expenses.filter((e) => e.productId === id).length;
     if (tab === 'productTypes') return data.products.filter((p) => p.typeId === id).length;
+    if (tab === 'banks') return data.expenses.filter((e) => e.bankId === id).length + data.incomes.filter((i) => i.bankId === id).length;
+    if (tab === 'people') return data.loans.filter((l) => l.personId === id).length;
+    if (tab === 'accounts') return data.walletMoves.filter((m) => m.accountId === id).length;
     return data.incomes.filter((i) => i.sourceId === id).length;
   };
 
@@ -345,8 +351,8 @@ function CatalogForm({ tab, count, item, onDone }: { tab: CatalogKey; count: num
       else await add<Product>('products', payload);
     } else {
       const payload = { name: name.trim(), color, active: item?.active !== false };
-      if (item) await update<Place | Creditor | IncomeSource | ProductType>(tab, item.id, payload);
-      else await add<Place | Creditor | IncomeSource | ProductType>(tab, payload);
+      if (item) await update<Place | Creditor | IncomeSource | ProductType | Bank | Person | SavingsAccount>(tab, item.id, payload);
+      else await add<Place | Creditor | IncomeSource | ProductType | Bank | Person | SavingsAccount>(tab, payload);
     }
     onDone();
   };

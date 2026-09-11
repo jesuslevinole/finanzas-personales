@@ -1,7 +1,7 @@
 import type { CollectionName } from '../services/firestore';
 import type { DataValue } from '../context/dataContext';
 
-export type MergeableCatalog = 'categories' | 'places' | 'creditors' | 'incomeSources' | 'products' | 'productTypes';
+export type MergeableCatalog = 'categories' | 'places' | 'creditors' | 'incomeSources' | 'products' | 'productTypes' | 'banks' | 'people' | 'accounts';
 
 /** Dónde se referencia cada catálogo, para reapuntar los registros al fusionar. */
 interface Reference {
@@ -35,6 +35,17 @@ const REFERENCES: Record<MergeableCatalog, Reference[]> = {
   ],
   productTypes: [
     { collection: 'products', rows: (d, id) => d.products.filter((p) => p.typeId === id).map((p) => ({ id: p.id, patch: { typeId: '' } })) },
+  ],
+  banks: [
+    { collection: 'expenses', rows: (d, id) => d.expenses.filter((e) => e.bankId === id).map((e) => ({ id: e.id, patch: { bankId: '' } })) },
+    { collection: 'incomes', rows: (d, id) => d.incomes.filter((i) => i.bankId === id).map((i) => ({ id: i.id, patch: { bankId: '' } })) },
+    { collection: 'loans', rows: (d, id) => d.loans.filter((l) => l.bankId === id).map((l) => ({ id: l.id, patch: { bankId: '' } })) },
+  ],
+  people: [
+    { collection: 'loans', rows: (d, id) => d.loans.filter((l) => l.personId === id).map((l) => ({ id: l.id, patch: { personId: '' } })) },
+  ],
+  accounts: [
+    { collection: 'walletMoves', rows: (d, id) => d.walletMoves.filter((m) => m.accountId === id).map((m) => ({ id: m.id, patch: { accountId: '' } })) },
   ],
 };
 

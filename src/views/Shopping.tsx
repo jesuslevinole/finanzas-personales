@@ -662,7 +662,7 @@ function AddItemForm({ listId, rate, item, onDone }: { listId: string; rate: num
         )}
       </div>
       <div className="shop-add-row">
-        <input className="input num" type="number" step="0.01" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} aria-label="Cantidad" />
+        <input className="input num" type="number" inputMode="decimal" step="any" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} aria-label="Cantidad" />
         <select className="input" value={unit} onChange={(e) => setUnit(e.target.value as StockUnit)} aria-label="Unidad">{UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select>
         <input className="input num" type="number" step="0.01" min="0" placeholder="$ c/u" value={estimatedUsd} onChange={(e) => setEstimatedUsd(e.target.value)} aria-label="Precio estimado" />
         <select className="input" value={priority} onChange={(e) => setPriority(e.target.value as ShoppingPriority)} aria-label="Prioridad">

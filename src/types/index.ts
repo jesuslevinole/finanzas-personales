@@ -39,6 +39,12 @@ export type Creditor = CatalogItem;
 export type IncomeSource = CatalogItem;
 /** Familia del producto: arroz, pasta, harina, jabón… */
 export type ProductType = CatalogItem;
+/** Banco o medio de pago (Banesco, Mercantil, efectivo…). */
+export type Bank = CatalogItem;
+/** Persona a la que le prestas dinero. */
+export type Person = CatalogItem;
+/** Plataforma donde guardas ahorro en dólares (Binance, Kontigo, Zelle…). */
+export type SavingsAccount = CatalogItem;
 
 /** Producto o concepto de gasto (harina Mary, pañales Winny…). */
 export interface Product extends CatalogItem {
@@ -76,6 +82,8 @@ export interface Income {
   date: string;
   sourceId: string;
   kind?: IncomeKind;
+  /** Banco o medio por el que entró el dinero. */
+  bankId?: string;
   amountBs: number;
   rate: number;
   amountUsd: number;
@@ -92,6 +100,10 @@ export interface Expense {
   productId?: string;
   /** Nombre del producto guardado en el momento del gasto. */
   product: string;
+  /** Banco o medio con el que se pagó. */
+  bankId?: string;
+  /** Si el gasto es tuyo o lo hiciste por cuenta de otra persona. */
+  owner?: MoneyOwner;
   unitPriceBs: number;
   quantity: number;
   totalBs: number;
@@ -213,7 +225,7 @@ export interface ShoppingItem {
 export type ModuleKey =
   | 'resumen' | 'recordatorios' | 'movimientos' | 'costos-fijos' | 'deudas' | 'presupuesto'
   | 'reportes' | 'inventario' | 'compras' | 'tasa' | 'catalogos'
-  | 'importar' | 'usuarios' | 'metas' | 'divisas' | 'ajustes';
+  | 'importar' | 'usuarios' | 'metas' | 'divisas' | 'prestamos' | 'ajustes';
 
 export type AccessLevel = 'sin_acceso' | 'ver' | 'editar';
 
@@ -258,8 +270,34 @@ export interface WalletMove {
   /** Bolívares recibidos o entregados. */
   amountBs: number;
   concept: string;
+  /** Plataforma donde está el dinero: Binance, Kontigo, Zelle… */
+  accountId?: string;
   /** Gasto o costo fijo que se pagó con esta salida. */
   linkedExpenseId?: string;
+  note?: string;
+}
+
+/* ---------------------------------------------------------------
+   Préstamos — dinero que le prestas a otras personas
+   --------------------------------------------------------------- */
+
+export type LoanStatus = 'pendiente' | 'parcial' | 'cobrado';
+
+export interface Loan {
+  id: string;
+  personId: string;
+  date: string;
+  /** Monto prestado en dólares. */
+  amountUsd: number;
+  rate: number;
+  amountBs: number;
+  /** Cuánto te han devuelto, en dólares. */
+  repaidUsd: number;
+  status: LoanStatus;
+  /** Fecha en la que quedaron de pagarte. */
+  dueDate?: string;
+  bankId?: string;
+  concept?: string;
   note?: string;
 }
 

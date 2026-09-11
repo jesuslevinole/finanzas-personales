@@ -42,6 +42,7 @@ export default function Movements() {
   const [sourceId, setSourceId] = useState('');
   const [owner, setOwner] = useState<'' | MoneyOwner>('');
   const [incomeKind, setIncomeKind] = useState<'' | IncomeKind>('');
+  const [bankId, setBankId] = useState('');
   const [minUsd, setMinUsd] = useState('');
   const [range, setRange] = useState<Range>(EMPTY_RANGE);
 
@@ -51,8 +52,8 @@ export default function Movements() {
   const [creating, setCreating] = useState(false);
   const { exporting, run: runExport } = useExport();
 
-  const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setIncomeKind(''); setMinUsd(''); setRange(EMPTY_RANGE); };
-  const activeCount = [search, categoryId, placeId, sourceId, owner, incomeKind, minUsd, range.from, range.to].filter(Boolean).length;
+  const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setIncomeKind(''); setBankId(''); setMinUsd(''); setRange(EMPTY_RANGE); };
+  const activeCount = [search, categoryId, placeId, sourceId, owner, incomeKind, bankId, minUsd, range.from, range.to].filter(Boolean).length;
 
   // Con un rango de fechas activo se busca en todo el histórico, no solo en el mes.
   const scopeExpenses = rangeActive(range) ? data.expenses.filter((e) => inRange(e.date, range)) : monthExpenses;
@@ -68,8 +69,10 @@ export default function Movements() {
       (!q || `${e.product} ${getRelationName(data.places, e.placeId, '')} ${getRelationName(data.categories, e.categoryId, '')}`.toLowerCase().includes(q))
       && (!categoryId || e.categoryId === categoryId)
       && (!placeId || e.placeId === placeId)
+      && (!bankId || e.bankId === bankId)
+      && (!owner || (e.owner ?? 'propio') === owner)
       && (min <= 0 || e.totalUsd >= min));
-  }, [scopeExpenses, expenseSeqAll, search, categoryId, placeId, minUsd, data.places, data.categories]);
+  }, [scopeExpenses, expenseSeqAll, search, categoryId, placeId, bankId, owner, minUsd, data.places, data.categories]);
 
   const incomes = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -79,8 +82,9 @@ export default function Movements() {
       && (!sourceId || i.sourceId === sourceId)
       && (!owner || i.owner === owner)
       && (!incomeKind || (i.kind ?? 'variable') === incomeKind)
+      && (!bankId || i.bankId === bankId)
       && (min <= 0 || i.amountUsd >= min));
-  }, [scopeIncomes, incomeSeqAll, search, sourceId, owner, incomeKind, minUsd, data.incomeSources]);
+  }, [scopeIncomes, incomeSeqAll, search, sourceId, owner, incomeKind, bankId, minUsd, data.incomeSources]);
 
   /* Totales del conjunto filtrado */
   const totalUsd = tab === 'gastos' ? sum(expenses.map((e) => e.totalUsd)) : sum(incomes.map((i) => i.amountUsd));
@@ -180,6 +184,10 @@ export default function Movements() {
       <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(data.categories, e.categoryId) } as CSSProperties}>{getRelationName(data.categories, e.categoryId)}</span>
     ) },
     { key: 'place', header: 'Lugar', width: '150px', hideOnMobile: true, render: (e) => <span className="truncate muted">{getRelationName(data.places, e.placeId, '—')}</span> },
+    { key: 'bank', header: 'Banco', width: '130px', hideOnMobile: true, render: (e) => <span className="truncate muted">{e.bankId ? getRelationName(data.banks, e.bankId) : '—'}</span> },
+    { key: 'owner', header: 'Dinero', width: '110px', hideOnMobile: true, render: (e) => (
+      <span className={`tag ${(e.owner ?? 'propio') === 'propio' ? 'ok' : ''}`}>{e.owner ?? 'propio'}</span>
+    ) },
     { key: 'bs', header: 'Bs', align: 'end', width: '130px', hideOnMobile: true, render: (e) => <span className="text-bs">{formatBs(e.totalBs)}</span> },
     { key: 'usd', header: 'USD', align: 'end', width: '100px', amount: true, render: (e) => <span className="text-usd strong">{formatUsd(e.totalUsd)}</span> },
   ];
@@ -192,6 +200,7 @@ export default function Movements() {
       <span className={`tag ${(i.kind ?? 'variable') === 'fijo' ? 'primary' : ''}`}>{(i.kind ?? 'variable') === 'fijo' ? 'Fijo' : 'Variable'}</span>
     ) },
     { key: 'owner', header: 'Dinero', width: '110px', hideOnMobile: true, render: (i) => <span className={`tag ${i.owner === 'propio' ? 'ok' : ''}`}>{i.owner}</span> },
+    { key: 'bank', header: 'Banco', width: '130px', hideOnMobile: true, render: (i) => <span className="truncate muted">{i.bankId ? getRelationName(data.banks, i.bankId) : '—'}</span> },
     { key: 'note', header: 'Nota', hideOnMobile: true, render: (i) => <span className="truncate muted">{i.note ?? '—'}</span> },
     { key: 'bs', header: 'Bs', align: 'end', width: '130px', hideOnMobile: true, render: (i) => <span className="text-bs">{formatBs(i.amountBs)}</span> },
     { key: 'usd', header: 'USD', align: 'end', width: '100px', amount: true, render: (i) => <span className="text-usd strong">{formatUsd(i.amountUsd)}</span> },
@@ -240,6 +249,13 @@ export default function Movements() {
         </label>
         {tab === 'gastos' ? (
           <>
+            <label className="field"><span className="field-label">Dinero</span>
+              <select className="input" value={owner} onChange={(e) => setOwner(e.target.value as '' | MoneyOwner)}>
+                <option value="">Todo</option>
+                <option value="propio">Propio</option>
+                <option value="tercero">De terceros</option>
+              </select>
+            </label>
             <label className="field"><span className="field-label">Rubro</span>
               <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
                 <option value="">Todos</option>
@@ -277,6 +293,12 @@ export default function Movements() {
             </label>
           </>
         )}
+        <label className="field"><span className="field-label">Banco</span>
+          <select className="input" value={bankId} onChange={(e) => setBankId(e.target.value)}>
+            <option value="">Todos</option>
+            {data.banks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </label>
         <label className="field"><span className="field-label">Monto mínimo ($)</span>
           <input className="input num" type="number" min="0" step="0.5" value={minUsd} onChange={(e) => setMinUsd(e.target.value)} placeholder="0" />
         </label>
@@ -303,6 +325,8 @@ export default function Movements() {
           onDelete={editable ? () => void removeRecord(detail) : undefined}
           fields={[
             { label: 'Rubro', value: getRelationName(data.categories, (detail as Expense).categoryId) },
+            { label: 'Banco', value: (detail as Expense).bankId ? getRelationName(data.banks, (detail as Expense).bankId!) : '—' },
+            { label: 'Dinero', value: (detail as Expense).owner ?? 'propio' },
             { label: 'Cantidad', value: <span className="num">{(detail as Expense).quantity}</span> },
             { label: 'Precio unitario', value: <span className="num">{formatBs((detail as Expense).unitPriceBs)}</span> },
             { label: 'Tasa del día', value: <span className="num">{formatBs(detail.rate)}</span> },
@@ -321,6 +345,7 @@ export default function Movements() {
           fields={[
             { label: 'Dinero', value: (detail as Income).owner },
             { label: 'Tipo', value: ((detail as Income).kind ?? 'variable') === 'fijo' ? 'Fijo' : 'Variable' },
+            { label: 'Banco', value: (detail as Income).bankId ? getRelationName(data.banks, (detail as Income).bankId!) : '—' },
             { label: 'Tasa del día', value: <span className="num">{formatBs(detail.rate)}</span> },
             { label: 'Monto Bs', value: <span className="num text-bs">{formatBs((detail as Income).amountBs)}</span> },
             { label: 'Monto USD', value: <span className="num text-usd">{formatUsd((detail as Income).amountUsd)}</span> },

@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 import type {
   Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
-  Goal, InventoryItem, Member, NewDoc, Place, Product, ProductType, Role, ShoppingItem, ShoppingList, UserSettings, WalletMove, WithId,
+  Bank, Goal, InventoryItem, Loan, Member, NewDoc, Person, Place, Product, ProductType, SavingsAccount, Role, ShoppingItem, ShoppingList, UserSettings, WalletMove, WithId,
 } from '../types';
 import type { CollectionName } from '../services/firestore';
 import type { Settings } from '../utils/finance';
@@ -24,6 +24,9 @@ export interface DataValue {
   incomeSources: IncomeSource[];
   products: Product[];
   productTypes: ProductType[];
+  banks: Bank[];
+  people: Person[];
+  accounts: SavingsAccount[];
   incomes: Income[];
   expenses: Expense[];
   fixedCosts: FixedCost[];
@@ -31,6 +34,7 @@ export interface DataValue {
   budgets: Budget[];
   goals: Goal[];
   walletMoves: WalletMove[];
+  loans: Loan[];
   inventory: InventoryItem[];
   shopping: ShoppingItem[];
   shoppingLists: ShoppingList[];
