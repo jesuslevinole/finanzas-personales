@@ -397,3 +397,6 @@ textarea.input { min-height: 80px; padding: var(--space-2) var(--space-3); resiz
   .page-actions { width: 100%; }
   .page-actions > .btn, .page-actions > .month-picker { flex: 1; min-width: 0; }
 }
+
+/* Texto que nunca debe partirse (fechas, montos cortos) */
+.nowrap { white-space: nowrap; }

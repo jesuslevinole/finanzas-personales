@@ -102,6 +102,8 @@ export interface Expense {
   product: string;
   /** Banco o medio con el que se pagó. */
   bankId?: string;
+  /** Factura que agrupa este gasto con otros de la misma compra. */
+  invoiceId?: string;
   /** Si el gasto es tuyo o lo hiciste por cuenta de otra persona. */
   owner?: MoneyOwner;
   unitPriceBs: number;
@@ -147,6 +149,24 @@ export interface Debt {
   /** Movimiento de gasto con el que se saldó la cuota. */
   paidExpenseId?: string;
   paidDate?: string;
+}
+
+/**
+ * Factura: agrupa varios gastos de una misma compra. Los gastos siguen siendo
+ * individuales (para medir el precio de cada producto), pero se pueden ver y
+ * totalizar como un solo documento.
+ */
+export interface Invoice {
+  id: string;
+  date: string;
+  /** Número o referencia del documento. */
+  number?: string;
+  concept: string;
+  placeId?: string;
+  bankId?: string;
+  owner: MoneyOwner;
+  rate: number;
+  note?: string;
 }
 
 export interface Budget {

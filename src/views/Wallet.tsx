@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Coins, Pencil, Plus, TrendingUp } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Coins, Pencil, Plus, Trash2, TrendingUp } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useConfirm } from '../hooks/useConfirm';
@@ -89,7 +89,7 @@ export default function Wallet() {
       <span className={`wallet-kind ${m.kind}`}>{m.kind === 'entrada' ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}</span>
     ) },
     { key: 'concept', header: 'Concepto', primary: true, render: (m) => <span className="truncate">{m.concept}</span> },
-    { key: 'date', header: 'Fecha', width: '110px', render: (m) => <span className="muted">{shortDate(m.date)}</span> },
+    { key: 'date', header: 'Fecha', width: '115px', render: (m) => <span className="muted nowrap">{shortDate(m.date)}</span> },
     { key: 'account', header: 'Plataforma', width: '140px', render: (m) => (
       m.accountId
         ? <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(data.accounts, m.accountId) } as CSSProperties}>{getRelationName(data.accounts, m.accountId)}</span>
@@ -195,7 +195,10 @@ export default function Wallet() {
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
           actions={editable ? (m) => (
-            <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditingMove(m)}><Pencil size={15} /></button>
+            <>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditingMove(m)}><Pencil size={15} /></button>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void removeMove(m)}><Trash2 size={15} /></button>
+            </>
           ) : undefined}
           empty={<EmptyState title="Sin movimientos"
             hint="Registra cuándo guardas dólares y cuándo los cambias a bolívares, por ejemplo para pagar el alquiler." />} />

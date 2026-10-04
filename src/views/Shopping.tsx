@@ -371,7 +371,12 @@ function ListDetail({ list, onBack }: { list: ShoppingList; onBack: () => void }
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} rowClass={(i) => (i.checked ? 'muted-row' : '')}
           onRowClick={editable ? setPricing : undefined}
-          actions={editable ? (i) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditingItem(i)}><Pencil size={15} /></button> : undefined}
+          actions={editable ? (i) => (
+            <>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditingItem(i)}><Pencil size={15} /></button>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void data.del('shopping', i.id)}><Trash2 size={15} /></button>
+            </>
+          ) : undefined}
 
           empty={<EmptyState title="Carpeta vacía" hint="Agrega productos escribiendo o dictando: «dos kilos de harina 850 bolívares»." />} />
       </div>

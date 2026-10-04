@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Barcode, EyeOff, Merge, Pencil, Plus, Search, Sparkles, X } from 'lucide-react';
+import { Barcode, EyeOff, Merge, Pencil, Plus, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useConfirm } from '../hooks/useConfirm';
@@ -270,7 +270,10 @@ export default function Catalogs() {
       <div className="card card-tight">
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
           actions={editable ? (i) => (
-            <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(i)}><Pencil size={15} /></button>
+            <>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(i)}><Pencil size={15} /></button>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void remove(i)}><Trash2 size={15} /></button>
+            </>
           ) : undefined}
           rowClass={(i) => (i.active === false ? 'muted-row' : '')}
           empty={<EmptyState title={search ? 'Sin resultados' : 'Catálogo vacío'}

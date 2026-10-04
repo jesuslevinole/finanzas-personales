@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import Sparkline from '../components/ui/Sparkline';
 import DetailSheet from '../components/ui/DetailSheet';
@@ -65,7 +65,7 @@ export default function Rates() {
 
   const rateColumns: Column<ExchangeRate>[] = [
     { key: 'seq', header: '#', width: '54px', render: (r) => <span className="seq num">{seq.get(r.id)}</span> },
-    { key: 'date', header: 'Fecha', width: '110px', primary: true, render: (r) => shortDate(r.date) },
+    { key: 'date', header: 'Fecha', width: '115px', primary: true, render: (r) => shortDate(r.date) },
     { key: 'change', header: 'Variación', width: '120px', render: (r) => {
       const i = rates.findIndex((x) => x.id === r.id);
       const prev = rates[i + 1];
@@ -134,6 +134,12 @@ export default function Rates() {
           <DateRange value={range} onChange={setRange} />
         </FilterBar>
         <DataTable rows={filteredRates.slice(0, 120)} columns={rateColumns} onRowClick={setDetail}
+          actions={(r) => (
+            <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={async () => {
+              const ok = await confirm({ title: `¿Eliminar la tasa del ${shortDate(r.date)}?`, confirmLabel: 'Eliminar', danger: true });
+              if (ok) await del('rates', r.id);
+            }}><Trash2 size={15} /></button>
+          )}
           empty={<EmptyState title="Sin tasas" hint="Actualiza desde BCV o registra la tasa a mano." />} />
       </section>
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type {
   Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
-  Bank, Goal, InventoryItem, Loan, Member, Person, Place, Product, ProductType, SavingsAccount, Role, ShoppingItem, ShoppingList, UserSettings, WalletMove,
+  Bank, Goal, InventoryItem, Invoice, Loan, Member, Person, Place, Product, ProductType, SavingsAccount, Role, ShoppingItem, ShoppingList, UserSettings, WalletMove,
 } from '../types';
 import { create, createMany, patch, remove, removeAll, subscribe, upsert } from '../services/firestore';
 import { settingsForMonth } from '../utils/finance';
@@ -29,6 +29,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [walletMoves, setWalletMoves] = useState<WalletMove[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -61,6 +62,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       subscribe<FixedCost>('fixedCosts', setFixedCosts, fail, 'month'),
       subscribe<Debt>('debts', setDebts, fail, 'dueDate'),
       subscribe<Budget>('budgets', setBudgets, fail),
+      subscribe<Invoice>('invoices', setInvoices, fail, 'date'),
       subscribe<Goal>('goals', setGoals, fail, 'priority'),
       subscribe<WalletMove>('walletMoves', setWalletMoves, fail, 'date'),
       subscribe<InventoryItem>('inventory', setInventory, fail),
@@ -91,7 +93,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ready, error, writeError,
       clearWriteError: () => setWriteError(null),
       rates, categories, places, creditors, incomeSources, products, productTypes, banks, people, accounts, loans, incomes, expenses,
-      fixedCosts, debts, budgets, goals, walletMoves, inventory, shopping, shoppingLists, roles, members, currentRate,
+      fixedCosts, debts, budgets, invoices, goals, walletMoves, inventory, shopping, shoppingLists, roles, members, currentRate,
       settingsDocs,
       settingsFor,
       settings: settingsFor(currentMonth()),
@@ -102,7 +104,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       del: (name, id) => guard(() => { requireSession(); return remove(name, id); }),
       delAll: (name) => guard(() => { requireSession(); return removeAll(name); }),
     };
-  }, [uid, ready, error, writeError, rates, categories, places, creditors, incomeSources, products, productTypes, banks, people, accounts, loans, incomes, expenses, fixedCosts, debts, budgets, goals, walletMoves, inventory, shopping, shoppingLists, roles, members, settingsDocs]);
+  }, [uid, ready, error, writeError, rates, categories, places, creditors, incomeSources, products, productTypes, banks, people, accounts, loans, incomes, expenses, fixedCosts, debts, budgets, invoices, goals, walletMoves, inventory, shopping, shoppingLists, roles, members, settingsDocs]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

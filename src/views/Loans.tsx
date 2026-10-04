@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { CheckCircle2, Clock, HandCoins, Pencil, Plus, Users } from 'lucide-react';
+import { CheckCircle2, Clock, HandCoins, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { usePermissions } from '../hooks/usePermissions';
 import { useConfirm } from '../hooks/useConfirm';
@@ -82,11 +82,11 @@ export default function Loans() {
     { key: 'seq', header: '#', width: '54px', hideOnMobile: true, render: (l) => <span className="seq num">{seq.get(l.id)}</span> },
     { key: 'dot', header: '', width: '36px', leading: true, render: (l) => <span className="dot" style={{ '--dot-color': getRelationColor(data.people, l.personId) } as CSSProperties} /> },
     { key: 'person', header: 'Persona', primary: true, render: (l) => <span className="truncate">{getRelationName(data.people, l.personId, 'Sin persona')}</span> },
-    { key: 'date', header: 'Prestado', width: '110px', render: (l) => <span className="muted">{shortDate(l.date)}</span> },
+    { key: 'date', header: 'Prestado', width: '115px', render: (l) => <span className="muted nowrap">{shortDate(l.date)}</span> },
     { key: 'due', header: 'Acordado', width: '120px', hideOnMobile: true, render: (l) => {
       if (!l.dueDate) return <span className="muted">—</span>;
       const days = daysBetween(today, l.dueDate);
-      if (l.status === 'cobrado') return <span className="muted">{shortDate(l.dueDate)}</span>;
+      if (l.status === 'cobrado') return <span className="muted nowrap">{shortDate(l.dueDate)}</span>;
       return <span className={days < 0 ? 'text-danger strong' : ''}>{days < 0 ? `Vencido ${-days} d` : shortDate(l.dueDate)}</span>;
     } },
     { key: 'status', header: 'Estado', width: '120px', render: (l) => <span className={`tag ${STATUS_TAG[l.status]}`}>{STATUS_LABEL[l.status]}</span> },
@@ -183,7 +183,10 @@ export default function Loans() {
         <DataTable rows={rows} columns={columns} onRowClick={setDetail}
           rowClass={(l) => (l.status === 'cobrado' ? 'muted-row' : l.dueDate && l.dueDate < today ? 'danger-row' : '')}
           actions={editable ? (l) => (
-            <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(l)}><Pencil size={15} /></button>
+            <>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(l)}><Pencil size={15} /></button>
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void removeLoan(l)}><Trash2 size={15} /></button>
+            </>
           ) : undefined}
           empty={<EmptyState title="Sin préstamos" hint="Registra aquí el dinero que prestas para no perderle la pista." />} />
       </div>

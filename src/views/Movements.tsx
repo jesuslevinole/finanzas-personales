@@ -1,5 +1,5 @@
-import { useMemo, useState, type CSSProperties } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, Pencil, Plus, Receipt } from 'lucide-react';
+import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { ArrowDownCircle, ArrowUpCircle, FileText, Layers, Pencil, Plus, Receipt, Trash2, Unlink } from 'lucide-react';
 import { useData } from '../hooks/useData';
 import { useConfirm } from '../hooks/useConfirm';
 import { useMonth } from '../hooks/useMonth';
@@ -15,8 +15,9 @@ import { EMPTY_RANGE, inRange, rangeActive, type Range } from '../utils/range';
 import DetailSheet from '../components/ui/DetailSheet';
 import StatCard from '../components/ui/StatCard';
 import ExpenseForm from '../components/forms/ExpenseForm';
+import InvoiceForm from '../components/forms/InvoiceForm';
 import IncomeForm from '../components/forms/IncomeForm';
-import type { Expense, Income, IncomeKind, MoneyOwner } from '../types';
+import type { Expense, Income, IncomeKind, Invoice, MoneyOwner } from '../types';
 import { getRelationColor, getRelationName } from '../utils/relations';
 import { formatBs, formatPct, formatUsd, sum } from '../utils/money';
 import { monthLabel, shortDate } from '../utils/dates';
@@ -25,7 +26,7 @@ import ExportButton from '../components/ui/ExportButton';
 import { sequenceMap, sortBySeqDesc } from '../utils/sequence';
 import './Movements.css';
 
-type Tab = 'gastos' | 'ingresos';
+type Tab = 'gastos' | 'ingresos' | 'facturas';
 
 export default function Movements() {
   const data = useData();
@@ -50,6 +51,10 @@ export default function Movements() {
   const [detail, setDetail] = useState<Expense | Income | null>(null);
   const [editing, setEditing] = useState<Expense | Income | null>(null);
   const [creating, setCreating] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [grouping, setGrouping] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [invoiceDetail, setInvoiceDetail] = useState<Invoice | null>(null);
   const { exporting, run: runExport } = useExport();
 
   const clearFilters = () => { setSearch(''); setCategoryId(''); setPlaceId(''); setSourceId(''); setOwner(''); setIncomeKind(''); setBankId(''); setMinUsd(''); setRange(EMPTY_RANGE); };
@@ -161,6 +166,46 @@ export default function Movements() {
     };
   });
 
+  /** Facturas del alcance actual, con sus totales calculados desde los gastos. */
+  const invoiceRows = useMemo(() => {
+    const ids = new Set(scopeExpenses.map((e) => e.invoiceId).filter(Boolean) as string[]);
+    return data.invoices
+      .filter((inv) => ids.has(inv.id))
+      .map((inv) => {
+        const lines = data.expenses.filter((e) => e.invoiceId === inv.id);
+        return {
+          ...inv,
+          lines: lines.length,
+          totalBs: sum(lines.map((e) => e.totalBs)),
+          totalUsd: sum(lines.map((e) => e.totalUsd)),
+        };
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [data.invoices, data.expenses, scopeExpenses]);
+
+  type InvoiceRow = (typeof invoiceRows)[number];
+
+  const toggleSelected = (id: string) =>
+    setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+
+  const removeInvoice = async (invoice: Invoice, alsoExpenses: boolean) => {
+    const lines = data.expenses.filter((e) => e.invoiceId === invoice.id);
+    const ok = await confirm({
+      title: alsoExpenses ? `¿Eliminar la factura y sus ${lines.length} gastos?` : '¿Desagrupar la factura?',
+      message: alsoExpenses
+        ? 'Se borran la factura y todos los movimientos que agrupa.'
+        : `Los ${lines.length} gastos quedan sueltos en la lista y la factura se elimina.`,
+      confirmLabel: alsoExpenses ? 'Eliminar todo' : 'Desagrupar', danger: alsoExpenses,
+    });
+    if (!ok) return;
+    for (const line of lines) {
+      if (alsoExpenses) await data.del('expenses', line.id);
+      else await data.update<Expense>('expenses', line.id, { invoiceId: undefined });
+    }
+    await data.del('invoices', invoice.id);
+    setInvoiceDetail(null);
+  };
+
   const removeRecord = async (row: Expense | Income) => {
     const isExpense = 'product' in row;
     const label = isExpense ? row.product : getRelationName(data.incomeSources, row.sourceId);
@@ -174,11 +219,35 @@ export default function Movements() {
     setDetail(null);
   };
 
+  const invoiceColumns: Column<InvoiceRow>[] = [
+    { key: 'icon', header: '', width: '36px', leading: true, render: () => <span className="chip-icon"><FileText size={16} /></span> },
+    { key: 'concept', header: 'Factura', primary: true, render: (inv) => (
+      <span className="truncate">{inv.concept}{inv.number && <span className="tiny muted"> · Nº {inv.number}</span>}</span>
+    ) },
+    { key: 'date', header: 'Fecha', width: '120px', render: (inv) => <span className="muted nowrap">{shortDate(inv.date)}</span> },
+    { key: 'place', header: 'Lugar', width: '150px', hideOnMobile: true, render: (inv) => <span className="truncate muted">{inv.placeId ? getRelationName(data.places, inv.placeId) : '—'}</span> },
+    { key: 'lines', header: 'Productos', width: '110px', render: (inv) => <span className="num">{inv.lines}</span> },
+    { key: 'bs', header: 'Bs', align: 'end', width: '140px', hideOnMobile: true, render: (inv) => <span className="text-bs nowrap">{formatBs(inv.totalBs)}</span> },
+    { key: 'usd', header: 'Total', align: 'end', width: '110px', amount: true, render: (inv) => <span className="text-usd strong">{formatUsd(inv.totalUsd)}</span> },
+  ];
+
   const expenseColumns: Column<Expense>[] = [
-    { key: 'seq', header: '#', width: '54px', render: (e) => <span className="seq num">{expenseSeqAll.get(e.id)}</span> },
-    { key: 'date', header: 'Fecha', width: '92px', render: (e) => <span className="muted">{shortDate(e.date)}</span> },
+    ...(editable ? [{
+      key: 'select', header: '', width: '38px', leading: true,
+      render: (e: Expense) => (
+        <input type="checkbox" className="mov-check" checked={selected.includes(e.id)}
+          onChange={() => toggleSelected(e.id)} onClick={(ev) => ev.stopPropagation()}
+          aria-label={`Seleccionar ${e.product}`} />
+      ),
+    }] : []),
+    { key: 'seq', header: '#', width: '54px', hideOnMobile: true, render: (e) => <span className="seq num">{expenseSeqAll.get(e.id)}</span> },
+    { key: 'date', header: 'Fecha', width: '115px', render: (e) => <span className="muted nowrap">{shortDate(e.date)}</span> },
     { key: 'product', header: 'Producto', primary: true, render: (e) => (
-      <span className="truncate">{e.productId ? getRelationName(data.products, e.productId, e.product) : e.product}{e.quantity !== 1 && <span className="tiny muted num"> × {e.quantity}</span>}</span>
+      <span className="row">
+        {e.invoiceId && <Layers size={13} className="muted" aria-label="Parte de una factura" />}
+        <span className="truncate">{e.productId ? getRelationName(data.products, e.productId, e.product) : e.product}</span>
+        {e.quantity !== 1 && <span className="tiny muted num">× {e.quantity}</span>}
+      </span>
     ) },
     { key: 'category', header: 'Rubro', width: '150px', render: (e) => (
       <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(data.categories, e.categoryId) } as CSSProperties}>{getRelationName(data.categories, e.categoryId)}</span>
@@ -194,7 +263,7 @@ export default function Movements() {
 
   const incomeColumns: Column<Income>[] = [
     { key: 'seq', header: '#', width: '54px', render: (i) => <span className="seq num">{incomeSeqAll.get(i.id)}</span> },
-    { key: 'date', header: 'Fecha', width: '92px', render: (i) => <span className="muted">{shortDate(i.date)}</span> },
+    { key: 'date', header: 'Fecha', width: '115px', render: (i) => <span className="muted nowrap">{shortDate(i.date)}</span> },
     { key: 'source', header: 'Origen', primary: true, render: (i) => <span className="truncate">{getRelationName(data.incomeSources, i.sourceId, 'Sin origen')}</span> },
     { key: 'kind', header: 'Tipo', width: '110px', render: (i) => (
       <span className={`tag ${(i.kind ?? 'variable') === 'fijo' ? 'primary' : ''}`}>{(i.kind ?? 'variable') === 'fijo' ? 'Fijo' : 'Variable'}</span>
@@ -219,10 +288,12 @@ export default function Movements() {
         <div className="tabs" role="tablist">
           <button type="button" role="tab" aria-selected={tab === 'gastos'} className={`tab${tab === 'gastos' ? ' active' : ''}`} onClick={() => setTab('gastos')}>Gastos <span className="num muted">{scopeExpenses.length}</span></button>
           <button type="button" role="tab" aria-selected={tab === 'ingresos'} className={`tab${tab === 'ingresos' ? ' active' : ''}`} onClick={() => setTab('ingresos')}>Ingresos <span className="num muted">{scopeIncomes.length}</span></button>
+          <button type="button" role="tab" aria-selected={tab === 'facturas'} className={`tab${tab === 'facturas' ? ' active' : ''}`} onClick={() => setTab('facturas')}>Facturas <span className="num muted">{invoiceRows.length}</span></button>
         </div>
         <div className="row wrap mov-actions">
           <ExportButton onClick={() => void exportPdf()} exporting={exporting} label="Reporte PDF" />
-          {editable && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'}</button>}
+          {editable && tab === 'facturas' && <button type="button" className="btn btn-primary" onClick={() => setCreatingInvoice(true)}><Plus size={16} /> Nueva factura</button>}
+          {editable && tab !== 'facturas' && <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'}</button>}
         </div>
       </div>
 
@@ -304,14 +375,43 @@ export default function Movements() {
         </label>
       </FilterBar>
 
+      {editable && tab === 'gastos' && selected.length > 0 && (
+        <div className="mov-selectbar">
+          <span className="small strong">{selected.length} gastos seleccionados</span>
+          <span className="row wrap">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelected([])}>Limpiar</button>
+            <button type="button" className="btn btn-outline btn-sm" disabled={selected.length < 2} onClick={() => setGrouping(true)}>
+              <Layers size={15} /> Agrupar en factura
+            </button>
+          </span>
+        </div>
+      )}
+
       <div className="card card-tight">
-        {tab === 'gastos' ? (
+        {tab === 'facturas' ? (
+          <DataTable rows={invoiceRows} columns={invoiceColumns} onRowClick={setInvoiceDetail}
+            actions={editable ? (inv) => (
+              <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar factura" onClick={() => void removeInvoice(inv, false)}><Unlink size={15} /></button>
+            ) : undefined}
+            empty={<EmptyState title="Sin facturas"
+              hint="Agrupa gastos ya registrados seleccionándolos en la pestaña Gastos, o crea una factura nueva con todos sus productos." />} />
+        ) : tab === 'gastos' ? (
           <DataTable rows={expenses} columns={expenseColumns} onRowClick={setDetail}
-            actions={editable ? (e) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(e)}><Pencil size={15} /></button> : undefined}
+            actions={editable ? (e) => (
+              <>
+                <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(e)}><Pencil size={15} /></button>
+                <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void removeRecord(e)}><Trash2 size={15} /></button>
+              </>
+            ) : undefined}
             empty={<EmptyState title="Sin gastos" hint={activeCount > 0 ? 'Ningún gasto coincide con los filtros.' : 'Registra lo que compras para saber en qué se va el dinero.'} />} />
         ) : (
           <DataTable rows={incomes} columns={incomeColumns} onRowClick={setDetail}
-            actions={editable ? (i) => <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(i)}><Pencil size={15} /></button> : undefined}
+            actions={editable ? (i) => (
+              <>
+                <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(i)}><Pencil size={15} /></button>
+                <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void removeRecord(i)}><Trash2 size={15} /></button>
+              </>
+            ) : undefined}
             empty={<EmptyState title="Sin ingresos" hint={activeCount > 0 ? 'Ningún ingreso coincide con los filtros.' : 'Registra lo que entra y marca el dinero de terceros.'} />} />
         )}
       </div>
@@ -358,11 +458,110 @@ export default function Movements() {
       <Modal title={tab === 'gastos' ? 'Nuevo gasto' : 'Nuevo ingreso'} open={creating} onClose={() => setCreating(false)}>
         {tab === 'gastos' ? <ExpenseForm onDone={() => setCreating(false)} /> : <IncomeForm onDone={() => setCreating(false)} />}
       </Modal>
+      <Modal title="Nueva factura" open={creatingInvoice} onClose={() => setCreatingInvoice(false)}>
+        <InvoiceForm onDone={() => setCreatingInvoice(false)} />
+      </Modal>
+
+      <Modal title={`Agrupar ${selected.length} gastos`} open={grouping} onClose={() => setGrouping(false)}>
+        <GroupForm expenses={scopeExpenses.filter((e) => selected.includes(e.id))}
+          onDone={() => { setGrouping(false); setSelected([]); }} />
+      </Modal>
+
+      {invoiceDetail && (
+        <DetailSheet open title={invoiceDetail.concept}
+          subtitle={`${shortDate(invoiceDetail.date)}${invoiceDetail.number ? ` · Nº ${invoiceDetail.number}` : ''}`}
+          onClose={() => setInvoiceDetail(null)}
+          onDelete={editable ? () => void removeInvoice(invoiceDetail, true) : undefined}
+          fields={[
+            { label: 'Lugar', value: invoiceDetail.placeId ? getRelationName(data.places, invoiceDetail.placeId) : '—' },
+            { label: 'Banco', value: invoiceDetail.bankId ? getRelationName(data.banks, invoiceDetail.bankId) : '—' },
+            { label: 'Tasa', value: <span className="num">{formatBs(invoiceDetail.rate)}</span> },
+            { label: 'Dinero', value: invoiceDetail.owner },
+          ]}>
+          <ul className="mov-invoice-lines">
+            {data.expenses.filter((e) => e.invoiceId === invoiceDetail.id).map((e) => (
+              <li key={e.id} className="mov-invoice-line">
+                <span className="truncate">{e.product}{e.quantity !== 1 && <span className="tiny muted num"> × {e.quantity}</span>}</span>
+                <span className="num text-bs">{formatBs(e.totalBs)}</span>
+                <span className="num text-usd strong">{formatUsd(e.totalUsd)}</span>
+              </li>
+            ))}
+          </ul>
+          {editable && (
+            <button type="button" className="btn btn-outline btn-block mov-invoice-btn" onClick={() => void removeInvoice(invoiceDetail, false)}>
+              <Unlink size={16} /> Desagrupar y conservar los gastos
+            </button>
+          )}
+        </DetailSheet>
+      )}
+
       <Modal title="Editar movimiento" open={editing !== null} onClose={() => setEditing(null)}>
         {editing && ('product' in editing
           ? <ExpenseForm expense={editing} onDone={() => setEditing(null)} />
           : <IncomeForm income={editing} onDone={() => setEditing(null)} />)}
       </Modal>
     </div>
+  );
+}
+
+
+/** Agrupa gastos ya registrados bajo una factura, sin alterar sus montos. */
+function GroupForm({ expenses, onDone }: { expenses: Expense[]; onDone: () => void }) {
+  const data = useData();
+  const first = expenses[0];
+  const [concept, setConcept] = useState('');
+  const [number, setNumber] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const totalBs = sum(expenses.map((e) => e.totalBs));
+  const totalUsd = sum(expenses.map((e) => e.totalUsd));
+  const sameDate = expenses.every((e) => e.date === first?.date);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!first) return;
+    setSaving(true);
+    try {
+      const invoiceId = await data.add<Invoice>('invoices', {
+        date: first.date,
+        concept: concept.trim() || getRelationName(data.places, first.placeId, 'Compra agrupada'),
+        number: number.trim() || undefined,
+        placeId: first.placeId || undefined,
+        bankId: first.bankId,
+        owner: first.owner ?? 'propio',
+        rate: first.rate,
+      });
+      for (const expense of expenses) {
+        await data.update<Expense>('expenses', expense.id, { invoiceId });
+      }
+      onDone();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="stack">
+      <dl className="kv form-summary-kv">
+        <div><dt>Gastos a agrupar</dt><dd className="num">{expenses.length}</dd></div>
+        <div><dt>Total Bs</dt><dd className="num text-bs">{formatBs(totalBs)}</dd></div>
+        <div><dt>Total $</dt><dd className="num text-usd">{formatUsd(totalUsd)}</dd></div>
+      </dl>
+
+      <label className="field"><span className="field-label">Concepto de la factura</span>
+        <input className="input" value={concept} onChange={(e) => setConcept(e.target.value)}
+          placeholder={first ? getRelationName(data.places, first.placeId, 'Compra agrupada') : 'Compra agrupada'} autoFocus />
+      </label>
+      <label className="field"><span className="field-label">Nº de factura</span>
+        <input className="input" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Opcional" />
+      </label>
+
+      {!sameDate && <p className="small text-warn">Los gastos tienen fechas distintas: la factura usará la del primero ({first ? shortDate(first.date) : ''}).</p>}
+      <p className="field-hint">Los gastos siguen existiendo por separado; solo quedan enlazados a esta factura.</p>
+
+      <div className="form-actions">
+        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Agrupando…' : 'Crear factura'}</button>
+      </div>
+    </form>
   );
 }

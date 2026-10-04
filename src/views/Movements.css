@@ -3,3 +3,24 @@
 
 .mov-actions { flex: none; }
 @media (max-width: 767px) { .mov-actions { width: 100%; } .mov-actions .btn { flex: 1; min-width: 0; } }
+
+.mov-check { width: 20px; height: 20px; accent-color: var(--color-primary); flex: none; }
+.mov-selectbar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-primary); border-radius: var(--radius);
+  background: var(--color-primary-soft); color: var(--color-primary);
+}
+.mov-invoice-lines { display: flex; flex-direction: column; margin-top: var(--space-4); }
+.mov-invoice-line {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-3);
+  align-items: baseline; padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border); font-size: var(--text-sm);
+}
+.mov-invoice-line:last-child { border-bottom: none; }
+.mov-invoice-btn { margin-top: var(--space-3); }
+@media (max-width: 767px) {
+  .mov-selectbar { flex-wrap: wrap; }
+  .mov-selectbar .btn { flex: 1; }
+  .mov-check { width: 24px; height: 24px; }
+}
