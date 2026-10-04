@@ -1,5 +1,24 @@
-.dt { width: 100%; }
+/* Desplazamiento lateral siempre visible: con muchas columnas, la barra debe
+   verse sin tener que descubrirla pasando el ratón. */
+.dt {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) var(--color-surface-2);
+  padding-bottom: var(--space-1);
+}
+.dt::-webkit-scrollbar { height: 10px; }
+.dt::-webkit-scrollbar-track { background: var(--color-surface-2); border-radius: 999px; }
+.dt::-webkit-scrollbar-thumb { background: var(--color-primary); border-radius: 999px; }
+.dt::-webkit-scrollbar-thumb:hover { background: var(--color-primary-dark); }
+
 .dt-table { width: 100%; border-collapse: collapse; }
+
+@media (min-width: 768px) {
+  /* Ancho mínimo para que las columnas no se aplasten; si no cabe, aparece la barra. */
+  .dt-table { min-width: 900px; }
+  .dt { overflow-x: scroll; }
+}
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 .dt-th {

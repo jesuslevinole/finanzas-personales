@@ -24,3 +24,7 @@
   .mov-selectbar .btn { flex: 1; }
   .mov-check { width: 24px; height: 24px; }
 }
+
+.mov-invoice-row { background: linear-gradient(90deg, var(--color-primary-soft), transparent 40%); }
+.mov-invoice-chip { width: 30px; height: 30px; border-radius: 9px; }
+.text-primary { color: var(--color-primary); }

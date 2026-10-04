@@ -167,6 +167,8 @@ export default function Movements() {
   });
 
   /** Facturas del alcance actual, con sus totales calculados desde los gastos. */
+  const invoiceSeq = useMemo(() => sequenceMap(data.invoices, (i) => i.date), [data.invoices]);
+
   const invoiceRows = useMemo(() => {
     const ids = new Set(scopeExpenses.map((e) => e.invoiceId).filter(Boolean) as string[]);
     return data.invoices
@@ -184,6 +186,44 @@ export default function Movements() {
   }, [data.invoices, data.expenses, scopeExpenses]);
 
   type InvoiceRow = (typeof invoiceRows)[number];
+
+  /**
+   * Las facturas se ven como UNA fila en la lista de gastos; los gastos sueltos
+   * mantienen la suya. Al tocar una factura se abre el detalle con sus productos.
+   */
+  type MovementRow =
+    | { id: string; kind: 'expense'; expense: Expense }
+    | { id: string; kind: 'invoice'; invoice: Invoice; lines: Expense[]; totalBs: number; totalUsd: number; date: string };
+
+  const expenseRows: MovementRow[] = useMemo(() => {
+    const loose: MovementRow[] = [];
+    const groups = new Map<string, Expense[]>();
+
+    expenses.forEach((e) => {
+      if (!e.invoiceId) { loose.push({ id: e.id, kind: 'expense', expense: e }); return; }
+      groups.set(e.invoiceId, [...(groups.get(e.invoiceId) ?? []), e]);
+    });
+
+    const grouped: MovementRow[] = [];
+    groups.forEach((lines, invoiceId) => {
+      const invoice = data.invoices.find((i) => i.id === invoiceId);
+      if (!invoice) {
+        // Factura borrada: sus gastos vuelven a verse sueltos.
+        lines.forEach((e) => grouped.push({ id: e.id, kind: 'expense', expense: e }));
+        return;
+      }
+      grouped.push({
+        id: invoice.id, kind: 'invoice', invoice, lines,
+        totalBs: sum(lines.map((l) => l.totalBs)),
+        totalUsd: sum(lines.map((l) => l.totalUsd)),
+        date: invoice.date,
+      });
+    });
+
+    const dateOf = (row: MovementRow) => (row.kind === 'expense' ? row.expense.date : row.date);
+    const seqOf = (row: MovementRow) => (row.kind === 'expense' ? expenseSeqAll.get(row.expense.id) ?? 0 : 0);
+    return [...loose, ...grouped].sort((a, b) => dateOf(b).localeCompare(dateOf(a)) || seqOf(b) - seqOf(a));
+  }, [expenses, data.invoices, expenseSeqAll]);
 
   const toggleSelected = (id: string) =>
     setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
@@ -231,34 +271,61 @@ export default function Movements() {
     { key: 'usd', header: 'Total', align: 'end', width: '110px', amount: true, render: (inv) => <span className="text-usd strong">{formatUsd(inv.totalUsd)}</span> },
   ];
 
-  const expenseColumns: Column<Expense>[] = [
+  const expenseColumns: Column<MovementRow>[] = [
     ...(editable ? [{
       key: 'select', header: '', width: '38px', leading: true,
-      render: (e: Expense) => (
-        <input type="checkbox" className="mov-check" checked={selected.includes(e.id)}
-          onChange={() => toggleSelected(e.id)} onClick={(ev) => ev.stopPropagation()}
-          aria-label={`Seleccionar ${e.product}`} />
+      render: (row: MovementRow) => (
+        row.kind === 'expense' ? (
+          <input type="checkbox" className="mov-check" checked={selected.includes(row.id)}
+            onChange={() => toggleSelected(row.id)} onClick={(ev) => ev.stopPropagation()}
+            aria-label={`Seleccionar ${row.expense.product}`} />
+        ) : <span className="chip-icon mov-invoice-chip"><FileText size={15} /></span>
       ),
     }] : []),
-    { key: 'seq', header: '#', width: '54px', hideOnMobile: true, render: (e) => <span className="seq num">{expenseSeqAll.get(e.id)}</span> },
-    { key: 'date', header: 'Fecha', width: '115px', render: (e) => <span className="muted nowrap">{shortDate(e.date)}</span> },
-    { key: 'product', header: 'Producto', primary: true, render: (e) => (
-      <span className="row">
-        {e.invoiceId && <Layers size={13} className="muted" aria-label="Parte de una factura" />}
-        <span className="truncate">{e.productId ? getRelationName(data.products, e.productId, e.product) : e.product}</span>
-        {e.quantity !== 1 && <span className="tiny muted num">× {e.quantity}</span>}
-      </span>
+    { key: 'seq', header: '#', width: '54px', hideOnMobile: true, render: (row) => (
+      <span className="seq num">{row.kind === 'expense' ? expenseSeqAll.get(row.expense.id) : `F${invoiceSeq.get(row.invoice.id) ?? ''}`}</span>
     ) },
-    { key: 'category', header: 'Rubro', width: '150px', render: (e) => (
-      <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(data.categories, e.categoryId) } as CSSProperties}>{getRelationName(data.categories, e.categoryId)}</span>
+    { key: 'date', header: 'Fecha', width: '115px', render: (row) => (
+      <span className="muted nowrap">{shortDate(row.kind === 'expense' ? row.expense.date : row.date)}</span>
     ) },
-    { key: 'place', header: 'Lugar', width: '150px', hideOnMobile: true, render: (e) => <span className="truncate muted">{getRelationName(data.places, e.placeId, '—')}</span> },
-    { key: 'bank', header: 'Banco', width: '130px', hideOnMobile: true, render: (e) => <span className="truncate muted">{e.bankId ? getRelationName(data.banks, e.bankId) : '—'}</span> },
-    { key: 'owner', header: 'Dinero', width: '110px', hideOnMobile: true, render: (e) => (
-      <span className={`tag ${(e.owner ?? 'propio') === 'propio' ? 'ok' : ''}`}>{e.owner ?? 'propio'}</span>
+    { key: 'product', header: 'Producto', primary: true, render: (row) => (
+      row.kind === 'expense'
+        ? (
+          <span className="row">
+            <span className="truncate">{row.expense.productId ? getRelationName(data.products, row.expense.productId, row.expense.product) : row.expense.product}</span>
+            {row.expense.quantity !== 1 && <span className="tiny muted num">× {row.expense.quantity}</span>}
+          </span>
+        )
+        : (
+          <span className="row">
+            <Layers size={14} className="text-primary" />
+            <span className="truncate strong">{row.invoice.concept}</span>
+            <span className="tag primary">{row.lines.length} productos</span>
+          </span>
+        )
     ) },
-    { key: 'bs', header: 'Bs', align: 'end', width: '130px', hideOnMobile: true, render: (e) => <span className="text-bs">{formatBs(e.totalBs)}</span> },
-    { key: 'usd', header: 'USD', align: 'end', width: '100px', amount: true, render: (e) => <span className="text-usd strong">{formatUsd(e.totalUsd)}</span> },
+    { key: 'category', header: 'Rubro', width: '150px', render: (row) => (
+      row.kind === 'expense'
+        ? <span className="tag cat truncate" style={{ '--tag-color': getRelationColor(data.categories, row.expense.categoryId) } as CSSProperties}>{getRelationName(data.categories, row.expense.categoryId)}</span>
+        : <span className="tiny muted">Varios rubros</span>
+    ) },
+    { key: 'place', header: 'Lugar', width: '150px', hideOnMobile: true, render: (row) => (
+      <span className="truncate muted">{getRelationName(data.places, row.kind === 'expense' ? row.expense.placeId : row.invoice.placeId ?? '', '—')}</span>
+    ) },
+    { key: 'bank', header: 'Banco', width: '130px', hideOnMobile: true, render: (row) => {
+      const bankId = row.kind === 'expense' ? row.expense.bankId : row.invoice.bankId;
+      return <span className="truncate muted">{bankId ? getRelationName(data.banks, bankId) : '—'}</span>;
+    } },
+    { key: 'owner', header: 'Dinero', width: '110px', hideOnMobile: true, render: (row) => {
+      const owner = row.kind === 'expense' ? row.expense.owner ?? 'propio' : row.invoice.owner;
+      return <span className={`tag ${owner === 'propio' ? 'ok' : ''}`}>{owner}</span>;
+    } },
+    { key: 'bs', header: 'Bs', align: 'end', width: '140px', hideOnMobile: true, render: (row) => (
+      <span className="text-bs nowrap">{formatBs(row.kind === 'expense' ? row.expense.totalBs : row.totalBs)}</span>
+    ) },
+    { key: 'usd', header: 'USD', align: 'end', width: '110px', amount: true, render: (row) => (
+      <span className="text-usd strong">{formatUsd(row.kind === 'expense' ? row.expense.totalUsd : row.totalUsd)}</span>
+    ) },
   ];
 
   const incomeColumns: Column<Income>[] = [
@@ -396,12 +463,18 @@ export default function Movements() {
             empty={<EmptyState title="Sin facturas"
               hint="Agrupa gastos ya registrados seleccionándolos en la pestaña Gastos, o crea una factura nueva con todos sus productos." />} />
         ) : tab === 'gastos' ? (
-          <DataTable rows={expenses} columns={expenseColumns} onRowClick={setDetail}
-            actions={editable ? (e) => (
-              <>
-                <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(e)}><Pencil size={15} /></button>
-                <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void removeRecord(e)}><Trash2 size={15} /></button>
-              </>
+          <DataTable rows={expenseRows} columns={expenseColumns}
+            onRowClick={(row) => (row.kind === 'expense' ? setDetail(row.expense) : setInvoiceDetail(row.invoice))}
+            rowClass={(row) => (row.kind === 'invoice' ? 'mov-invoice-row' : '')}
+            actions={editable ? (row) => (
+              row.kind === 'expense' ? (
+                <>
+                  <button type="button" className="btn btn-ghost btn-icon" aria-label="Editar" onClick={() => setEditing(row.expense)}><Pencil size={15} /></button>
+                  <button type="button" className="btn btn-ghost btn-icon" aria-label="Eliminar" onClick={() => void removeRecord(row.expense)}><Trash2 size={15} /></button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-ghost btn-icon" aria-label="Desagrupar factura" onClick={() => void removeInvoice(row.invoice, false)}><Unlink size={15} /></button>
+              )
             ) : undefined}
             empty={<EmptyState title="Sin gastos" hint={activeCount > 0 ? 'Ningún gasto coincide con los filtros.' : 'Registra lo que compras para saber en qué se va el dinero.'} />} />
         ) : (
