@@ -1,1 +1,40 @@
 .debt-creditors { margin-top: var(--space-2); }
+.form-price { display: flex; gap: var(--space-1); }
+.form-price .input { flex: 1; min-width: 0; }
+.form-cur { min-width: 48px; flex: none; font-weight: 700; color: var(--color-bs); }
+.form-cur.usd { color: var(--color-usd); }
+.form-summary { display: flex; gap: var(--space-5); padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }
+.form-summary dt { font-size: var(--text-xs); color: var(--color-muted); }
+.form-summary dd { font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); }
+
+.form-scan { display: flex; gap: var(--space-2); align-items: stretch; }
+.form-scan .cselect { flex: 1; min-width: 0; }
+.form-scan-btn { flex: none; width: 52px; padding: 0; }
+
+.form-summary-kv { padding: var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-2); }
+
+/* Compra a cuotas en la tabla */
+.debt-concept { min-width: 0; }
+.debt-concept svg { flex: none; }
+.debt-progress { display: flex; flex-direction: column; gap: 4px; min-width: 96px; }
+
+/* Detalle: productos y cuotas de la compra */
+.debt-section { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+.debt-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.debt-line {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-3);
+  align-items: baseline; padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border); font-size: var(--text-sm);
+}
+.debt-cuota {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: var(--space-2) var(--space-3);
+  align-items: center; padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border);
+}
+.debt-line:last-child, .debt-cuota:last-child { border-bottom: none; }
+.debt-cuota.paid .debt-cuota-main, .debt-cuota.paid > .num { opacity: 0.6; }
+.debt-cuota-main { display: flex; align-items: center; gap: var(--space-2); min-width: 0; flex-wrap: wrap; }
+.debt-cuota-actions { grid-column: 2 / -1; display: flex; justify-content: flex-end; gap: var(--space-1); }
+@media (min-width: 640px) {
+  .debt-cuota { grid-template-columns: 24px minmax(0, 1fr) auto auto; }
+  .debt-cuota-actions { grid-column: auto; }
+}

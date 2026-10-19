@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 import type {
-  Budget, Category, Creditor, Debt, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
+  Budget, Category, Creditor, Debt, DebtGroup, Expense, ExchangeRate, FixedCost, Income, IncomeSource,
   Bank, Goal, InventoryItem, Invoice, Loan, Member, NewDoc, Person, Place, Product, ProductType, SavingsAccount, Role, ShoppingItem, ShoppingList, UserSettings, WalletMove, WithId,
 } from '../types';
 import type { CollectionName } from '../services/firestore';
@@ -31,6 +31,8 @@ export interface DataValue {
   expenses: Expense[];
   fixedCosts: FixedCost[];
   debts: Debt[];
+  /** Compras a cuotas: agrupan cuotas de `debts` por `groupId`. */
+  debtGroups: DebtGroup[];
   budgets: Budget[];
   invoices: Invoice[];
   goals: Goal[];

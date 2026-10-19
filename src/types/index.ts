@@ -149,6 +149,42 @@ export interface Debt {
   /** Movimiento de gasto con el que se saldó la cuota. */
   paidExpenseId?: string;
   paidDate?: string;
+  /** Compra a cuotas a la que pertenece (sin él, es una cuota suelta). */
+  groupId?: string;
+}
+
+/** Producto de una compra a cuotas, leído de la factura o escrito a mano. */
+export interface DebtItem {
+  name: string;
+  quantity: number;
+  unitPriceUsd: number;
+  totalUsd: number;
+}
+
+/**
+ * Compra a cuotas: un solo registro con sus productos y su calendario. Cada
+ * cuota sigue siendo un `Debt` (con `groupId`) para que recordatorios, ciclo
+ * de cobro y reportes sigan midiendo por vencimiento, igual que `Invoice`
+ * agrupa gastos sin dejar de tenerlos individuales.
+ */
+export interface DebtGroup {
+  id: string;
+  creditorId: string;
+  merchant: string;
+  description?: string;
+  /** Fecha de la compra. */
+  date: string;
+  /** Total de la compra en dólares. */
+  totalUsd: number;
+  /** Inicial pagada al comprar; no genera cuota. */
+  downPaymentUsd?: number;
+  installments: number;
+  everyDays: number;
+  owner: MoneyOwner;
+  items?: DebtItem[];
+  invoiceNumber?: string;
+  /** Tasa usada si la factura venía en bolívares. */
+  rate?: number;
 }
 
 /**

@@ -33,6 +33,7 @@ export type CollectionName =
   | 'expenses'
   | 'fixedCosts'
   | 'debts'
+  | 'debtGroups'
   | 'budgets'
   | 'invoices'
   | 'goals'

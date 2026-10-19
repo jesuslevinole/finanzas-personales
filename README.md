@@ -16,6 +16,7 @@ Falta hacer una sola vez en Firebase Console:
 1. **Authentication → Sign-in method**: habilitar **Anónimo**. Es el único proveedor que necesita la app.
 2. **Firestore Database**: crear la base en modo producción y pegar el contenido de `firestore.rules` en la pestaña Rules.
 3. **Authentication → Settings → Authorized domains**: agregar `localhost` y el dominio de Cloudflare (`tu-proyecto.pages.dev` y tu dominio propio si lo usas). Sin esto el login con Google falla en producción.
+4. **AI Logic → Get started → Gemini Developer API** (para leer facturas por foto en Deudas). Funciona en el plan gratuito Spark; la clave de Gemini queda en Firebase, no en la app. El modelo se cambia con `VITE_GEMINI_MODEL` (por defecto `gemini-3.5-flash`). Recomendado: activar App Check para que nadie más use tu cuota.
 
 La app abre directamente en el resumen. No hay inicio de sesión: quien abra la URL ve los mismos datos desde cualquier dispositivo.
 
@@ -29,7 +30,7 @@ Primer uso: entra en **Ajustes → Cargar rubros sugeridos** y en **Tasa BCV →
 | `/` Resumen | Ingresos/gastos/balance del mes en USD, dona por rubro, gasto acumulado, devaluación del mes, vencimientos, costos fijos, despensa |
 | `/movimientos` | Gastos (lugar, rubro, producto, precio en Bs o $, cantidad, tasa) e ingresos (propio / de tercero). Opción de sumar el gasto al inventario |
 | `/costos-fijos` | Cuotas mensuales en USD con día de pago y estado; copiar del mes anterior |
-| `/deudas` | Cuotas (Cashea, préstamos…) con vencimiento; crea N cuotas cada X días de una vez |
+| `/deudas` | **Compras a cuotas** (Cashea, tiendas, préstamos): un registro por compra con sus productos, inicial y calendario de cuotas. Los productos y precios se pueden leer de la **foto de la factura** (Gemini vía Firebase AI Logic) |
 | `/presupuesto` | Regla 50/30/20 sobre el ingreso propio + tope por rubro (declarado o sugerido por %) |
 | `/reportes` | **Capacidad de endeudamiento**, cuánto gastar por grupo/rubro, tasa de ahorro, fondo de emergencia, ingresos vs gastos 6 meses, **inflación real** (devaluación y productos que más subieron en $) |
 | `/inventario` | Stock en casa, mínimo por producto, historial de precios en $ por compra, enviar a lista |
@@ -71,9 +72,11 @@ Todos los módulos de datos (movimientos, deudas, costos fijos, inventario, tasa
 
 ## Modelo de datos
 
-Colecciones de primer nivel, una por entidad: `expenses`, `incomes`, `fixedCosts`, `debts`, `budgets`, `goals`, `inventory`, `shopping`, `shoppingLists`, `rates`, `categories`, `places`, `creditors`, `incomeSources`, `roles`, `members`, `settings`.
+Colecciones de primer nivel, una por entidad: `expenses`, `incomes`, `fixedCosts`, `debts`, `debtGroups`, `budgets`, `goals`, `inventory`, `shopping`, `shoppingLists`, `rates`, `categories`, `places`, `creditors`, `incomeSources`, `roles`, `members`, `settings`.
 
 Cada documento lleva `ownerId` con el id del **espacio compartido** (`src/workspace.ts`, por defecto `casa`), no con el uid del dispositivo. La app no tiene inicio de sesión: entra sola con un usuario anónimo de Firebase, que solo existe para que las reglas puedan exigir `request.auth != null`. Todos los equipos que abran la URL ven y editan exactamente los mismos datos.
+
+`debtGroups` es la compra a cuotas (acreedor, productos, total, inicial, cada cuántos días). Cada cuota sigue siendo un documento de `debts` con `groupId`, para que recordatorios, ciclo de cobro y reportes sigan funcionando por vencimiento. Las cuotas sin `groupId` (creadas antes) se muestran como registros sueltos.
 
 Para separar espacios (una copia de pruebas, por ejemplo) define `VITE_WORKSPACE_ID` y actualiza la función `workspace()` de `firestore.rules`.
 

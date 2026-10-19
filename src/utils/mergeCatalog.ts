@@ -24,6 +24,7 @@ const REFERENCES: Record<MergeableCatalog, Reference[]> = {
   ],
   creditors: [
     { collection: 'debts', rows: (d, id) => d.debts.filter((x) => x.creditorId === id).map((x) => ({ id: x.id, patch: { creditorId: '' } })) },
+    { collection: 'debtGroups', rows: (d, id) => d.debtGroups.filter((g) => g.creditorId === id).map((g) => ({ id: g.id, patch: { creditorId: '' } })) },
   ],
   incomeSources: [
     { collection: 'incomes', rows: (d, id) => d.incomes.filter((i) => i.sourceId === id).map((i) => ({ id: i.id, patch: { sourceId: '' } })) },

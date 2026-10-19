@@ -131,3 +131,6 @@ Si encontrás dos implementaciones distintas de la misma idea de producto (dos r
 1. `npx tsc --noEmit -p tsconfig.app.json` — sin errores nuevos en todo el proyecto (no solo el archivo tocado).
 2. `npx eslint archivo.tsx` comparado contra el estado anterior (`git stash`/`git stash pop`) — mismos problemas preexistentes desplazados de línea, ninguna categoría nueva.
 3. Si el cambio afecta lógica de runtime no trivial (mapas, APIs externas, geolocalización), decilo explícitamente si no se pudo probar a mano en el navegador — `tsc`/`eslint`/build verifican que compila, no que funciona.
+
+### Nombres de archivo: nunca dos que solo difieran en mayúsculas
+Windows y macOS no distinguen mayúsculas en el disco. Si existen `AuthContext.tsx` y `authContext.ts`, el import `./context/AuthContext` lo resuelve Vite como `authContext.ts` (prueba `.ts` antes que `.tsx`) y la app no arranca (`does not provide an export named 'AuthProvider'`). Por eso los providers se llaman `AuthProvider.tsx`/`DataProvider.tsx` y los contextos `authContext.ts`/`dataContext.ts`. Verificación: `find src -type f -name "*.ts*" | sed 's/\.[^./]*$//' | tr 'A-Z' 'a-z' | sort | uniq -d` debe salir vacío.
